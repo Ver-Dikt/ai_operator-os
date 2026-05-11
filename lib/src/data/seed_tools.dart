@@ -14,6 +14,10 @@ AiTool _tool({
   String limitations = 'Limits and pricing can change. Verify before launch.',
   List<ToolPlatform> platforms = const [ToolPlatform.web],
   double rating = 4.5,
+  List<String> useCases = const [],
+  List<String> agents = const [],
+  List<String> workflows = const [],
+  List<String> alternatives = const [],
 }) {
   return AiTool(
     id: id,
@@ -33,6 +37,11 @@ AiTool _tool({
     platforms: platforms,
     recommendedUseCases: tags,
     workflowExamples: ['Tool routing', 'Prompt pack', 'Production pipeline'],
+    categoryIds: [category.name],
+    useCaseIds: useCases,
+    agentIds: agents,
+    workflowIds: workflows,
+    alternativeToolIds: alternatives,
   );
 }
 

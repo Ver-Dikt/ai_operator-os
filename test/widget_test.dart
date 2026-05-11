@@ -10,14 +10,13 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     for (final entry in <String, String>{
-      'commandCenter': 'Command Center',
+      'commandCenter': 'Command Router',
       'tools': 'AI Tools',
       'agents': 'Agents',
       'workflows': 'Workflows',
       'contentFactory': 'Content Factory',
-      'promptStudio': 'Prompt Studio',
-      'modelRouter': 'Model Router',
-      'freeCredits': 'Free Tools / Credits',
+      'useCases': 'Use Cases',
+      'projects': 'Projects',
       'settings': 'Settings',
     }.entries) {
       SharedPreferences.setMockInitialValues({
@@ -48,9 +47,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Agents'), findsWidgets);
 
-    await tester.tap(find.byIcon(Icons.factory_outlined).last);
+    await tester.tap(find.byIcon(Icons.schema_outlined).last);
     await tester.pumpAndSettle();
-    expect(find.text('Content Factory'), findsOneWidget);
+    expect(find.text('Workflows'), findsWidgets);
 
     await tester.tap(find.byIcon(Icons.tune_rounded).last);
     await tester.pumpAndSettle();
@@ -67,14 +66,10 @@ void main() {
     await tester.pumpWidget(const AiOperatorApp());
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Route task'));
-    await tester.tap(find.text('Route task'));
+    await tester.ensureVisible(find.text('Mock route task'));
+    await tester.tap(find.text('Mock route task'));
     await tester.pumpAndSettle();
-    expect(find.text('Model Router'), findsOneWidget);
-
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-    expect(find.text('Command Center'), findsOneWidget);
+    expect(find.text('Task Mode Recommendation'), findsOneWidget);
   });
 
   testWidgets('main sections render on narrow and wide layouts', (

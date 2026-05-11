@@ -5,11 +5,10 @@ import '../screens/agents/agents_screen.dart';
 import '../screens/command_center_screen.dart';
 import '../screens/content_factory/content_factory_screen.dart';
 import '../screens/favorites_screen.dart';
-import '../screens/free_credits/free_credits_screen.dart';
-import '../screens/model_router/model_router_screen.dart';
-import '../screens/prompt_studio/prompt_studio_screen.dart';
+import '../screens/projects/projects_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/tools/tools_screen.dart';
+import '../screens/use_cases/use_cases_screen.dart';
 import '../screens/workflows/workflows_screen.dart';
 import '../state/app_settings.dart';
 
@@ -55,7 +54,7 @@ class _AppShellState extends State<AppShell> {
       AppDestination.commandCenter,
       AppDestination.tools,
       AppDestination.agents,
-      AppDestination.contentFactory,
+      AppDestination.workflows,
       AppDestination.settings,
     ];
     final mobileIndex = mobileDestinations.contains(destination)
@@ -94,8 +93,8 @@ class _AppShellState extends State<AppShell> {
                   label: 'Agents',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.factory_outlined),
-                  label: 'Factory',
+                  icon: Icon(Icons.schema_outlined),
+                  label: 'Flows',
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.tune_rounded),
@@ -121,9 +120,8 @@ class _AppShellState extends State<AppShell> {
       AppDestination.agents => const AgentsScreen(),
       AppDestination.workflows => const WorkflowsScreen(),
       AppDestination.contentFactory => const ContentFactoryScreen(),
-      AppDestination.promptStudio => const PromptStudioScreen(),
-      AppDestination.modelRouter => const ModelRouterScreen(),
-      AppDestination.freeCredits => const FreeCreditsScreen(),
+      AppDestination.useCases => const UseCasesScreen(),
+      AppDestination.projects => const ProjectsScreen(),
       AppDestination.favorites => const FavoritesScreen(),
       AppDestination.settings => const SettingsScreen(),
     };
@@ -156,16 +154,11 @@ class _DesktopSidebar extends StatelessWidget {
         Icons.factory_outlined,
         Icons.factory_rounded,
       ),
+      (AppDestination.useCases, Icons.map_outlined, Icons.map_rounded),
       (
-        AppDestination.promptStudio,
-        Icons.edit_note_outlined,
-        Icons.edit_note_rounded,
-      ),
-      (AppDestination.modelRouter, Icons.route_outlined, Icons.route_rounded),
-      (
-        AppDestination.freeCredits,
-        Icons.savings_outlined,
-        Icons.savings_rounded,
+        AppDestination.projects,
+        Icons.folder_open_outlined,
+        Icons.folder_rounded,
       ),
       (
         AppDestination.favorites,

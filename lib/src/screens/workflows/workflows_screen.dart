@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../ai_operator_app.dart';
 import '../../data/seed_workflows.dart';
 import '../../models/workflow_template.dart';
+import '../../services/graph_repository.dart';
 import '../../widgets/cards/os_card.dart';
 import '../../widgets/chips/status_badge.dart';
 import '../../widgets/responsive_page.dart';
@@ -107,6 +108,8 @@ class _WorkflowCard extends StatelessWidget {
                 Chip(label: Text(tool)),
             ],
           ),
+          const SizedBox(height: 8),
+          _WorkflowLinks(workflow: workflow),
           const SizedBox(height: 12),
           FilledButton.icon(
             onPressed: () => Navigator.of(context).push(
@@ -119,6 +122,32 @@ class _WorkflowCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _WorkflowLinks extends StatelessWidget {
+  const _WorkflowLinks({required this.workflow});
+
+  final WorkflowTemplate workflow;
+
+  @override
+  Widget build(BuildContext context) {
+    final graph = const GraphRepository();
+    final agents = graph.agentsByIds(workflow.agentIds);
+    final useCases = [
+      ...graph.useCasesByIds(workflow.useCaseIds),
+      ...graph.useCasesForWorkflow(workflow.id),
+    ];
+    if (agents.isEmpty && useCases.isEmpty) return const SizedBox.shrink();
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        for (final agent in agents.take(3)) Chip(label: Text(agent.name)),
+        for (final useCase in useCases.take(2))
+          Chip(label: Text(useCase.title)),
+      ],
     );
   }
 }

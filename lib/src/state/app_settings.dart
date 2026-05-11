@@ -12,9 +12,8 @@ enum AppDestination {
   agents,
   workflows,
   contentFactory,
-  promptStudio,
-  modelRouter,
-  freeCredits,
+  useCases,
+  projects,
   favorites,
   settings,
 }
@@ -27,9 +26,8 @@ extension AppDestinationRoute on AppDestination {
       AppDestination.agents => '/agents',
       AppDestination.workflows => '/workflows',
       AppDestination.contentFactory => '/factory',
-      AppDestination.promptStudio => '/prompts',
-      AppDestination.modelRouter => '/router',
-      AppDestination.freeCredits => '/free',
+      AppDestination.useCases => '/use-cases',
+      AppDestination.projects => '/projects',
       AppDestination.favorites => '/favorites',
       AppDestination.settings => '/settings',
     };
@@ -41,9 +39,11 @@ extension AppDestinationRoute on AppDestination {
       '/agents' => AppDestination.agents,
       '/workflows' => AppDestination.workflows,
       '/factory' => AppDestination.contentFactory,
-      '/prompts' => AppDestination.promptStudio,
-      '/router' => AppDestination.modelRouter,
-      '/free' => AppDestination.freeCredits,
+      '/prompts' ||
+      '/router' ||
+      '/free' ||
+      '/use-cases' => AppDestination.useCases,
+      '/projects' => AppDestination.projects,
       '/favorites' => AppDestination.favorites,
       '/settings' => AppDestination.settings,
       _ => AppDestination.commandCenter,
@@ -57,9 +57,8 @@ extension AppDestinationRoute on AppDestination {
       AppDestination.agents => 'Agents',
       AppDestination.workflows => 'Workflows',
       AppDestination.contentFactory => 'Factory',
-      AppDestination.promptStudio => 'Prompts',
-      AppDestination.modelRouter => 'Router',
-      AppDestination.freeCredits => 'Free',
+      AppDestination.useCases => 'Use Cases',
+      AppDestination.projects => 'Projects',
       AppDestination.favorites => 'Favorites',
       AppDestination.settings => 'Settings',
     };

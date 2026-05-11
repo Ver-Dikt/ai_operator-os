@@ -70,6 +70,11 @@ class AiTool {
     required this.platforms,
     required this.recommendedUseCases,
     required this.workflowExamples,
+    this.categoryIds = const [],
+    this.useCaseIds = const [],
+    this.agentIds = const [],
+    this.workflowIds = const [],
+    this.alternativeToolIds = const [],
   });
 
   final String id;
@@ -88,6 +93,11 @@ class AiTool {
   final List<ToolPlatform> platforms;
   final List<String> recommendedUseCases;
   final List<String> workflowExamples;
+  final List<String> categoryIds;
+  final List<String> useCaseIds;
+  final List<String> agentIds;
+  final List<String> workflowIds;
+  final List<String> alternativeToolIds;
 
   bool get isFreePath =>
       pricingType == PricingType.free ||

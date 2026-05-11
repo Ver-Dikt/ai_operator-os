@@ -1,6 +1,10 @@
+import 'monetization.dart';
+
 enum WorkflowDifficulty { easy, medium, advanced }
 
 enum CostLevel { free, low, medium, high, mixed }
+
+enum AutomationLevel { manual, assisted, semiAutomated, automated }
 
 class WorkflowStep {
   const WorkflowStep({
@@ -39,6 +43,15 @@ class WorkflowTemplate {
     required this.requiredTools,
     required this.optionalTools,
     required this.outputExamples,
+    this.agentIds = const [],
+    this.toolIds = const [],
+    this.promptTemplateIds = const [],
+    this.useCaseIds = const [],
+    this.outputs = const [],
+    this.monetizationPotential = MonetizationPotential.low,
+    this.revenueModel = RevenueModel.freelance,
+    this.requiresHumanReview = true,
+    this.automationLevel = AutomationLevel.assisted,
   });
 
   final String id;
@@ -52,4 +65,13 @@ class WorkflowTemplate {
   final List<String> requiredTools;
   final List<String> optionalTools;
   final List<String> outputExamples;
+  final List<String> agentIds;
+  final List<String> toolIds;
+  final List<String> promptTemplateIds;
+  final List<String> useCaseIds;
+  final List<String> outputs;
+  final MonetizationPotential monetizationPotential;
+  final RevenueModel revenueModel;
+  final bool requiresHumanReview;
+  final AutomationLevel automationLevel;
 }

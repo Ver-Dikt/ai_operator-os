@@ -4,6 +4,7 @@ import '../../ai_operator_app.dart';
 import '../../data/seed_agents.dart';
 import '../../models/ai_agent.dart';
 import '../../services/agent_repository.dart';
+import '../../services/graph_repository.dart';
 import '../../widgets/cards/os_card.dart';
 import '../../widgets/chips/status_badge.dart';
 import '../../widgets/responsive_page.dart';
@@ -157,6 +158,8 @@ class _AgentDialogState extends State<_AgentDialog> {
             children: [
               Text(widget.agent.description),
               const SizedBox(height: 12),
+              _AgentLinks(agent: widget.agent),
+              const SizedBox(height: 12),
               TextField(
                 controller: _task,
                 minLines: 2,
@@ -199,6 +202,63 @@ class _AgentDialogState extends State<_AgentDialog> {
           label: const Text('Run mock'),
         ),
       ],
+    );
+  }
+}
+
+class _AgentLinks extends StatelessWidget {
+  const _AgentLinks({required this.agent});
+
+  final AiAgent agent;
+
+  @override
+  Widget build(BuildContext context) {
+    final graph = const GraphRepository();
+    final tools = graph.toolsByIds([
+      ...agent.toolIds,
+      ...agent.recommendedTools,
+    ]);
+    final workflows = graph.workflowsByIds(agent.workflowIds);
+    final useCases = graph.useCasesForAgent(agent.id);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _DialogChips(
+          title: 'Tools',
+          items: tools.map((tool) => tool.name).toList(),
+        ),
+        _DialogChips(
+          title: 'Workflows',
+          items: workflows.map((w) => w.title).toList(),
+        ),
+        _DialogChips(
+          title: 'Use cases',
+          items: useCases.map((u) => u.title).toList(),
+        ),
+      ],
+    );
+  }
+}
+
+class _DialogChips extends StatelessWidget {
+  const _DialogChips({required this.title, required this.items});
+
+  final String title;
+  final List<String> items;
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+          Chip(label: Text(title)),
+          for (final item in items.take(6)) Chip(label: Text(item)),
+        ],
+      ),
     );
   }
 }

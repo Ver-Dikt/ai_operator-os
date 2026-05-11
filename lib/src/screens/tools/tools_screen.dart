@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../ai_operator_app.dart';
 import '../../data/seed_tools.dart';
 import '../../models/ai_tool.dart';
+import '../../services/graph_repository.dart';
 import '../../services/url_service.dart';
 import '../../widgets/cards/os_card.dart';
 import '../../widgets/chips/status_badge.dart';
@@ -220,6 +221,13 @@ class _ToolV2Card extends StatelessWidget {
   }
 
   void _showDetails(BuildContext context, AiTool tool) {
+    final graph = const GraphRepository();
+    final agents = graph.agentsByIds(tool.agentIds);
+    final workflows = graph.workflowsByIds(tool.workflowIds);
+    final useCases = [
+      ...graph.useCasesByIds(tool.useCaseIds),
+      ...graph.useCasesForTool(tool.id),
+    ];
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
@@ -244,6 +252,29 @@ class _ToolV2Card extends StatelessWidget {
                     for (final tag in tool.tags) Chip(label: Text(tag)),
                   ],
                 ),
+                const SizedBox(height: 12),
+                _LinkedSection(
+                  title: 'Agents that can use it',
+                  items: agents.map((agent) => agent.name).toList(),
+                ),
+                _LinkedSection(
+                  title: 'Workflows',
+                  items: workflows.map((workflow) => workflow.title).toList(),
+                ),
+                _LinkedSection(
+                  title: 'Use cases',
+                  items: useCases
+                      .map((useCase) => useCase.title)
+                      .toSet()
+                      .toList(),
+                ),
+                _LinkedSection(
+                  title: 'Alternatives',
+                  items: graph
+                      .toolsByIds(tool.alternativeToolIds)
+                      .map((item) => item.name)
+                      .toList(),
+                ),
               ],
             ),
           ),
@@ -257,6 +288,33 @@ class _ToolV2Card extends StatelessWidget {
             onPressed: () => const UrlService().open(tool.url),
             icon: const Icon(Icons.open_in_new_rounded),
             label: const Text('Open tool'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LinkedSection extends StatelessWidget {
+  const _LinkedSection({required this.title, required this.items});
+
+  final String title;
+  final List<String> items;
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [for (final item in items) Chip(label: Text(item))],
           ),
         ],
       ),

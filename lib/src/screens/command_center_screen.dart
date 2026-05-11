@@ -5,8 +5,11 @@ import '../data/seed_agents.dart';
 import '../data/seed_free_credits.dart';
 import '../data/seed_tools.dart';
 import '../data/seed_workflows.dart';
+import '../services/graph_repository.dart';
+import '../services/router_service.dart';
 import '../state/app_settings.dart';
 import '../widgets/cards/os_card.dart';
+import '../widgets/chips/status_badge.dart';
 import '../widgets/responsive_page.dart';
 import '../widgets/section_header.dart';
 
@@ -21,6 +24,9 @@ class CommandCenterScreen extends StatefulWidget {
 
 class _CommandCenterScreenState extends State<CommandCenterScreen> {
   final TextEditingController _taskController = TextEditingController();
+  var _recommendation = const RouterService().recommend(
+    'Make 10 Reels for a music track',
+  );
 
   @override
   void dispose() {
@@ -31,27 +37,10 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
   @override
   Widget build(BuildContext context) {
     final settings = AppSettingsScope.of(context);
-    final quickTasks = <(String, IconData, AppDestination)>[
-      ('Video', Icons.movie_creation_outlined, AppDestination.contentFactory),
-      ('Music', Icons.music_note_rounded, AppDestination.workflows),
-      ('Code', Icons.code_rounded, AppDestination.modelRouter),
-      ('Image', Icons.image_outlined, AppDestination.tools),
-      ('Research', Icons.travel_explore_rounded, AppDestination.modelRouter),
-      ('Marketing', Icons.campaign_outlined, AppDestination.contentFactory),
-      ('Automation', Icons.account_tree_outlined, AppDestination.workflows),
-    ];
-
     return ResponsivePage(
-      title: 'Command Center',
+      title: 'Command Router',
       subtitle:
-          'Tell the OS what you want to make. It routes tools, agents, prompts and workflows without calling real APIs yet.',
-      actions: [
-        OutlinedButton.icon(
-          onPressed: () => widget.onNavigate(AppDestination.modelRouter),
-          icon: const Icon(Icons.route_rounded),
-          label: const Text('Route task'),
-        ),
-      ],
+          'One input, three modes: browse the AI internet, launch the agent workforce, or assemble a workflow.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -65,26 +54,46 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                   maxLines: 3,
                   decoration: const InputDecoration(
                     prefixIcon: Icon(Icons.terminal_rounded),
-                    hintText: 'What do you want to make?',
+                    hintText:
+                        'What do you want to do? Example: оживить старые фото как услугу',
                   ),
-                  onSubmitted: (_) =>
-                      widget.onNavigate(AppDestination.modelRouter),
+                  onSubmitted: (_) => _routeTask(),
                 ),
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    for (final task in quickTasks)
-                      ActionChip(
-                        avatar: Icon(task.$2, size: 18),
-                        label: Text(task.$1),
-                        onPressed: () => widget.onNavigate(task.$3),
-                      ),
+                    FilledButton.icon(
+                      onPressed: () => widget.onNavigate(AppDestination.tools),
+                      icon: const Icon(Icons.search_rounded),
+                      label: const Text('Find AI tool'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: () => widget.onNavigate(AppDestination.agents),
+                      icon: const Icon(Icons.smart_toy_outlined),
+                      label: const Text('Launch agent'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: () =>
+                          widget.onNavigate(AppDestination.workflows),
+                      icon: const Icon(Icons.schema_rounded),
+                      label: const Text('Build workflow'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _routeTask,
+                      icon: const Icon(Icons.route_rounded),
+                      label: const Text('Mock route task'),
+                    ),
                   ],
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 20),
+          _RecommendationPanel(
+            recommendation: _recommendation,
+            onNavigate: widget.onNavigate,
           ),
           const SizedBox(height: 20),
           LayoutBuilder(
@@ -112,6 +121,12 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
           ),
           const SizedBox(height: 20),
           const SectionHeader(
+            title: 'Use Case Library',
+            subtitle: 'Task-first entry points for monetizable opportunities.',
+          ),
+          _UseCasePreview(onNavigate: widget.onNavigate),
+          const SizedBox(height: 20),
+          const SectionHeader(
             title: 'Recommended Stack Of The Day',
             subtitle: 'A practical mix for cinematic social video.',
           ),
@@ -128,6 +143,120 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
             subtitle: 'Free/local paths you can try before spending credits.',
           ),
           _FreeTodayPanel(onNavigate: widget.onNavigate),
+        ],
+      ),
+    );
+  }
+
+  void _routeTask() {
+    setState(() {
+      _recommendation = const RouterService().recommend(_taskController.text);
+    });
+  }
+}
+
+class _RecommendationPanel extends StatelessWidget {
+  const _RecommendationPanel({
+    required this.recommendation,
+    required this.onNavigate,
+  });
+
+  final dynamic recommendation;
+  final ValueChanged<AppDestination> onNavigate;
+
+  @override
+  Widget build(BuildContext context) {
+    final graph = const GraphRepository();
+    final agents = graph.agentsByIds(recommendation.agentIds);
+    final tools = graph.toolsByIds(recommendation.toolIds);
+    final useCases = graph.useCasesByIds(recommendation.useCaseIds);
+
+    return OsCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionHeader(
+            title: 'Task Mode Recommendation',
+            subtitle:
+                'Mock router output: agents pick tools, workflow orders steps.',
+          ),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              StatusBadge(label: recommendation.recommendedWorkflow),
+              StatusBadge(label: recommendation.automationPotential),
+              const StatusBadge(
+                label: 'human review required',
+                color: Color(0xFFFFB86B),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _MiniLinkLine(
+            title: 'Agents',
+            items: agents.map((a) => a.name).toList(),
+          ),
+          _MiniLinkLine(
+            title: 'Tools',
+            items: tools.map((t) => t.name).toList(),
+          ),
+          _MiniLinkLine(
+            title: 'Use cases',
+            items: useCases.map((u) => u.title).toList(),
+          ),
+          _MiniLinkLine(title: 'Free path', items: recommendation.freePath),
+          _MiniLinkLine(title: 'Pro path', items: recommendation.proPath),
+          _MiniLinkLine(
+            title: 'Manual steps',
+            items: recommendation.manualSteps,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            recommendation.monetizationIdea,
+            style: const TextStyle(color: Color(0xFFFFB86B)),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                onPressed: () => onNavigate(AppDestination.workflows),
+                icon: const Icon(Icons.play_arrow_rounded),
+                label: const Text('Open workflow'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () => onNavigate(AppDestination.useCases),
+                icon: const Icon(Icons.map_outlined),
+                label: const Text('Open use cases'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniLinkLine extends StatelessWidget {
+  const _MiniLinkLine({required this.title, required this.items});
+
+  final String title;
+  final List<String> items;
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text('$title:', style: const TextStyle(fontWeight: FontWeight.w900)),
+          for (final item in items.take(5)) Chip(label: Text(item)),
         ],
       ),
     );
@@ -249,6 +378,37 @@ class _StackPanel extends StatelessWidget {
   }
 }
 
+class _UseCasePreview extends StatelessWidget {
+  const _UseCasePreview({required this.onNavigate});
+
+  final ValueChanged<AppDestination> onNavigate;
+
+  @override
+  Widget build(BuildContext context) {
+    return OsCard(
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final label in [
+            '10 Reels for a track',
+            'AI freelance tasks',
+            'Restore old photos',
+            'Video localization',
+            'n8n workflow',
+          ])
+            Chip(label: Text(label)),
+          OutlinedButton.icon(
+            onPressed: () => onNavigate(AppDestination.useCases),
+            icon: const Icon(Icons.map_outlined),
+            label: const Text('Browse use cases'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _AgentsStrip extends StatelessWidget {
   const _AgentsStrip({required this.onNavigate});
 
@@ -305,9 +465,9 @@ class _FreeTodayPanel extends StatelessWidget {
           for (final offer in seedFreeCredits.take(3))
             Chip(label: Text(offer.service)),
           OutlinedButton.icon(
-            onPressed: () => onNavigate(AppDestination.freeCredits),
+            onPressed: () => onNavigate(AppDestination.tools),
             icon: const Icon(Icons.savings_outlined),
-            label: const Text('Open tracker'),
+            label: const Text('Browse free tools'),
           ),
         ],
       ),

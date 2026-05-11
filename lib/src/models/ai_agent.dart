@@ -15,6 +15,12 @@ class AiAgent {
     required this.canUseApi,
     required this.isLocalCapable,
     required this.status,
+    this.category = 'General',
+    this.toolIds = const [],
+    this.workflowIds = const [],
+    this.promptTemplateIds = const [],
+    this.taskTypes = const [],
+    this.humanApprovalRequired = true,
   });
 
   final String id;
@@ -30,4 +36,10 @@ class AiAgent {
   final bool canUseApi;
   final bool isLocalCapable;
   final AgentStatus status;
+  final String category;
+  final List<String> toolIds;
+  final List<String> workflowIds;
+  final List<String> promptTemplateIds;
+  final List<String> taskTypes;
+  final bool humanApprovalRequired;
 }
