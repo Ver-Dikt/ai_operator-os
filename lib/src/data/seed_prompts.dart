@@ -6,10 +6,17 @@ const seedPrompts = <PromptTemplate>[
     title: 'Cinematic Video Scene',
     category: 'Video',
     style: 'restrained cinematic',
-    variables: ['idea', 'location', 'emotion', 'camera_reason', 'final_gesture'],
+    variables: [
+      'idea',
+      'location',
+      'emotion',
+      'camera_reason',
+      'final_gesture',
+    ],
     recommendedTools: ['veo', 'kling', 'runway', 'google-flow'],
     notes: 'Use blocking and attention control before adding motion.',
-    template: 'Create a cinematic scene about {{idea}} in {{location}}. Emotional turn: {{emotion}}. Camera moves only because {{camera_reason}}. Use depth, blocking and stable composition. End on {{final_gesture}}. Negative prompt: random motion, overcutting, glossy stock look, incoherent hands.',
+    template:
+        'Create a cinematic scene about {{idea}} in {{location}}. Emotional turn: {{emotion}}. Camera moves only because {{camera_reason}}. Use depth, blocking and stable composition. End on {{final_gesture}}. Negative prompt: random motion, overcutting, glossy stock look, incoherent hands.',
   ),
   PromptTemplate(
     id: 'tool-router',
@@ -19,7 +26,8 @@ const seedPrompts = <PromptTemplate>[
     variables: ['task', 'budget', 'platform', 'quality_target'],
     recommendedTools: ['chatgpt', 'perplexity', 'ollama'],
     notes: 'Great starting prompt for choosing a stack.',
-    template: 'Task: {{task}}\nBudget: {{budget}}\nPlatform: {{platform}}\nQuality target: {{quality_target}}\nReturn: best paid option, best free option, local option, fastest option, risks, and workflow order.',
+    template:
+        'Task: {{task}}\nBudget: {{budget}}\nPlatform: {{platform}}\nQuality target: {{quality_target}}\nReturn: best paid option, best free option, local option, fastest option, risks, and workflow order.',
   ),
   PromptTemplate(
     id: 'music-promo',
@@ -29,7 +37,8 @@ const seedPrompts = <PromptTemplate>[
     variables: ['song_mood', 'genre', 'audience', 'release_date'],
     recommendedTools: ['suno', 'udio', 'canva', 'kling'],
     notes: 'For release campaigns and short-form teasers.',
-    template: 'Build a music promo pack for a {{genre}} track. Mood: {{song_mood}}. Audience: {{audience}}. Release date: {{release_date}}. Create teaser hooks, visual identity, lyric clip ideas, cover art prompts, video prompts, and a posting calendar.',
+    template:
+        'Build a music promo pack for a {{genre}} track. Mood: {{song_mood}}. Audience: {{audience}}. Release date: {{release_date}}. Create teaser hooks, visual identity, lyric clip ideas, cover art prompts, video prompts, and a posting calendar.',
   ),
   PromptTemplate(
     id: 'flutter-feature-builder',
@@ -39,7 +48,8 @@ const seedPrompts = <PromptTemplate>[
     variables: ['feature', 'constraints', 'files'],
     recommendedTools: ['cursor', 'copilot', 'windsurf'],
     notes: 'Use before implementing larger features.',
-    template: 'Feature: {{feature}}\nConstraints: {{constraints}}\nRelevant files: {{files}}\nReturn implementation steps, state changes, UI components, tests, and risk checklist.',
+    template:
+        'Feature: {{feature}}\nConstraints: {{constraints}}\nRelevant files: {{files}}\nReturn implementation steps, state changes, UI components, tests, and risk checklist.',
   ),
   PromptTemplate(
     id: 'research-comparison',
@@ -49,6 +59,7 @@ const seedPrompts = <PromptTemplate>[
     variables: ['topic', 'criteria', 'deadline'],
     recommendedTools: ['perplexity', 'elicit', 'notebooklm'],
     notes: 'For choosing between services or technical options.',
-    template: 'Compare options for {{topic}} using criteria {{criteria}}. Deadline: {{deadline}}. Return a compact matrix, recommended choice, cheap alternative, risks, and verification steps.',
+    template:
+        'Compare options for {{topic}} using criteria {{criteria}}. Deadline: {{deadline}}. Return a compact matrix, recommended choice, cheap alternative, risks, and verification steps.',
   ),
 ];

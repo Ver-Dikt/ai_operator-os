@@ -1,4 +1,11 @@
-enum ContentFormat { tiktok, reels, shorts, youtube, musicPromo, cinematicScene }
+enum ContentFormat {
+  tiktok,
+  reels,
+  shorts,
+  youtube,
+  musicPromo,
+  cinematicScene,
+}
 
 enum ContentStatus { draft, planned, running, exported }
 

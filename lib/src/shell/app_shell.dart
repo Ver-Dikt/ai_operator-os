@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 
 import '../ai_operator_app.dart';
-import '../screens/catalog_screen.dart';
-import '../screens/dashboard_screen.dart';
+import '../screens/agents/agents_screen.dart';
+import '../screens/command_center_screen.dart';
+import '../screens/content_factory/content_factory_screen.dart';
 import '../screens/favorites_screen.dart';
+import '../screens/free_credits/free_credits_screen.dart';
+import '../screens/model_router/model_router_screen.dart';
+import '../screens/prompt_studio/prompt_studio_screen.dart';
 import '../screens/settings_screen.dart';
+import '../screens/tools/tools_screen.dart';
+import '../screens/workflows/workflows_screen.dart';
 import '../state/app_settings.dart';
 
 class AppShell extends StatefulWidget {
@@ -33,9 +39,7 @@ class _AppShellState extends State<AppShell> {
 
   void _syncCurrentRoute() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || ModalRoute.of(context)?.isCurrent != true) {
-        return;
-      }
+      if (!mounted || ModalRoute.of(context)?.isCurrent != true) return;
       final settings = AppSettingsScope.of(context);
       if (settings.currentDestination != widget.destination) {
         settings.setDestination(widget.destination);
@@ -45,9 +49,18 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
-    final settings = AppSettingsScope.of(context);
     final destination = widget.destination;
-    final isWide = MediaQuery.sizeOf(context).width >= 900;
+    final isWide = MediaQuery.sizeOf(context).width >= 980;
+    final mobileDestinations = const [
+      AppDestination.commandCenter,
+      AppDestination.tools,
+      AppDestination.agents,
+      AppDestination.contentFactory,
+      AppDestination.settings,
+    ];
+    final mobileIndex = mobileDestinations.contains(destination)
+        ? mobileDestinations.indexOf(destination)
+        : 0;
 
     return Scaffold(
       body: Row(
@@ -56,34 +69,37 @@ class _AppShellState extends State<AppShell> {
             _DesktopSidebar(
               destination: destination,
               onSelect: (value) => _goTo(context, value),
-              favoritesCount: settings.favoriteIds.length,
             ),
-          Expanded(child: _screenFor(context, destination, settings)),
+          Expanded(child: _screenFor(context, destination)),
         ],
       ),
       bottomNavigationBar: isWide
           ? null
           : NavigationBar(
               height: 72,
-              selectedIndex: destination.index,
+              selectedIndex: mobileIndex,
               onDestinationSelected: (index) =>
-                  _goTo(context, AppDestination.values[index]),
+                  _goTo(context, mobileDestinations[index]),
               destinations: const [
                 NavigationDestination(
                   icon: Icon(Icons.dashboard_customize_outlined),
-                  label: 'Главная',
+                  label: 'Home',
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.grid_view_rounded),
-                  label: 'Каталог',
+                  label: 'Tools',
                 ),
                 NavigationDestination(
-                  icon: Icon(Icons.star_outline_rounded),
-                  label: 'Избранное',
+                  icon: Icon(Icons.smart_toy_outlined),
+                  label: 'Agents',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.factory_outlined),
+                  label: 'Factory',
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.tune_rounded),
-                  label: 'Настройки',
+                  label: 'Settings',
                 ),
               ],
             ),
@@ -91,24 +107,23 @@ class _AppShellState extends State<AppShell> {
   }
 
   void _goTo(BuildContext context, AppDestination value) {
-    final settings = AppSettingsScope.of(context);
-    if (value == widget.destination) {
-      return;
-    }
-    settings.setDestination(value);
+    if (value == widget.destination) return;
+    AppSettingsScope.of(context).setDestination(value);
     Navigator.of(context).pushNamed(value.routePath);
   }
 
-  Widget _screenFor(
-    BuildContext context,
-    AppDestination destination,
-    AppSettings settings,
-  ) {
+  Widget _screenFor(BuildContext context, AppDestination destination) {
     return switch (destination) {
-      AppDestination.dashboard => DashboardScreen(
-        onOpenCatalog: () => _goTo(context, AppDestination.catalog),
+      AppDestination.commandCenter => CommandCenterScreen(
+        onNavigate: (value) => _goTo(context, value),
       ),
-      AppDestination.catalog => const CatalogScreen(),
+      AppDestination.tools => const ToolsScreen(),
+      AppDestination.agents => const AgentsScreen(),
+      AppDestination.workflows => const WorkflowsScreen(),
+      AppDestination.contentFactory => const ContentFactoryScreen(),
+      AppDestination.promptStudio => const PromptStudioScreen(),
+      AppDestination.modelRouter => const ModelRouterScreen(),
+      AppDestination.freeCredits => const FreeCreditsScreen(),
       AppDestination.favorites => const FavoritesScreen(),
       AppDestination.settings => const SettingsScreen(),
     };
@@ -116,23 +131,55 @@ class _AppShellState extends State<AppShell> {
 }
 
 class _DesktopSidebar extends StatelessWidget {
-  const _DesktopSidebar({
-    required this.destination,
-    required this.onSelect,
-    required this.favoritesCount,
-  });
+  const _DesktopSidebar({required this.destination, required this.onSelect});
 
   final AppDestination destination;
   final ValueChanged<AppDestination> onSelect;
-  final int favoritesCount;
 
   @override
   Widget build(BuildContext context) {
+    final items = const [
+      (
+        AppDestination.commandCenter,
+        Icons.dashboard_customize_outlined,
+        Icons.dashboard_customize_rounded,
+      ),
+      (AppDestination.tools, Icons.grid_view_outlined, Icons.grid_view_rounded),
+      (
+        AppDestination.agents,
+        Icons.smart_toy_outlined,
+        Icons.smart_toy_rounded,
+      ),
+      (AppDestination.workflows, Icons.schema_outlined, Icons.schema_rounded),
+      (
+        AppDestination.contentFactory,
+        Icons.factory_outlined,
+        Icons.factory_rounded,
+      ),
+      (
+        AppDestination.promptStudio,
+        Icons.edit_note_outlined,
+        Icons.edit_note_rounded,
+      ),
+      (AppDestination.modelRouter, Icons.route_outlined, Icons.route_rounded),
+      (
+        AppDestination.freeCredits,
+        Icons.savings_outlined,
+        Icons.savings_rounded,
+      ),
+      (
+        AppDestination.favorites,
+        Icons.star_outline_rounded,
+        Icons.star_rounded,
+      ),
+      (AppDestination.settings, Icons.tune_rounded, Icons.tune_rounded),
+    ];
+
     return Container(
-      width: 236,
+      width: 252,
       decoration: const BoxDecoration(
-        color: Color(0xFF0B0F16),
-        border: Border(right: BorderSide(color: Color(0xFF202A3A))),
+        color: Color(0xFF070A0F),
+        border: Border(right: BorderSide(color: Color(0xFF243244))),
       ),
       child: SafeArea(
         child: Padding(
@@ -142,36 +189,21 @@ class _DesktopSidebar extends StatelessWidget {
             children: [
               const _BrandBlock(),
               const SizedBox(height: 18),
-              _NavItem(
-                icon: Icons.dashboard_customize_outlined,
-                selectedIcon: Icons.dashboard_customize_rounded,
-                label: 'Главная',
-                selected: destination == AppDestination.dashboard,
-                onTap: () => onSelect(AppDestination.dashboard),
+              Expanded(
+                child: ListView(
+                  children: [
+                    for (final item in items)
+                      _NavItem(
+                        key: ValueKey('nav-${item.$1.name}'),
+                        icon: item.$2,
+                        selectedIcon: item.$3,
+                        label: item.$1.label,
+                        selected: destination == item.$1,
+                        onTap: () => onSelect(item.$1),
+                      ),
+                  ],
+                ),
               ),
-              _NavItem(
-                icon: Icons.grid_view_outlined,
-                selectedIcon: Icons.grid_view_rounded,
-                label: 'Каталог',
-                selected: destination == AppDestination.catalog,
-                onTap: () => onSelect(AppDestination.catalog),
-              ),
-              _NavItem(
-                icon: Icons.star_outline_rounded,
-                selectedIcon: Icons.star_rounded,
-                label: 'Избранное',
-                trailing: favoritesCount == 0 ? null : '$favoritesCount',
-                selected: destination == AppDestination.favorites,
-                onTap: () => onSelect(AppDestination.favorites),
-              ),
-              _NavItem(
-                icon: Icons.tune_rounded,
-                selectedIcon: Icons.tune_rounded,
-                label: 'Настройки',
-                selected: destination == AppDestination.settings,
-                onTap: () => onSelect(AppDestination.settings),
-              ),
-              const Spacer(),
               const _StatusCard(),
             ],
           ),
@@ -189,8 +221,8 @@ class _BrandBlock extends StatelessWidget {
     return Row(
       children: [
         Container(
-          width: 40,
-          height: 40,
+          width: 42,
+          height: 42,
           decoration: BoxDecoration(
             gradient: const LinearGradient(
               colors: [Color(0xFF6BE4C9), Color(0xFFFFB86B)],
@@ -199,10 +231,7 @@ class _BrandBlock extends StatelessWidget {
             ),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Icon(
-            Icons.auto_awesome_rounded,
-            color: Color(0xFF07100F),
-          ),
+          child: const Icon(Icons.blur_on_rounded, color: Color(0xFF07100F)),
         ),
         const SizedBox(width: 10),
         const Expanded(
@@ -210,11 +239,11 @@ class _BrandBlock extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'AI Operator',
+                'AI Operator OS',
                 style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
               ),
               Text(
-                'tool stack',
+                'command layer',
                 style: TextStyle(color: Color(0xFF8B97A8), fontSize: 12),
               ),
             ],
@@ -227,12 +256,12 @@ class _BrandBlock extends StatelessWidget {
 
 class _NavItem extends StatelessWidget {
   const _NavItem({
+    super.key,
     required this.icon,
     required this.selectedIcon,
     required this.label,
     required this.selected,
     required this.onTap,
-    this.trailing,
   });
 
   final IconData icon;
@@ -240,26 +269,25 @@ class _NavItem extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  final String? trailing;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Material(
-        color: selected ? const Color(0xFF132A2A) : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
+        color: selected ? const Color(0xFF102A2A) : Colors.transparent,
+        borderRadius: BorderRadius.circular(8),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            height: 46,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+          borderRadius: BorderRadius.circular(8),
+          child: SizedBox(
+            height: 42,
             child: Row(
               children: [
+                const SizedBox(width: 10),
                 Icon(
                   selected ? selectedIcon : icon,
-                  size: 21,
+                  size: 20,
                   color: selected
                       ? const Color(0xFF6BE4C9)
                       : const Color(0xFF8B97A8),
@@ -268,6 +296,8 @@ class _NavItem extends StatelessWidget {
                 Expanded(
                   child: Text(
                     label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: selected
                           ? const Color(0xFFE8EEF8)
@@ -276,24 +306,7 @@ class _NavItem extends StatelessWidget {
                     ),
                   ),
                 ),
-                if (trailing != null)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1D2532),
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                    child: Text(
-                      trailing!,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
+                const SizedBox(width: 10),
               ],
             ),
           ),
@@ -311,9 +324,9 @@ class _StatusCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF111722),
-        border: Border.all(color: const Color(0xFF263244)),
-        borderRadius: BorderRadius.circular(14),
+        color: const Color(0xFF0D111A),
+        border: Border.all(color: const Color(0xFF243244)),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: const Row(
         children: [
@@ -321,7 +334,7 @@ class _StatusCard extends StatelessWidget {
           SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Preview live',
+              'Local mock mode',
               style: TextStyle(
                 color: Color(0xFFC8D2E1),
                 fontWeight: FontWeight.w800,

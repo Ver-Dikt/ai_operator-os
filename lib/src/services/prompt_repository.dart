@@ -7,8 +7,6 @@ class PromptRepository {
   List<PromptTemplate> all() => seedPrompts;
 
   List<PromptTemplate> byCategory(String category) {
-    return seedPrompts
-        .where((prompt) => prompt.category == category)
-        .toList();
+    return seedPrompts.where((prompt) => prompt.category == category).toList();
   }
 }

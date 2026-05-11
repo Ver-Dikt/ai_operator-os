@@ -139,7 +139,8 @@ class AppSettings extends ChangeNotifier {
       final matchesCategory =
           selectedCategory == allCategories ||
           tool.category.label == selectedCategory;
-      final matchesTag = selectedTag == 'all' || tool.tags.contains(selectedTag);
+      final matchesTag =
+          selectedTag == 'all' || tool.tags.contains(selectedTag);
       return matchesCategory && matchesTag && tool.matches(query);
     }).toList()..sort((a, b) {
       final rating = b.rating.compareTo(a.rating);
@@ -149,9 +150,7 @@ class AppSettings extends ChangeNotifier {
   }
 
   List<AiTool> get favoriteTools {
-    return seedTools
-        .where((tool) => _favoriteIds.contains(tool.id))
-        .toList();
+    return seedTools.where((tool) => _favoriteIds.contains(tool.id)).toList();
   }
 
   bool isFavorite(String id) => _favoriteIds.contains(id);

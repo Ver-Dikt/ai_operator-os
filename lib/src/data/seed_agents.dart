@@ -5,9 +5,11 @@ const seedAgents = <AiAgent>[
     id: 'director-agent',
     name: 'Director Agent',
     role: 'Cinematic scene planner',
-    description: 'Turns an idea into dramatic beats, blocking, camera logic and prompt-ready scene plans.',
+    description:
+        'Turns an idea into dramatic beats, blocking, camera logic and prompt-ready scene plans.',
     avatarEmoji: '🎬',
-    systemPrompt: 'Act as an AI film director. Use restraint, blocking and attention control before visual effects.',
+    systemPrompt:
+        'Act as an AI film director. Use restraint, blocking and attention control before visual effects.',
     inputSchema: 'idea, format, mood, duration, constraints',
     outputType: 'Scene plan + prompt pack',
     recommendedTools: ['google-flow', 'veo', 'kling', 'runway', 'midjourney'],
@@ -20,9 +22,11 @@ const seedAgents = <AiAgent>[
     id: 'tool-router-agent',
     name: 'Tool Router Agent',
     role: 'AI stack selector',
-    description: 'Chooses the best paid, free, fast and local tools for a user task.',
+    description:
+        'Chooses the best paid, free, fast and local tools for a user task.',
     avatarEmoji: '🧭',
-    systemPrompt: 'Route tasks to tools by quality, speed, cost and platform constraints.',
+    systemPrompt:
+        'Route tasks to tools by quality, speed, cost and platform constraints.',
     inputSchema: 'task, budget, platform, quality target',
     outputType: 'Tool stack recommendation',
     recommendedTools: ['chatgpt', 'perplexity', 'openrouter', 'ollama'],
@@ -35,9 +39,11 @@ const seedAgents = <AiAgent>[
     id: 'free-stack-agent',
     name: 'Free Stack Agent',
     role: 'Budget optimizer',
-    description: 'Finds the cheapest or free path with local alternatives and free credit checks.',
+    description:
+        'Finds the cheapest or free path with local alternatives and free credit checks.',
     avatarEmoji: '💸',
-    systemPrompt: 'Prefer no-card, local and freemium options. Warn about watermarks and limits.',
+    systemPrompt:
+        'Prefer no-card, local and freemium options. Warn about watermarks and limits.',
     inputSchema: 'task, budget, deadline',
     outputType: 'Free/cheap production plan',
     recommendedTools: ['ollama', 'lm-studio', 'pika', 'kling', 'notebooklm'],
@@ -50,9 +56,11 @@ const seedAgents = <AiAgent>[
     id: 'content-factory-agent',
     name: 'Content Factory Agent',
     role: 'Batch content producer',
-    description: 'Creates repeatable Reels/TikTok/Shorts pipelines from one idea.',
+    description:
+        'Creates repeatable Reels/TikTok/Shorts pipelines from one idea.',
     avatarEmoji: '🏭',
-    systemPrompt: 'Turn one idea into hooks, scripts, shots, prompts, captions and publishing plan.',
+    systemPrompt:
+        'Turn one idea into hooks, scripts, shots, prompts, captions and publishing plan.',
     inputSchema: 'idea, audience, format, batch size',
     outputType: 'Batch content pipeline',
     recommendedTools: ['chatgpt', 'kling', 'canva', 'elevenlabs', 'suno'],
@@ -65,9 +73,11 @@ const seedAgents = <AiAgent>[
     id: 'prompt-engineer-agent',
     name: 'Prompt Engineer Agent',
     role: 'Prompt optimizer',
-    description: 'Improves prompts for video, image, music, coding, research and agents.',
+    description:
+        'Improves prompts for video, image, music, coding, research and agents.',
     avatarEmoji: '✍️',
-    systemPrompt: 'Clarify intent, remove vague language and add constraints that improve model behavior.',
+    systemPrompt:
+        'Clarify intent, remove vague language and add constraints that improve model behavior.',
     inputSchema: 'draft prompt, target model, desired output',
     outputType: 'Improved prompt + variables',
     recommendedTools: ['chatgpt', 'claude', 'midjourney', 'veo'],
@@ -80,9 +90,11 @@ const seedAgents = <AiAgent>[
     id: 'music-promo-agent',
     name: 'Music Promo Agent',
     role: 'Release campaign planner',
-    description: 'Builds teaser, visual and short-form content plans for tracks.',
+    description:
+        'Builds teaser, visual and short-form content plans for tracks.',
     avatarEmoji: '🎧',
-    systemPrompt: 'Translate song mood into visual identity, hooks, clips and publishing cadence.',
+    systemPrompt:
+        'Translate song mood into visual identity, hooks, clips and publishing cadence.',
     inputSchema: 'song mood, genre, release date, audience',
     outputType: 'Promo pack',
     recommendedTools: ['suno', 'udio', 'bandlab', 'canva', 'kling'],
@@ -95,12 +107,19 @@ const seedAgents = <AiAgent>[
     id: 'research-agent',
     name: 'Research Agent',
     role: 'Tool and idea researcher',
-    description: 'Compares tools, collects options and turns research into decisions.',
+    description:
+        'Compares tools, collects options and turns research into decisions.',
     avatarEmoji: '🔎',
-    systemPrompt: 'Compare options by evidence, cost, speed, reliability and fit.',
+    systemPrompt:
+        'Compare options by evidence, cost, speed, reliability and fit.',
     inputSchema: 'topic, constraints, decision criteria',
     outputType: 'Comparison matrix',
-    recommendedTools: ['perplexity', 'elicit', 'notebooklm', 'google-ai-studio'],
+    recommendedTools: [
+      'perplexity',
+      'elicit',
+      'notebooklm',
+      'google-ai-studio',
+    ],
     canUseInternet: true,
     canUseApi: false,
     isLocalCapable: true,
@@ -112,7 +131,8 @@ const seedAgents = <AiAgent>[
     role: 'n8n/Make/Zapier workflow designer',
     description: 'Designs automations, triggers, tools and handoff points.',
     avatarEmoji: '🔁',
-    systemPrompt: 'Map manual work into reliable automation steps with failure handling.',
+    systemPrompt:
+        'Map manual work into reliable automation steps with failure handling.',
     inputSchema: 'goal, apps, trigger, outputs',
     outputType: 'Automation blueprint',
     recommendedTools: ['n8n', 'make', 'zapier', 'flowise'],
@@ -125,9 +145,11 @@ const seedAgents = <AiAgent>[
     id: 'code-builder-agent',
     name: 'Code Builder Agent',
     role: 'Feature planner',
-    description: 'Breaks Flutter/backend features into small implementation steps.',
+    description:
+        'Breaks Flutter/backend features into small implementation steps.',
     avatarEmoji: '💻',
-    systemPrompt: 'Produce implementation plans with tests, risk areas and file boundaries.',
+    systemPrompt:
+        'Produce implementation plans with tests, risk areas and file boundaries.',
     inputSchema: 'feature, platform, constraints',
     outputType: 'Engineering task plan',
     recommendedTools: ['cursor', 'copilot', 'windsurf', 'github-copilot'],
@@ -140,9 +162,11 @@ const seedAgents = <AiAgent>[
     id: 'qa-critic-agent',
     name: 'QA Critic Agent',
     role: 'Result reviewer',
-    description: 'Critiques outputs and suggests concrete fixes before publishing.',
+    description:
+        'Critiques outputs and suggests concrete fixes before publishing.',
     avatarEmoji: '🧪',
-    systemPrompt: 'Find failures, weak assumptions, UX gaps and missing verification.',
+    systemPrompt:
+        'Find failures, weak assumptions, UX gaps and missing verification.',
     inputSchema: 'output, goal, acceptance criteria',
     outputType: 'Review findings',
     recommendedTools: ['chatgpt', 'claude', 'perplexity'],

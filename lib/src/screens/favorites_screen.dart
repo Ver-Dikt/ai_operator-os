@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../ai_operator_app.dart';
+import '../data/seed_agents.dart';
+import '../data/seed_prompts.dart';
+import '../data/seed_workflows.dart';
+import '../widgets/cards/os_card.dart';
+import '../widgets/empty_states/empty_state.dart';
 import '../widgets/responsive_page.dart';
-import '../widgets/tool_grid.dart';
+import '../widgets/section_header.dart';
 
 class FavoritesScreen extends StatelessWidget {
   const FavoritesScreen({super.key});
@@ -10,40 +15,93 @@ class FavoritesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settings = AppSettingsScope.of(context);
-    final favorites = settings.favoriteTools;
+    final tools = settings.favoriteTools;
+    final agents = seedAgents
+        .where((agent) => settings.favoriteAgentIds.contains(agent.id))
+        .toList();
+    final workflows = seedWorkflows
+        .where((workflow) => settings.favoriteWorkflowIds.contains(workflow.id))
+        .toList();
+    final prompts = seedPrompts
+        .where((prompt) => settings.favoritePromptIds.contains(prompt.id))
+        .toList();
+
+    final empty =
+        tools.isEmpty && agents.isEmpty && workflows.isEmpty && prompts.isEmpty;
 
     return ResponsivePage(
-      title: 'Избранное',
-      subtitle: 'Локальная подборка инструментов, которые нужны чаще всего.',
-      child: favorites.isEmpty
-          ? const _EmptyFavorites()
-          : ToolGrid(tools: favorites),
+      title: 'Favorites',
+      subtitle:
+          'Saved tools, agents, workflows and prompts for repeated operator work.',
+      child: empty
+          ? const EmptyState(
+              icon: Icons.star_border_rounded,
+              title: 'No saved operator assets yet',
+              message:
+                  'Save tools, agents, workflows or prompts from their screens.',
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (tools.isNotEmpty) ...[
+                  const SectionHeader(
+                    title: 'Tools',
+                    subtitle: 'Saved AI services.',
+                  ),
+                  _ChipPanel(items: tools.map((tool) => tool.name).toList()),
+                  const SizedBox(height: 18),
+                ],
+                if (agents.isNotEmpty) ...[
+                  const SectionHeader(
+                    title: 'Agents',
+                    subtitle: 'Saved mock runners.',
+                  ),
+                  _ChipPanel(items: agents.map((agent) => agent.name).toList()),
+                  const SizedBox(height: 18),
+                ],
+                if (workflows.isNotEmpty) ...[
+                  const SectionHeader(
+                    title: 'Workflows',
+                    subtitle: 'Saved production chains.',
+                  ),
+                  _ChipPanel(
+                    items: workflows.map((workflow) => workflow.title).toList(),
+                  ),
+                  const SizedBox(height: 18),
+                ],
+                if (prompts.isNotEmpty) ...[
+                  const SectionHeader(
+                    title: 'Prompts',
+                    subtitle: 'Saved prompt templates.',
+                  ),
+                  _ChipPanel(
+                    items: prompts.map((prompt) => prompt.title).toList(),
+                  ),
+                ],
+              ],
+            ),
     );
   }
 }
 
-class _EmptyFavorites extends StatelessWidget {
-  const _EmptyFavorites();
+class _ChipPanel extends StatelessWidget {
+  const _ChipPanel({required this.items});
+
+  final List<String> items;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Row(
-          children: [
-            Icon(
-              Icons.star_border,
-              color: Theme.of(context).colorScheme.primary,
+    return OsCard(
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final item in items)
+            Chip(
+              avatar: const Icon(Icons.star_rounded, size: 16),
+              label: Text(item),
             ),
-            const SizedBox(width: 12),
-            const Expanded(
-              child: Text(
-                'Пока пусто. Открой каталог и отметь нужные инструменты звездочкой.',
-              ),
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }

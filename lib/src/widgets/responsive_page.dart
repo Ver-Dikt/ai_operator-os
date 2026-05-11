@@ -113,25 +113,27 @@ class _PageHeader extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: (compact
-                          ? Theme.of(context).textTheme.headlineSmall
-                          : Theme.of(context).textTheme.headlineLarge)
-                      ?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: const Color(0xFFF8FBFF),
-                    height: 1.1,
-                  ),
+                  style:
+                      (compact
+                              ? Theme.of(context).textTheme.headlineSmall
+                              : Theme.of(context).textTheme.headlineLarge)
+                          ?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            color: const Color(0xFFF8FBFF),
+                            height: 1.1,
+                          ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   subtitle,
-                  style: (compact
-                          ? Theme.of(context).textTheme.bodyMedium
-                          : Theme.of(context).textTheme.bodyLarge)
-                      ?.copyWith(
-                    color: const Color(0xFFA7B1C1),
-                    height: 1.45,
-                  ),
+                  style:
+                      (compact
+                              ? Theme.of(context).textTheme.bodyMedium
+                              : Theme.of(context).textTheme.bodyLarge)
+                          ?.copyWith(
+                            color: const Color(0xFFA7B1C1),
+                            height: 1.45,
+                          ),
                 ),
               ],
             ),
