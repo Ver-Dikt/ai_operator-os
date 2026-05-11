@@ -14,9 +14,9 @@ class SettingsScreen extends StatelessWidget {
     final settings = AppSettingsScope.of(context);
 
     return ResponsivePage(
-      title: 'Settings',
+      title: 'Настройки',
       subtitle:
-          'Local settings for Phase 1. API keys are placeholders and are not used by a backend yet.',
+          'Локальные настройки Phase 1. API-ключи пока только заглушки и не используются backend-ом.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -26,8 +26,10 @@ class SettingsScreen extends StatelessWidget {
                 SwitchListTile(
                   value: settings.compactCards,
                   onChanged: settings.setCompactCards,
-                  title: const Text('Compact cards'),
-                  subtitle: const Text('Denser grids for desktop screens.'),
+                  title: const Text('Компактные карточки'),
+                  subtitle: const Text(
+                    'Более плотные сетки для desktop-экранов.',
+                  ),
                 ),
                 const Divider(height: 1),
                 _DestinationTile(settings: settings),
@@ -42,13 +44,13 @@ class SettingsScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SectionHeader(
-                  title: 'Local Mode',
-                  subtitle: 'Prepared for Ollama and local adapters.',
+                  title: 'Локальный режим',
+                  subtitle: 'Подготовлено для Ollama и локальных адаптеров.',
                 ),
                 TextFormField(
                   initialValue: settings.ollamaBaseUrl,
                   decoration: const InputDecoration(
-                    labelText: 'Ollama base URL',
+                    labelText: 'Базовый URL Ollama',
                     hintText: 'http://localhost:11434',
                   ),
                   onFieldSubmitted: settings.setOllamaBaseUrl,
@@ -62,9 +64,9 @@ class SettingsScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SectionHeader(
-                  title: 'API Keys Placeholder',
+                  title: 'Заглушки API-ключей',
                   subtitle:
-                      'Do not store production secrets in this frontend build. Backend encryption comes later.',
+                      'Не храни production-секреты во frontend-сборке. Шифрование на backend появится позже.',
                 ),
                 for (final key in [
                   'OpenAI',
@@ -79,8 +81,8 @@ class SettingsScreen extends StatelessWidget {
                     child: TextField(
                       enabled: false,
                       decoration: InputDecoration(
-                        labelText: '$key API key',
-                        hintText: 'Backend required for secure storage',
+                        labelText: '$key API-ключ',
+                        hintText: 'Для безопасного хранения нужен backend',
                       ),
                     ),
                   ),
@@ -93,8 +95,8 @@ class SettingsScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SectionHeader(
-                  title: 'Theme Accent',
-                  subtitle: 'Stored locally for future theme variants.',
+                  title: 'Акцент темы',
+                  subtitle: 'Сохраняется локально для будущих вариантов темы.',
                 ),
                 Wrap(
                   spacing: 8,
@@ -144,7 +146,7 @@ class _DestinationTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Startup screen',
+              'Стартовый экран',
               style: TextStyle(fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 8),
@@ -155,8 +157,8 @@ class _DestinationTile extends StatelessWidget {
     }
 
     return ListTile(
-      title: const Text('Startup screen'),
-      subtitle: const Text('Where AI Operator OS opens next time.'),
+      title: const Text('Стартовый экран'),
+      subtitle: const Text('Где AI Operator OS откроется в следующий раз.'),
       trailing: SizedBox(width: 220, child: dropdown),
     );
   }
@@ -170,8 +172,10 @@ class _ModeTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      title: const Text('Default mode'),
-      subtitle: const Text('Local / cloud / hybrid routing preference.'),
+      title: const Text('Режим по умолчанию'),
+      subtitle: const Text(
+        'Предпочтение маршрутизации: local / cloud / hybrid.',
+      ),
       trailing: DropdownButton<OperatorMode>(
         value: settings.operatorMode,
         onChanged: (value) {

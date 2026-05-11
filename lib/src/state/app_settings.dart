@@ -52,15 +52,15 @@ extension AppDestinationRoute on AppDestination {
 
   String get label {
     return switch (this) {
-      AppDestination.commandCenter => 'Home',
-      AppDestination.tools => 'AI Tools',
-      AppDestination.agents => 'Agents',
-      AppDestination.workflows => 'Workflows',
-      AppDestination.contentFactory => 'Factory',
-      AppDestination.useCases => 'Use Cases',
-      AppDestination.projects => 'Projects',
-      AppDestination.favorites => 'Favorites',
-      AppDestination.settings => 'Settings',
+      AppDestination.commandCenter => 'Главная',
+      AppDestination.tools => 'Инструменты',
+      AppDestination.agents => 'Агенты',
+      AppDestination.workflows => 'Сценарии',
+      AppDestination.contentFactory => 'Фабрика',
+      AppDestination.useCases => 'Кейсы',
+      AppDestination.projects => 'Проекты',
+      AppDestination.favorites => 'Избранное',
+      AppDestination.settings => 'Настройки',
     };
   }
 }
@@ -105,7 +105,7 @@ class AppSettings extends ChangeNotifier {
   static const _operatorModeKey = 'operator_mode';
   static const _ollamaBaseUrlKey = 'ollama_base_url';
   static const _accentKey = 'theme_accent';
-  static const allCategories = 'All';
+  static const allCategories = 'Все';
 
   final SharedPreferences _preferences;
   Set<String> _favoriteIds = <String>{};

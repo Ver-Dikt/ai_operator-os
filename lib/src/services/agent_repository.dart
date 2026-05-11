@@ -14,11 +14,11 @@ class AgentRepository {
   }
 
   String runMock(AiAgent agent, String task) {
-    final trimmed = task.trim().isEmpty ? 'your task' : task.trim();
-    return '${agent.name} mock run:\n'
-        '1. Clarify the goal for "$trimmed".\n'
-        '2. Pick tools: ${agent.recommendedTools.take(4).join(', ')}.\n'
-        '3. Produce ${agent.outputType.toLowerCase()}.\n'
-        '4. Mark API/backend execution as planned for a later phase.';
+    final trimmed = task.trim().isEmpty ? 'твоя задача' : task.trim();
+    return '${agent.name}: mock-запуск\n'
+        '1. Уточнить цель: "$trimmed".\n'
+        '2. Подобрать инструменты: ${agent.recommendedTools.take(4).join(', ')}.\n'
+        '3. Подготовить результат: ${agent.outputType.toLowerCase()}.\n'
+        '4. Реальное API/backend-выполнение оставить для следующей фазы.';
   }
 }

@@ -22,11 +22,11 @@ enum ToolCategory {
 extension PricingTypeLabel on PricingType {
   String get label {
     return switch (this) {
-      PricingType.free => 'Free',
+      PricingType.free => 'Бесплатно',
       PricingType.freemium => 'Freemium',
-      PricingType.paid => 'Paid',
-      PricingType.credits => 'Credits',
-      PricingType.local => 'Local',
+      PricingType.paid => 'Платно',
+      PricingType.credits => 'Кредиты',
+      PricingType.local => 'Локально',
     };
   }
 }
@@ -34,20 +34,20 @@ extension PricingTypeLabel on PricingType {
 extension ToolCategoryLabel on ToolCategory {
   String get label {
     return switch (this) {
-      ToolCategory.text => 'Text',
-      ToolCategory.image => 'Image',
-      ToolCategory.video => 'Video',
-      ToolCategory.music => 'Music',
-      ToolCategory.voice => 'Voice',
-      ToolCategory.coding => 'Coding',
-      ToolCategory.agents => 'Agents',
-      ToolCategory.automation => 'Automation',
-      ToolCategory.search => 'Search',
-      ToolCategory.research => 'Research',
-      ToolCategory.design => 'Design',
-      ToolCategory.socialMedia => 'Social Media',
-      ToolCategory.localModels => 'Local Models',
-      ToolCategory.developerTools => 'Developer Tools',
+      ToolCategory.text => 'Текст',
+      ToolCategory.image => 'Изображения',
+      ToolCategory.video => 'Видео',
+      ToolCategory.music => 'Музыка',
+      ToolCategory.voice => 'Голос',
+      ToolCategory.coding => 'Кодинг',
+      ToolCategory.agents => 'Агенты',
+      ToolCategory.automation => 'Автоматизация',
+      ToolCategory.search => 'Поиск',
+      ToolCategory.research => 'Исследования',
+      ToolCategory.design => 'Дизайн',
+      ToolCategory.socialMedia => 'Соцсети',
+      ToolCategory.localModels => 'Локальные модели',
+      ToolCategory.developerTools => 'Инструменты разработчика',
     };
   }
 }

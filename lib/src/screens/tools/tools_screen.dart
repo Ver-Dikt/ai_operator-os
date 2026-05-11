@@ -32,14 +32,14 @@ class _ToolsScreenState extends State<ToolsScreen> {
     final tools = _filtered(settings.visibleTools);
 
     return ResponsivePage(
-      title: 'AI Tools',
+      title: 'Инструменты',
       subtitle:
-          'Search the AI stack by task, platform, cost, API availability and production fit.',
+          'База нейросетей: задачи, платформы, цена, API, локальный режим и production-подход.',
       actions: [
         OutlinedButton.icon(
           onPressed: settings.resetCatalogFilters,
           icon: const Icon(Icons.refresh_rounded),
-          label: const Text('Reset'),
+          label: const Text('Сбросить'),
         ),
       ],
       child: Column(
@@ -49,7 +49,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
             controller: _query,
             decoration: const InputDecoration(
               prefixIcon: Icon(Icons.search_rounded),
-              hintText: 'Search video, local, no credit card, coding...',
+              hintText: 'Ищи: видео, локально, без карты, кодинг...',
             ),
             onChanged: settings.setQuery,
           ),
@@ -59,7 +59,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
             runSpacing: 8,
             children: [
               ChoiceChip(
-                label: const Text('All'),
+                label: const Text('Все'),
                 selected: _quickFilter == 'all',
                 onSelected: (_) => setState(() => _quickFilter = 'all'),
               ),
@@ -157,7 +157,7 @@ class _ToolV2Card extends StatelessWidget {
                 ),
               ),
               IconButton(
-                tooltip: isFavorite ? 'Remove favorite' : 'Save favorite',
+                tooltip: isFavorite ? 'Убрать из избранного' : 'Сохранить',
                 onPressed: () => settings.toggleFavorite(tool.id),
                 icon: Icon(
                   isFavorite ? Icons.star_rounded : Icons.star_outline_rounded,
@@ -189,7 +189,7 @@ class _ToolV2Card extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'Best for: ${tool.bestFor}',
+            'Лучше всего для: ${tool.bestFor}',
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
@@ -204,12 +204,12 @@ class _ToolV2Card extends StatelessWidget {
                 child: FilledButton.icon(
                   onPressed: () => const UrlService().open(tool.url),
                   icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                  label: const Text('Open'),
+                  label: const Text('Открыть'),
                 ),
               ),
               const SizedBox(width: 8),
               IconButton.outlined(
-                tooltip: 'Details',
+                tooltip: 'Подробнее',
                 onPressed: () => _showDetails(context, tool),
                 icon: const Icon(Icons.notes_rounded),
               ),
@@ -241,9 +241,9 @@ class _ToolV2Card extends StatelessWidget {
               children: [
                 Text(tool.description),
                 const SizedBox(height: 12),
-                Text('Free credits: ${tool.freeCreditsInfo}'),
+                Text('Бесплатные лимиты: ${tool.freeCreditsInfo}'),
                 const SizedBox(height: 8),
-                Text('Limitations: ${tool.limitations}'),
+                Text('Ограничения: ${tool.limitations}'),
                 const SizedBox(height: 12),
                 Wrap(
                   spacing: 6,
@@ -254,22 +254,22 @@ class _ToolV2Card extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 _LinkedSection(
-                  title: 'Agents that can use it',
+                  title: 'Агенты, которые могут использовать',
                   items: agents.map((agent) => agent.name).toList(),
                 ),
                 _LinkedSection(
-                  title: 'Workflows',
+                  title: 'Сценарии',
                   items: workflows.map((workflow) => workflow.title).toList(),
                 ),
                 _LinkedSection(
-                  title: 'Use cases',
+                  title: 'Кейсы',
                   items: useCases
                       .map((useCase) => useCase.title)
                       .toSet()
                       .toList(),
                 ),
                 _LinkedSection(
-                  title: 'Alternatives',
+                  title: 'Альтернативы',
                   items: graph
                       .toolsByIds(tool.alternativeToolIds)
                       .map((item) => item.name)
@@ -282,12 +282,12 @@ class _ToolV2Card extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
+            child: const Text('Закрыть'),
           ),
           FilledButton.icon(
             onPressed: () => const UrlService().open(tool.url),
             icon: const Icon(Icons.open_in_new_rounded),
-            label: const Text('Open tool'),
+            label: const Text('Открыть инструмент'),
           ),
         ],
       ),

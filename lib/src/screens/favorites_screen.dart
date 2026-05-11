@@ -30,39 +30,39 @@ class FavoritesScreen extends StatelessWidget {
         tools.isEmpty && agents.isEmpty && workflows.isEmpty && prompts.isEmpty;
 
     return ResponsivePage(
-      title: 'Favorites',
+      title: 'Избранное',
       subtitle:
-          'Saved tools, agents, workflows and prompts for repeated operator work.',
+          'Сохранённые инструменты, агенты, сценарии и промпты для повторной AI-работы.',
       child: empty
           ? const EmptyState(
               icon: Icons.star_border_rounded,
-              title: 'No saved operator assets yet',
+              title: 'Избранное пока пустое',
               message:
-                  'Save tools, agents, workflows or prompts from their screens.',
+                  'Сохраняй инструменты, агентов, сценарии и промпты из соответствующих разделов.',
             )
           : Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (tools.isNotEmpty) ...[
                   const SectionHeader(
-                    title: 'Tools',
-                    subtitle: 'Saved AI services.',
+                    title: 'Инструменты',
+                    subtitle: 'Сохранённые AI-сервисы.',
                   ),
                   _ChipPanel(items: tools.map((tool) => tool.name).toList()),
                   const SizedBox(height: 18),
                 ],
                 if (agents.isNotEmpty) ...[
                   const SectionHeader(
-                    title: 'Agents',
-                    subtitle: 'Saved mock runners.',
+                    title: 'Агенты',
+                    subtitle: 'Сохранённые mock-исполнители.',
                   ),
                   _ChipPanel(items: agents.map((agent) => agent.name).toList()),
                   const SizedBox(height: 18),
                 ],
                 if (workflows.isNotEmpty) ...[
                   const SectionHeader(
-                    title: 'Workflows',
-                    subtitle: 'Saved production chains.',
+                    title: 'Сценарии',
+                    subtitle: 'Сохранённые production-цепочки.',
                   ),
                   _ChipPanel(
                     items: workflows.map((workflow) => workflow.title).toList(),
@@ -71,8 +71,8 @@ class FavoritesScreen extends StatelessWidget {
                 ],
                 if (prompts.isNotEmpty) ...[
                   const SectionHeader(
-                    title: 'Prompts',
-                    subtitle: 'Saved prompt templates.',
+                    title: 'Промпты',
+                    subtitle: 'Сохранённые шаблоны промптов.',
                   ),
                   _ChipPanel(
                     items: prompts.map((prompt) => prompt.title).toList(),

@@ -10,18 +10,18 @@ class ProjectsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ResponsivePage(
-      title: 'Projects',
+      title: 'Проекты',
       subtitle:
-          'Saved execution results will live here: selected use case, agents, tools, prompts and workflow progress.',
+          'Здесь будут жить сохранённые планы: кейс, агенты, инструменты, промпты и прогресс сценария.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: const [
           OsCard(
             child: EmptyState(
               icon: Icons.folder_open_rounded,
-              title: 'Project storage is prepared',
+              title: 'Хранилище проектов подготовлено',
               message:
-                  'Phase 1 keeps execution mock-only. Next phase can save generated plans and workflow progress locally.',
+                  'В Phase 1 выполнение остаётся mock-only. В следующем этапе можно сохранять планы и прогресс локально.',
             ),
           ),
         ],

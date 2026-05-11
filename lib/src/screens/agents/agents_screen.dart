@@ -15,9 +15,9 @@ class AgentsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ResponsivePage(
-      title: 'Agents',
+      title: 'Агенты',
       subtitle:
-          'Mock agent runners for planning, routing, prompting, automation and QA. No backend calls yet.',
+          'Специализированные mock-агенты для планирования, роутинга, промптов, автоматизации и QA. Backend пока не подключён.',
       child: LayoutBuilder(
         builder: (context, constraints) {
           final columns = constraints.maxWidth >= 1100
@@ -111,7 +111,7 @@ class _AgentCard extends StatelessWidget {
           FilledButton.icon(
             onPressed: () => _showAgent(context, agent),
             icon: const Icon(Icons.play_arrow_rounded),
-            label: const Text('Run Agent'),
+            label: const Text('Запустить агента'),
           ),
         ],
       ),
@@ -165,7 +165,7 @@ class _AgentDialogState extends State<_AgentDialog> {
                 minLines: 2,
                 maxLines: 4,
                 decoration: const InputDecoration(
-                  hintText: 'Describe the task for this agent...',
+                  hintText: 'Опиши задачу для этого агента...',
                 ),
               ),
               const SizedBox(height: 12),
@@ -187,7 +187,7 @@ class _AgentDialogState extends State<_AgentDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Close'),
+          child: const Text('Закрыть'),
         ),
         FilledButton.icon(
           onPressed: () {
@@ -199,7 +199,7 @@ class _AgentDialogState extends State<_AgentDialog> {
             });
           },
           icon: const Icon(Icons.smart_toy_outlined),
-          label: const Text('Run mock'),
+          label: const Text('Запустить mock'),
         ),
       ],
     );
@@ -224,15 +224,15 @@ class _AgentLinks extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _DialogChips(
-          title: 'Tools',
+          title: 'Инструменты',
           items: tools.map((tool) => tool.name).toList(),
         ),
         _DialogChips(
-          title: 'Workflows',
+          title: 'Сценарии',
           items: workflows.map((w) => w.title).toList(),
         ),
         _DialogChips(
-          title: 'Use cases',
+          title: 'Кейсы',
           items: useCases.map((u) => u.title).toList(),
         ),
       ],

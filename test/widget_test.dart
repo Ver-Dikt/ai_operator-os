@@ -10,14 +10,14 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     for (final entry in <String, String>{
-      'commandCenter': 'Command Router',
-      'tools': 'AI Tools',
-      'agents': 'Agents',
-      'workflows': 'Workflows',
-      'contentFactory': 'Content Factory',
-      'useCases': 'Use Cases',
-      'projects': 'Projects',
-      'settings': 'Settings',
+      'commandCenter': 'AI Operator OS',
+      'tools': 'Инструменты',
+      'agents': 'Агенты',
+      'workflows': 'Сценарии',
+      'contentFactory': 'Контент-фабрика',
+      'useCases': 'Кейсы',
+      'projects': 'Проекты',
+      'settings': 'Настройки',
     }.entries) {
       SharedPreferences.setMockInitialValues({
         'startup_destination': entry.key,
@@ -41,19 +41,19 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.grid_view_rounded).last);
     await tester.pumpAndSettle();
-    expect(find.text('AI Tools'), findsWidgets);
+    expect(find.text('Инструменты'), findsWidgets);
 
     await tester.tap(find.byIcon(Icons.smart_toy_outlined).last);
     await tester.pumpAndSettle();
-    expect(find.text('Agents'), findsWidgets);
+    expect(find.text('Агенты'), findsWidgets);
 
     await tester.tap(find.byIcon(Icons.schema_outlined).last);
     await tester.pumpAndSettle();
-    expect(find.text('Workflows'), findsWidgets);
+    expect(find.text('Сценарии'), findsWidgets);
 
     await tester.tap(find.byIcon(Icons.tune_rounded).last);
     await tester.pumpAndSettle();
-    expect(find.text('Settings'), findsWidgets);
+    expect(find.text('Настройки'), findsWidgets);
   });
 
   testWidgets('command center task routing uses route navigation', (
@@ -66,10 +66,10 @@ void main() {
     await tester.pumpWidget(const AiOperatorApp());
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Mock route task'));
-    await tester.tap(find.text('Mock route task'));
+    await tester.ensureVisible(find.text('Собрать план'));
+    await tester.tap(find.text('Собрать план'));
     await tester.pumpAndSettle();
-    expect(find.text('Task Mode Recommendation'), findsOneWidget);
+    expect(find.text('Рекомендованный план'), findsOneWidget);
   });
 
   testWidgets('main sections render on narrow and wide layouts', (

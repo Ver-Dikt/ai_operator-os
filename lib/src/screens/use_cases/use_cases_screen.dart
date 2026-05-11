@@ -17,19 +17,19 @@ class UseCasesScreen extends StatefulWidget {
 }
 
 class _UseCasesScreenState extends State<UseCasesScreen> {
-  String _category = 'All';
+  String _category = 'Все';
 
   @override
   Widget build(BuildContext context) {
-    final categories = ['All', ...seedUseCases.map((u) => u.category).toSet()];
+    final categories = ['Все', ...seedUseCases.map((u) => u.category).toSet()];
     final useCases = seedUseCases
-        .where((useCase) => _category == 'All' || useCase.category == _category)
+        .where((useCase) => _category == 'Все' || useCase.category == _category)
         .toList();
 
     return ResponsivePage(
-      title: 'Use Cases',
+      title: 'Кейсы',
       subtitle:
-          'Task-first library: earning opportunities, client work, content pipelines and automation ideas. No income promises; every opportunity requires validation.',
+          'Библиотека задач: контент, клиентская работа, автоматизация и возможности монетизации. Без обещаний дохода: каждую идею нужно проверять.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -103,7 +103,7 @@ class _UseCaseCard extends StatelessWidget {
               StatusBadge(label: useCase.monetizationPotential.label),
               if (useCase.requiresHumanReview)
                 const StatusBadge(
-                  label: 'human review',
+                  label: 'проверка человеком',
                   color: Color(0xFFFFB86B),
                 ),
             ],
@@ -119,7 +119,7 @@ class _UseCaseCard extends StatelessWidget {
           FilledButton.icon(
             onPressed: () => _showDetails(context, useCase),
             icon: const Icon(Icons.account_tree_rounded),
-            label: const Text('Recommended stack'),
+            label: const Text('Рекомендованный стек'),
           ),
         ],
       ),
@@ -147,24 +147,24 @@ class _UseCaseCard extends StatelessWidget {
                 Text(useCase.description),
                 const SizedBox(height: 12),
                 Text(
-                  'Revenue model: ${useCase.monetizationType.label}. Potential only; validate demand before selling.',
+                  'Модель дохода: ${useCase.monetizationType.label}. Только потенциал: проверь спрос до продажи.',
                   style: const TextStyle(color: Color(0xFFFFB86B)),
                 ),
                 const SizedBox(height: 16),
                 _LinkSection(
-                  title: 'Agents',
+                  title: 'Агенты',
                   items: agents.map((agent) => agent.name).toList(),
                 ),
                 _LinkSection(
-                  title: 'Tools',
+                  title: 'Инструменты',
                   items: tools.map((tool) => tool.name).toList(),
                 ),
                 _LinkSection(
-                  title: 'Workflows',
+                  title: 'Сценарии',
                   items: workflows.map((workflow) => workflow.title).toList(),
                 ),
                 _LinkSection(
-                  title: 'Prompts',
+                  title: 'Промпты',
                   items: prompts.map((prompt) => prompt.title).toList(),
                 ),
               ],
@@ -174,7 +174,7 @@ class _UseCaseCard extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
+            child: const Text('Закрыть'),
           ),
         ],
       ),
@@ -196,7 +196,7 @@ class _LinkSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SectionHeader(title: title, subtitle: 'Linked by ID in seed data.'),
+          SectionHeader(title: title, subtitle: 'Связано по ID в seed data.'),
           Wrap(
             spacing: 6,
             runSpacing: 6,

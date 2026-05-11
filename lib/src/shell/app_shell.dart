@@ -82,23 +82,23 @@ class _AppShellState extends State<AppShell> {
               destinations: const [
                 NavigationDestination(
                   icon: Icon(Icons.dashboard_customize_outlined),
-                  label: 'Home',
+                  label: 'Главная',
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.grid_view_rounded),
-                  label: 'Tools',
+                  label: 'Инструменты',
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.smart_toy_outlined),
-                  label: 'Agents',
+                  label: 'Агенты',
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.schema_outlined),
-                  label: 'Flows',
+                  label: 'Сценарии',
                 ),
                 NavigationDestination(
                   icon: Icon(Icons.tune_rounded),
-                  label: 'Settings',
+                  label: 'Настройки',
                 ),
               ],
             ),
@@ -236,7 +236,7 @@ class _BrandBlock extends StatelessWidget {
                 style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
               ),
               Text(
-                'command layer',
+                'центр управления',
                 style: TextStyle(color: Color(0xFF8B97A8), fontSize: 12),
               ),
             ],
@@ -327,7 +327,7 @@ class _StatusCard extends StatelessWidget {
           SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Local mock mode',
+              'Локальный mock-режим',
               style: TextStyle(
                 color: Color(0xFFC8D2E1),
                 fontWeight: FontWeight.w800,

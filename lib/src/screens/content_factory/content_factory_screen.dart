@@ -28,9 +28,9 @@ class _ContentFactoryScreenState extends State<ContentFactoryScreen> {
   @override
   Widget build(BuildContext context) {
     return ResponsivePage(
-      title: 'Content Factory',
+      title: 'Контент-фабрика',
       subtitle:
-          'Idea to production plan. Phase 1 uses deterministic scene planning and copyable prompts.',
+          'От идеи к production-плану. Phase 1 использует mock-планирование сцен и копируемые промпты.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -43,7 +43,7 @@ class _ContentFactoryScreenState extends State<ContentFactoryScreen> {
                   minLines: 2,
                   maxLines: 4,
                   decoration: const InputDecoration(
-                    hintText: 'Describe content idea...',
+                    hintText: 'Опиши идею контента...',
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -72,7 +72,7 @@ class _ContentFactoryScreenState extends State<ContentFactoryScreen> {
                     _project = _buildProject(_idea.text, _format);
                   }),
                   icon: const Icon(Icons.factory_rounded),
-                  label: const Text('Generate production plan'),
+                  label: const Text('Собрать production-план'),
                 ),
               ],
             ),
@@ -166,11 +166,13 @@ class _ProjectPlan extends StatelessWidget {
             ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 8),
-          Text('Duration: ${project.duration} • Mood: ${project.mood}'),
+          Text(
+            'Длительность: ${project.duration} • настроение: ${project.mood}',
+          ),
           const SizedBox(height: 12),
           for (final scene in project.scenes) ...[
             Text(
-              'Scene ${scene.sceneNumber}: ${scene.dramaticPurpose}',
+              'Сцена ${scene.sceneNumber}: ${scene.dramaticPurpose}',
               style: const TextStyle(fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 4),
@@ -180,11 +182,13 @@ class _ProjectPlan extends StatelessWidget {
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: scene.visualPrompt));
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Copied scene ${scene.sceneNumber}')),
+                  SnackBar(
+                    content: Text('Сцена ${scene.sceneNumber} скопирована'),
+                  ),
                 );
               },
               icon: const Icon(Icons.copy_rounded),
-              label: const Text('Copy scene prompt'),
+              label: const Text('Скопировать промпт сцены'),
             ),
             const Divider(height: 24),
           ],

@@ -5,14 +5,22 @@ class RouterService {
 
   RoutingRecommendation recommend(String task) {
     final q = task.toLowerCase();
-    if (q.contains('video') || q.contains('cinematic') || q.contains('short')) {
+    if (q.contains('video') ||
+        q.contains('cinematic') ||
+        q.contains('short') ||
+        q.contains('видео') ||
+        q.contains('рилс') ||
+        q.contains('reels') ||
+        q.contains('клип') ||
+        q.contains('локализ') ||
+        q.contains('озвуч')) {
       return const RoutingRecommendation(
-        task: 'Cinematic / short video',
+        task: 'Кинематографичное короткое видео',
         bestPaidTools: ['Veo', 'Runway', 'Sora'],
         bestFreeTools: ['Kling', 'Pika', 'Kensa'],
         localOptions: ['ComfyUI', 'Stable Diffusion video workflows'],
         recommendedWorkflow: 'AI Short Video Factory',
-        estimatedCost: 'Free test path, paid quality path from credits',
+        estimatedCost: 'Бесплатный тестовый путь, Pro-качество через кредиты',
         workflowId: 'ai-short-video-factory',
         agentIds: [
           'director-agent',
@@ -22,34 +30,44 @@ class RouterService {
         toolIds: ['kling', 'pika', 'veo', 'runway', 'canva'],
         useCaseIds: ['make-10-reels-for-track', 'build-ai-influencer'],
         freePath: [
-          'Kling/Pika test credits',
-          'Canva free layout',
-          'manual edit',
+          'Тестовые кредиты Kling/Pika',
+          'Бесплатная сборка в Canva',
+          'Ручной монтаж',
         ],
         proPath: [
-          'Veo or Runway quality pass',
-          'ElevenLabs voice',
-          'paid captions/editing',
+          'Финальный проход через Veo или Runway',
+          'Озвучка ElevenLabs',
+          'Платные субтитры или монтаж',
         ],
-        manualSteps: ['approve scenes', 'pick best takes', 'final human QA'],
+        manualSteps: [
+          'утвердить сцены',
+          'выбрать лучшие дубли',
+          'финальная проверка человеком',
+        ],
         automationPotential:
-            'Semi-automated: prompts and checklist now, generation later',
+            'Полуавтоматизация: промпты и чеклист сейчас, генерация позже',
         monetizationIdea:
-            'Potential content or client-service opportunity. Validate audience/client demand first.',
+            'Потенциал для контента или клиентской услуги. Сначала проверь спрос аудитории или клиента.',
         notes: [
-          'Start with Director Agent before generating.',
-          'Use stable shots and final gesture to control attention.',
+          'Начни с Director Agent перед генерацией.',
+          'Используй стабильные кадры и финальный жест для управления вниманием.',
         ],
       );
     }
-    if (q.contains('music') || q.contains('song') || q.contains('track')) {
+    if (q.contains('music') ||
+        q.contains('song') ||
+        q.contains('track') ||
+        q.contains('музык') ||
+        q.contains('трек') ||
+        q.contains('релиз')) {
       return const RoutingRecommendation(
-        task: 'Music / release promo',
+        task: 'Промо музыки или релиза',
         bestPaidTools: ['Suno Pro', 'Udio paid', 'ElevenLabs'],
         bestFreeTools: ['BandLab', 'Suno free tests', 'Udio free tests'],
-        localOptions: ['Local DAW + open audio tools'],
+        localOptions: ['Локальная DAW + open audio tools'],
         recommendedWorkflow: 'Music Release Promo Pack',
-        estimatedCost: 'Free planning, paid generation when quality matters',
+        estimatedCost:
+            'План бесплатно, платная генерация только для финального качества',
         workflowId: 'music-release-promo-pack',
         agentIds: [
           'music-promo-agent',
@@ -58,23 +76,35 @@ class RouterService {
         ],
         toolIds: ['suno', 'udio', 'bandlab', 'kling', 'canva'],
         useCaseIds: ['make-10-reels-for-track'],
-        freePath: ['BandLab', 'Canva free', 'Kling/Pika free tests'],
-        proPath: ['Suno/Udio paid generations', 'Runway quality pass'],
-        manualSteps: ['select hooks', 'approve visuals', 'schedule posts'],
-        automationPotential: 'Assisted batch planning',
+        freePath: ['BandLab', 'Canva Free', 'Бесплатные тесты Kling/Pika'],
+        proPath: ['Платные генерации Suno/Udio', 'Финальный проход в Runway'],
+        manualSteps: [
+          'выбрать хуки',
+          'утвердить визуал',
+          'поставить посты в календарь',
+        ],
+        automationPotential: 'Помощь в пакетном планировании',
         monetizationIdea:
-            'Potential artist promo package. Requires real track quality and audience validation.',
-        notes: ['Convert mood into visual identity before clips.'],
+            'Потенциальный промо-пак для артиста. Нужны качество трека и проверка аудитории.',
+        notes: [
+          'Сначала преврати настроение в визуальную систему, потом делай клипы.',
+        ],
       );
     }
-    if (q.contains('code') || q.contains('flutter') || q.contains('app')) {
+    if (q.contains('code') ||
+        q.contains('flutter') ||
+        q.contains('app') ||
+        q.contains('код') ||
+        q.contains('прилож') ||
+        q.contains('автомат')) {
       return const RoutingRecommendation(
-        task: 'Coding / app feature',
+        task: 'Код, приложение или автоматизация',
         bestPaidTools: ['Cursor', 'GitHub Copilot'],
         bestFreeTools: ['ChatGPT free', 'Replit free tier'],
         localOptions: ['Ollama + local coding model'],
         recommendedWorkflow: 'Flutter Feature Builder',
-        estimatedCost: 'Free planning, paid IDE assistance optional',
+        estimatedCost:
+            'Планирование бесплатно, платный IDE-помощник опционально',
         workflowId: 'ai-tool-finder',
         agentIds: [
           'code-builder-agent',
@@ -83,37 +113,38 @@ class RouterService {
         ],
         toolIds: ['cursor', 'copilot', 'windsurf', 'ollama'],
         useCaseIds: ['build-n8n-workflow'],
-        freePath: ['Ollama planning', 'manual Flutter implementation'],
-        proPath: ['Cursor/Copilot acceleration'],
-        manualSteps: ['review code', 'run tests', 'verify UX'],
-        automationPotential: 'Assisted coding, human review required',
+        freePath: ['План в Ollama', 'Ручная реализация Flutter'],
+        proPath: ['Ускорение через Cursor/Copilot'],
+        manualSteps: ['проверить код', 'запустить тесты', 'проверить UX'],
+        automationPotential: 'Помощь в кодинге, ревью человеком обязательно',
         monetizationIdea:
-            'Potential SaaS/client build opportunity only after user validation.',
-        notes: ['Use Code Builder Agent and add tests before UI polish.'],
+            'Потенциал SaaS или клиентской разработки только после валидации задачи.',
+        notes: ['Используй Code Builder Agent и добавь тесты до UI-полировки.'],
       );
     }
     return const RoutingRecommendation(
-      task: 'General AI task',
+      task: 'Общая AI-задача',
       bestPaidTools: ['ChatGPT', 'Claude', 'Perplexity Pro'],
       bestFreeTools: ['ChatGPT Free', 'Gemini', 'NotebookLM'],
       localOptions: ['Ollama', 'LM Studio', 'Open WebUI'],
       recommendedWorkflow: 'AI Tool Finder',
-      estimatedCost: 'Start free, upgrade only when bottleneck is clear',
+      estimatedCost:
+          'Начни бесплатно, платный апгрейд только после понятного узкого места',
       workflowId: 'ai-tool-finder',
       agentIds: ['tool-router-agent', 'research-agent', 'free-stack-agent'],
       toolIds: ['chatgpt', 'perplexity', 'notebooklm', 'ollama'],
-      useCaseIds: ['ai-tool-comparison', 'competitor-analysis'],
+      useCaseIds: ['competitor-analysis', 'build-n8n-workflow'],
       freePath: ['ChatGPT/Gemini free', 'NotebookLM', 'Ollama local'],
       proPath: ['ChatGPT Plus/Pro', 'Claude', 'Perplexity Pro'],
       manualSteps: [
-        'clarify constraints',
-        'compare alternatives',
-        'human decision',
+        'уточнить ограничения',
+        'сравнить альтернативы',
+        'принять решение человеком',
       ],
-      automationPotential: 'Assisted planning',
+      automationPotential: 'Помощь в планировании',
       monetizationIdea:
-          'Potential opportunity only. Validate problem, buyer and delivery path.',
-      notes: ['Route by output type, budget and privacy constraints.'],
+          'Только потенциальная возможность. Проверь проблему, покупателя и путь доставки.',
+      notes: ['Маршрутизируй по типу результата, бюджету и приватности.'],
     );
   }
 }

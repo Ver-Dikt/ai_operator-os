@@ -16,20 +16,20 @@ class WorkflowsScreen extends StatefulWidget {
 }
 
 class _WorkflowsScreenState extends State<WorkflowsScreen> {
-  String _category = 'All';
+  String _category = 'Все';
 
   @override
   Widget build(BuildContext context) {
-    final categories = ['All', ...seedWorkflows.map((w) => w.category).toSet()];
+    final categories = ['Все', ...seedWorkflows.map((w) => w.category).toSet()];
     final workflows = seedWorkflows
         .where(
-          (workflow) => _category == 'All' || workflow.category == _category,
+          (workflow) => _category == 'Все' || workflow.category == _category,
         )
         .toList();
     return ResponsivePage(
-      title: 'Workflows',
+      title: 'Сценарии',
       subtitle:
-          'Production-ready templates with steps, prompts, tools and mock execution mode.',
+          'Готовые цепочки действий: шаги, промпты, инструменты и mock-режим выполнения.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -118,7 +118,7 @@ class _WorkflowCard extends StatelessWidget {
               ),
             ),
             icon: const Icon(Icons.play_arrow_rounded),
-            label: const Text('Start Workflow'),
+            label: const Text('Запустить сценарий'),
           ),
         ],
       ),
