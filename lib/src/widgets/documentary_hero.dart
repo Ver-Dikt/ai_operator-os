@@ -140,13 +140,15 @@ class _BentoStats extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isNarrow = MediaQuery.sizeOf(context).width < 420;
+
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisCount: 2,
       crossAxisSpacing: 10,
       mainAxisSpacing: 10,
-      childAspectRatio: 1.35,
+      childAspectRatio: isNarrow ? 0.95 : 1.35,
       children: [
         _BentoTile(
           label: 'Инструменты',
@@ -186,8 +188,10 @@ class _BentoTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isNarrow = MediaQuery.sizeOf(context).width < 420;
+
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(isNarrow ? 10 : 12),
       decoration: BoxDecoration(
         color: const Color(0xFF0F151F),
         border: Border.all(color: const Color(0xFF263244)),
@@ -195,24 +199,27 @@ class _BentoTile extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.start,
         children: [
-          Icon(icon, color: const Color(0xFF6BE4C9), size: 20),
+          Icon(icon, color: const Color(0xFF6BE4C9), size: isNarrow ? 18 : 20),
+          const Spacer(),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 value,
-                style: const TextStyle(
-                  fontSize: 24,
+                style: TextStyle(
+                  fontSize: isNarrow ? 18 : 20,
                   fontWeight: FontWeight.w900,
                 ),
               ),
               Text(
                 label,
-                style: const TextStyle(
-                  color: Color(0xFF8B97A8),
-                  fontSize: 12,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: const Color(0xFF8B97A8),
+                  fontSize: isNarrow ? 10 : 11,
                   fontWeight: FontWeight.w700,
                 ),
               ),

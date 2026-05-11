@@ -107,6 +107,8 @@ class _CatalogCommandPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final activeTag = selectedTag == 'all' ? 'все теги' : selectedTag;
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final maxMetricWidth = screenWidth < 560 ? screenWidth - 56 : 320.0;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -129,21 +131,25 @@ class _CatalogCommandPanel extends StatelessWidget {
                 icon: Icons.grid_view_rounded,
                 label: 'Показано',
                 value: '$visibleCount / $totalCount',
+                maxWidth: maxMetricWidth,
               ),
               _MetricPill(
                 icon: Icons.category_outlined,
                 label: 'Категория',
                 value: selectedCategory,
+                maxWidth: maxMetricWidth,
               ),
               _MetricPill(
                 icon: Icons.sell_outlined,
                 label: 'Тег',
                 value: activeTag,
+                maxWidth: maxMetricWidth,
               ),
               _MetricPill(
                 icon: Icons.star_rounded,
                 label: 'Избранное',
                 value: '$favoritesCount',
+                maxWidth: maxMetricWidth,
               ),
             ],
           ),
@@ -163,44 +169,53 @@ class _MetricPill extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.value,
+    required this.maxWidth,
   });
 
   final IconData icon;
   final String label;
   final String value;
+  final double maxWidth;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF111722),
-        border: Border.all(color: const Color(0xFF263244)),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 17, color: const Color(0xFF6BE4C9)),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Color(0xFF8B97A8),
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: maxWidth),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF111722),
+          border: Border.all(color: const Color(0xFF263244)),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 17, color: const Color(0xFF6BE4C9)),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF8B97A8),
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
             ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Color(0xFFE8EEF8),
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFFE8EEF8),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

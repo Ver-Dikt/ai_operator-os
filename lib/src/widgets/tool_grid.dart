@@ -42,7 +42,12 @@ class ToolGrid extends StatelessWidget {
             : constraints.maxWidth >= 720
             ? 2
             : 1;
-        final extent = settings.compactCards ? 420.0 : 500.0;
+        final isPhone = constraints.maxWidth < 520;
+        final extent = isPhone
+            ? 536.0
+            : settings.compactCards
+            ? 430.0
+            : 506.0;
 
         return GridView.builder(
           shrinkWrap: true,

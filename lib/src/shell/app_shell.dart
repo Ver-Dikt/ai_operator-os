@@ -7,8 +7,41 @@ import '../screens/favorites_screen.dart';
 import '../screens/settings_screen.dart';
 import '../state/app_settings.dart';
 
-class AppShell extends StatelessWidget {
-  const AppShell({super.key});
+class AppShell extends StatefulWidget {
+  const AppShell({super.key, required this.destination});
+
+  final AppDestination destination;
+
+  @override
+  State<AppShell> createState() => _AppShellState();
+}
+
+class _AppShellState extends State<AppShell> {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncCurrentRoute();
+  }
+
+  @override
+  void didUpdateWidget(covariant AppShell oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.destination != widget.destination) {
+      _syncCurrentRoute();
+    }
+  }
+
+  void _syncCurrentRoute() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || ModalRoute.of(context)?.isCurrent != true) {
+        return;
+      }
+      final settings = AppSettingsScope.of(context);
+      if (settings.currentDestination != widget.destination) {
+        settings.setDestination(widget.destination);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +55,7 @@ class AppShell extends StatelessWidget {
           if (isWide)
             _DesktopSidebar(
               destination: destination,
-              onSelect: settings.setDestination,
+              onSelect: (value) => _goTo(context, value),
               favoritesCount: settings.favoriteIds.length,
             ),
           Expanded(child: _screenFor(destination, settings)),
@@ -31,9 +64,10 @@ class AppShell extends StatelessWidget {
       bottomNavigationBar: isWide
           ? null
           : NavigationBar(
+              height: 72,
               selectedIndex: destination.index,
               onDestinationSelected: (index) =>
-                  settings.setDestination(AppDestination.values[index]),
+                  _goTo(context, AppDestination.values[index]),
               destinations: const [
                 NavigationDestination(
                   icon: Icon(Icons.dashboard_customize_outlined),
@@ -54,6 +88,15 @@ class AppShell extends StatelessWidget {
               ],
             ),
     );
+  }
+
+  void _goTo(BuildContext context, AppDestination value) {
+    final settings = AppSettingsScope.of(context);
+    if (value == settings.currentDestination) {
+      return;
+    }
+    settings.setDestination(value);
+    Navigator.of(context).pushNamed(value.routePath);
   }
 
   Widget _screenFor(AppDestination destination, AppSettings settings) {

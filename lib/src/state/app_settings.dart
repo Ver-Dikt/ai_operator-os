@@ -6,6 +6,26 @@ import '../models/tool_item.dart';
 
 enum AppDestination { dashboard, catalog, favorites, settings }
 
+extension AppDestinationRoute on AppDestination {
+  String get routePath {
+    return switch (this) {
+      AppDestination.dashboard => '/',
+      AppDestination.catalog => '/catalog',
+      AppDestination.favorites => '/favorites',
+      AppDestination.settings => '/settings',
+    };
+  }
+
+  static AppDestination fromRoute(String? route) {
+    return switch (route) {
+      '/catalog' => AppDestination.catalog,
+      '/favorites' => AppDestination.favorites,
+      '/settings' => AppDestination.settings,
+      _ => AppDestination.dashboard,
+    };
+  }
+}
+
 class AppSettings extends ChangeNotifier {
   static const _favoritesKey = 'favorite_tool_ids';
   static const _compactKey = 'compact_cards';

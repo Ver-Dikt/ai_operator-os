@@ -170,33 +170,41 @@ class ToolCard extends StatelessWidget {
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 24),
         backgroundColor: const Color(0xFF111722),
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: Text(tool.name),
-        content: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 620),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                tool.description,
-                style: const TextStyle(height: 1.45, color: Color(0xFFC8D2E1)),
-              ),
-              const SizedBox(height: 16),
-              _DetailRow(label: 'Категория', value: tool.category),
-              _DetailRow(label: 'Доступ', value: tool.access.label),
-              _DetailRow(label: 'Цена', value: tool.priceNote),
-              _DetailRow(label: 'Лучше для', value: tool.bestFor),
-              _DetailRow(label: 'Signal', value: '${tool.signal}/100'),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: tool.tags.map((tag) => _TagChip(label: tag)).toList(),
-              ),
-            ],
+        content: SizedBox(
+          width: 620,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tool.description,
+                  style: const TextStyle(
+                    height: 1.45,
+                    color: Color(0xFFC8D2E1),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _DetailRow(label: 'Категория', value: tool.category),
+                _DetailRow(label: 'Доступ', value: tool.access.label),
+                _DetailRow(label: 'Цена', value: tool.priceNote),
+                _DetailRow(label: 'Лучше для', value: tool.bestFor),
+                _DetailRow(label: 'Signal', value: '${tool.signal}/100'),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: tool.tags
+                      .map((tag) => _TagChip(label: tag))
+                      .toList(),
+                ),
+              ],
+            ),
           ),
         ),
         actions: [

@@ -20,8 +20,10 @@ class FilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isCompact = MediaQuery.sizeOf(context).width < 640;
+
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(isCompact ? 10 : 12),
       decoration: BoxDecoration(
         color: const Color(0xCC0F141E),
         border: Border.all(color: const Color(0xFF263244)),
@@ -32,6 +34,7 @@ class FilterBar extends StatelessWidget {
         children: [
           _FilterSection(
             title: 'Категории',
+            scrollOnCompact: true,
             children: categories.map((category) {
               final selected = selectedCategory == category;
               return _FilterPill(
@@ -44,6 +47,7 @@ class FilterBar extends StatelessWidget {
           const SizedBox(height: 12),
           _FilterSection(
             title: 'Теги',
+            scrollOnCompact: true,
             children: tags.map((tag) {
               final selected = selectedTag == tag;
               return _FilterPill(
@@ -61,10 +65,15 @@ class FilterBar extends StatelessWidget {
 }
 
 class _FilterSection extends StatelessWidget {
-  const _FilterSection({required this.title, required this.children});
+  const _FilterSection({
+    required this.title,
+    required this.children,
+    this.scrollOnCompact = false,
+  });
 
   final String title;
   final List<Widget> children;
+  final bool scrollOnCompact;
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +92,26 @@ class _FilterSection extends StatelessWidget {
             ),
           ),
         ),
-        Wrap(spacing: 8, runSpacing: 8, children: children),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            if (scrollOnCompact && constraints.maxWidth < 560) {
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.only(bottom: 2),
+                child: Row(
+                  children: [
+                    for (final child in children) ...[
+                      child,
+                      const SizedBox(width: 8),
+                    ],
+                  ],
+                ),
+              );
+            }
+
+            return Wrap(spacing: 8, runSpacing: 8, children: children);
+          },
+        ),
       ],
     );
   }

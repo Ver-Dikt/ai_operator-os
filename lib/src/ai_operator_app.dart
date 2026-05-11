@@ -38,7 +38,28 @@ class _AiOperatorAppState extends State<AiOperatorApp> {
             title: 'AI Operator OS',
             debugShowCheckedModeBanner: false,
             theme: AppTheme.dark(),
-            home: const AppShell(),
+            initialRoute: _settings!.startupDestination.routePath,
+            onGenerateRoute: (routeSettings) {
+              final destination = AppDestinationRoute.fromRoute(
+                routeSettings.name,
+              );
+              return PageRouteBuilder<void>(
+                settings: routeSettings,
+                pageBuilder: (context, animation, secondaryAnimation) =>
+                    AppShell(destination: destination),
+                transitionsBuilder:
+                    (context, animation, secondaryAnimation, child) {
+                      return FadeTransition(
+                        opacity: CurvedAnimation(
+                          parent: animation,
+                          curve: Curves.easeOutCubic,
+                        ),
+                        child: child,
+                      );
+                    },
+                transitionDuration: const Duration(milliseconds: 140),
+              );
+            },
           ),
         );
       },
