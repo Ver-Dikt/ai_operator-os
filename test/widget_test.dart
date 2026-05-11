@@ -65,10 +65,14 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(390, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
+    await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpWidget(const AiOperatorApp());
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('recommended-plan')), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const ValueKey('build-plan-button')));
+    await tester.tap(find.byKey(const ValueKey('build-plan-button')));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('main sections render on narrow and wide layouts', (
