@@ -44,10 +44,10 @@ class ToolGrid extends StatelessWidget {
             : 1;
         final isPhone = constraints.maxWidth < 520;
         final extent = isPhone
-            ? 536.0
+            ? 640.0
             : settings.compactCards
-            ? 430.0
-            : 506.0;
+            ? 460.0
+            : 540.0;
 
         return GridView.builder(
           shrinkWrap: true,

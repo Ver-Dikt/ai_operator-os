@@ -46,7 +46,7 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final settings = AppSettingsScope.of(context);
-    final destination = settings.currentDestination;
+    final destination = widget.destination;
     final isWide = MediaQuery.sizeOf(context).width >= 900;
 
     return Scaffold(
@@ -58,7 +58,7 @@ class _AppShellState extends State<AppShell> {
               onSelect: (value) => _goTo(context, value),
               favoritesCount: settings.favoriteIds.length,
             ),
-          Expanded(child: _screenFor(destination, settings)),
+          Expanded(child: _screenFor(context, destination, settings)),
         ],
       ),
       bottomNavigationBar: isWide
@@ -92,17 +92,21 @@ class _AppShellState extends State<AppShell> {
 
   void _goTo(BuildContext context, AppDestination value) {
     final settings = AppSettingsScope.of(context);
-    if (value == settings.currentDestination) {
+    if (value == widget.destination) {
       return;
     }
     settings.setDestination(value);
     Navigator.of(context).pushNamed(value.routePath);
   }
 
-  Widget _screenFor(AppDestination destination, AppSettings settings) {
+  Widget _screenFor(
+    BuildContext context,
+    AppDestination destination,
+    AppSettings settings,
+  ) {
     return switch (destination) {
       AppDestination.dashboard => DashboardScreen(
-        onOpenCatalog: () => settings.setDestination(AppDestination.catalog),
+        onOpenCatalog: () => _goTo(context, AppDestination.catalog),
       ),
       AppDestination.catalog => const CatalogScreen(),
       AppDestination.favorites => const FavoritesScreen(),

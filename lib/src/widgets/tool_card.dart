@@ -114,17 +114,33 @@ class ToolCard extends StatelessWidget {
                   icon: Icons.near_me_outlined,
                 ),
                 const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _SignalMeter(
-                        value: tool.signal,
-                        color: accessColor,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    _AccessBadge(access: tool.access, color: accessColor),
-                  ],
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isTight = constraints.maxWidth < 280;
+                    final meter = _SignalMeter(
+                      value: tool.signal,
+                      color: accessColor,
+                    );
+                    final badge = _AccessBadge(
+                      access: tool.access,
+                      color: accessColor,
+                    );
+
+                    if (isTight) {
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [meter, const SizedBox(height: 8), badge],
+                      );
+                    }
+
+                    return Row(
+                      children: [
+                        Expanded(child: meter),
+                        const SizedBox(width: 10),
+                        badge,
+                      ],
+                    );
+                  },
                 ),
                 const Spacer(),
                 Wrap(
