@@ -453,30 +453,96 @@ class _CommandThread extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Center(
-            child: Column(
-              children: [
-                Icon(mode.icon, color: const Color(0xFF6BE4C9), size: 38),
-                const SizedBox(height: 12),
-                const Text(
-                  'Новая рабочая сессия',
-                  style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20),
+          Row(
+            children: [
+              Icon(mode.icon, color: const Color(0xFF6BE4C9), size: 24),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Рабочая сессия',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w900,
+                        fontSize: 18,
+                      ),
+                    ),
+                    Text(
+                      'Центральный command/chat поток. Инструменты и агенты подключаются к задаче.',
+                      style: TextStyle(
+                        color: Color(0xFF8B97A8),
+                        fontSize: 12,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Опиши задачу. Станция подберёт агентов, инструменты и порядок действий.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Color(0xFF9AA6B8), height: 1.45),
-                ),
-              ],
+              ),
+              const StatusBadge(label: 'mock mode'),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Align(
+            alignment: Alignment.centerRight,
+            child: _MessageBubble(
+              alignRight: true,
+              label: 'Задача',
+              text: recommendation.task,
             ),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 12),
           _AssistantPlan(
             recommendation: recommendation,
             onNavigate: onNavigate,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MessageBubble extends StatelessWidget {
+  const _MessageBubble({
+    required this.label,
+    required this.text,
+    this.alignRight = false,
+  });
+
+  final String label;
+  final String text;
+  final bool alignRight;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 560),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: alignRight ? const Color(0xFF13202A) : const Color(0xFF0D111A),
+          border: Border.all(
+            color: alignRight
+                ? const Color(0xFF2B4658)
+                : const Color(0xFF263244),
+          ),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                color: Color(0xFF8B97A8),
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(text, style: const TextStyle(height: 1.35)),
+          ],
+        ),
       ),
     );
   }
@@ -820,25 +886,26 @@ class _PlanLine extends StatelessWidget {
     if (items.isEmpty) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(bottom: 9),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: Color(0xFF8B97A8),
-              fontWeight: FontWeight.w800,
-              fontSize: 12,
+          SizedBox(
+            width: 118,
+            child: Text(
+              title,
+              style: const TextStyle(
+                color: Color(0xFF8B97A8),
+                fontWeight: FontWeight.w800,
+                fontSize: 12,
+              ),
             ),
           ),
-          const SizedBox(height: 5),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (final item in items.take(5))
-                Chip(label: Text(item), visualDensity: VisualDensity.compact),
-            ],
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              items.take(5).join('  •  '),
+              style: const TextStyle(color: Color(0xFFC8D2E1), height: 1.35),
+            ),
           ),
         ],
       ),
