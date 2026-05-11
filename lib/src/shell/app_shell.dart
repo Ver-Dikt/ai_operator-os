@@ -50,6 +50,7 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     final destination = widget.destination;
     final isWide = MediaQuery.sizeOf(context).width >= 980;
+    final commandWorkspace = destination == AppDestination.commandCenter;
     final mobileDestinations = const [
       AppDestination.commandCenter,
       AppDestination.tools,
@@ -64,7 +65,7 @@ class _AppShellState extends State<AppShell> {
     return Scaffold(
       body: Row(
         children: [
-          if (isWide)
+          if (isWide && !commandWorkspace)
             _DesktopSidebar(
               destination: destination,
               onSelect: (value) => _goTo(context, value),

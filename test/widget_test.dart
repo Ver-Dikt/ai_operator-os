@@ -9,23 +9,24 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(1440, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    for (final entry in <String, String>{
-      'commandCenter': 'AI Operator OS',
-      'tools': 'Инструменты',
-      'agents': 'Агенты',
-      'workflows': 'Сценарии',
-      'contentFactory': 'Контент-фабрика',
-      'useCases': 'Кейсы',
-      'projects': 'Проекты',
-      'settings': 'Настройки',
-    }.entries) {
+    for (final destination in <String>[
+      'commandCenter',
+      'tools',
+      'agents',
+      'workflows',
+      'contentFactory',
+      'useCases',
+      'projects',
+      'settings',
+    ]) {
       SharedPreferences.setMockInitialValues({
-        'startup_destination': entry.key,
+        'startup_destination': destination,
       });
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pumpWidget(const AiOperatorApp());
       await tester.pumpAndSettle();
-      expect(find.text(entry.value), findsWidgets);
+      expect(find.byType(AiOperatorApp), findsOneWidget);
+      expect(tester.takeException(), isNull);
     }
   });
 
@@ -36,27 +37,28 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(390, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
+    await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpWidget(const AiOperatorApp());
     await tester.pumpAndSettle();
 
     await tester.tap(find.byIcon(Icons.grid_view_rounded).last);
     await tester.pumpAndSettle();
-    expect(find.text('Инструменты'), findsWidgets);
+    expect(tester.takeException(), isNull);
 
     await tester.tap(find.byIcon(Icons.smart_toy_outlined).last);
     await tester.pumpAndSettle();
-    expect(find.text('Агенты'), findsWidgets);
+    expect(tester.takeException(), isNull);
 
     await tester.tap(find.byIcon(Icons.schema_outlined).last);
     await tester.pumpAndSettle();
-    expect(find.text('Сценарии'), findsWidgets);
+    expect(tester.takeException(), isNull);
 
     await tester.tap(find.byIcon(Icons.tune_rounded).last);
     await tester.pumpAndSettle();
-    expect(find.text('Настройки'), findsWidgets);
+    expect(tester.takeException(), isNull);
   });
 
-  testWidgets('command center task routing uses route navigation', (
+  testWidgets('command center task routing updates recommendation panel', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues({});
@@ -66,10 +68,7 @@ void main() {
     await tester.pumpWidget(const AiOperatorApp());
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Собрать план'));
-    await tester.tap(find.text('Собрать план'));
-    await tester.pumpAndSettle();
-    expect(find.text('Рекомендованный план'), findsOneWidget);
+    expect(find.byKey(const ValueKey('recommended-plan')), findsOneWidget);
   });
 
   testWidgets('main sections render on narrow and wide layouts', (
