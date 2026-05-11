@@ -12,41 +12,53 @@ import '../services/router_service.dart';
 import '../state/app_settings.dart';
 import '../widgets/chips/status_badge.dart';
 
-enum _WorkMode { video, design, audio, research, automation }
+enum _WorkMode { agents, video, design, audio, research, automation, toolkit }
 
 extension _WorkModeUi on _WorkMode {
   String get label {
     return switch (this) {
+      _WorkMode.agents => 'Агенты',
       _WorkMode.video => 'Видео',
       _WorkMode.design => 'Дизайн',
       _WorkMode.audio => 'Аудио',
-      _WorkMode.research => 'Research',
-      _WorkMode.automation => 'Automation',
+      _WorkMode.research => 'Исследование',
+      _WorkMode.automation => 'Автоматизация',
+      _WorkMode.toolkit => 'Тул-кит',
     };
   }
 
   IconData get icon {
     return switch (this) {
+      _WorkMode.agents => Icons.smart_toy_outlined,
       _WorkMode.video => Icons.movie_creation_outlined,
       _WorkMode.design => Icons.auto_awesome_mosaic_outlined,
       _WorkMode.audio => Icons.graphic_eq_rounded,
       _WorkMode.research => Icons.travel_explore_rounded,
       _WorkMode.automation => Icons.bolt_rounded,
+      _WorkMode.toolkit => Icons.grid_view_rounded,
     };
   }
 
   String get model {
     return switch (this) {
+      _WorkMode.agents => 'Tool Router + Agent Workforce',
       _WorkMode.video => 'Director Agent + Kling/Veo',
       _WorkMode.design => 'Prompt Engineer + Image stack',
       _WorkMode.audio => 'Music Promo + Voice stack',
       _WorkMode.research => 'Research Agent + Perplexity',
       _WorkMode.automation => 'Automation Agent + n8n',
+      _WorkMode.toolkit => 'AI Tools Database + Free stack',
     };
   }
 
   List<String> get settings {
     return switch (this) {
+      _WorkMode.agents => [
+        'Роль: operator crew',
+        'Запуск: mock',
+        'Handoff: позже',
+        'Контроль: человек',
+      ],
       _WorkMode.video => [
         'Формат: 9:16',
         'Длина: 30-45 сек',
@@ -76,6 +88,12 @@ extension _WorkModeUi on _WorkMode {
         'Инструменты: n8n/Make',
         'Проверка: вручную',
         'Логи: Phase 3',
+      ],
+      _WorkMode.toolkit => [
+        'Фильтр: task-first',
+        'Сравнение: free/pro/local',
+        'API: отмечать отдельно',
+        'Избранное: быстрое',
       ],
     };
   }
@@ -152,9 +170,9 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     return Scaffold(
       body: DecoratedBox(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
+          gradient: RadialGradient(
+            center: Alignment.topCenter,
+            radius: 1.2,
             colors: [Color(0xFF10141C), Color(0xFF070A0F)],
           ),
         ),
@@ -289,24 +307,24 @@ class _SessionRail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 264,
+      width: 238,
       decoration: const BoxDecoration(
-        color: Color(0xE6070A0F),
-        border: Border(right: BorderSide(color: Color(0xFF1E2734))),
+        color: Color(0xCC05070B),
+        border: Border(right: BorderSide(color: Color(0x661E2734))),
       ),
-      padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Container(
-                width: 34,
-                height: 34,
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF111827),
-                  border: Border.all(color: const Color(0xFF273346)),
-                  borderRadius: BorderRadius.circular(8),
+                  color: const Color(0xFF0D111A),
+                  border: Border.all(color: const Color(0x66273346)),
+                  borderRadius: BorderRadius.circular(9),
                 ),
                 child: const Icon(
                   Icons.blur_on_rounded,
@@ -336,10 +354,13 @@ class _SessionRail extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 18),
-          FilledButton.icon(
-            onPressed: () => onNavigate(AppDestination.projects),
-            icon: const Icon(Icons.add_rounded),
-            label: const Text('Новая сессия'),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () => onNavigate(AppDestination.projects),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Новая сессия'),
+            ),
           ),
           const SizedBox(height: 18),
           const _RailTitle('Проекты'),
@@ -401,33 +422,113 @@ class _TopModeBar extends StatelessWidget {
     return Row(
       children: [
         const Expanded(
-          child: Text(
-            'AI Operator OS',
-            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'AI Operator OS',
+                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
+              ),
+              Text(
+                'operator workspace',
+                style: TextStyle(color: Color(0xFF788394), fontSize: 11),
+              ),
+            ],
           ),
         ),
         Flexible(
           flex: 4,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            reverse: true,
-            child: Row(
-              children: [
-                for (final item in _WorkMode.values)
-                  Padding(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: ChoiceChip(
-                      avatar: Icon(item.icon, size: 16),
-                      label: Text(item.label),
-                      selected: mode == item,
-                      onSelected: (_) => onModeChanged(item),
-                    ),
-                  ),
-              ],
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: const Color(0x990B0F16),
+                border: Border.all(color: const Color(0x33263244)),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                reverse: true,
+                child: Row(
+                  children: [
+                    for (final item in _WorkMode.values)
+                      _ModePill(
+                        mode: item,
+                        selected: mode == item,
+                        onTap: () => onModeChanged(item),
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ModePill extends StatelessWidget {
+  const _ModePill({
+    required this.mode,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final _WorkMode mode;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 2),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFF18212B) : Colors.transparent,
+            borderRadius: BorderRadius.circular(999),
+            boxShadow: selected
+                ? const [
+                    BoxShadow(
+                      color: Color(0x22000000),
+                      blurRadius: 16,
+                      offset: Offset(0, 8),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                mode.icon,
+                size: 15,
+                color: selected
+                    ? const Color(0xFFE8EEF8)
+                    : const Color(0xFF7F8A9A),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                mode.label,
+                style: TextStyle(
+                  color: selected
+                      ? const Color(0xFFE8EEF8)
+                      : const Color(0xFF8B97A8),
+                  fontSize: 12,
+                  fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -455,8 +556,21 @@ class _CommandThread extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(mode.icon, color: const Color(0xFF6BE4C9), size: 24),
-              const SizedBox(width: 10),
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F151E),
+                  border: Border.all(color: const Color(0x44263244)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  mode.icon,
+                  color: const Color(0xFFBFEFE4),
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 14),
               const Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -465,24 +579,26 @@ class _CommandThread extends StatelessWidget {
                       'Рабочая сессия',
                       style: TextStyle(
                         fontWeight: FontWeight.w900,
-                        fontSize: 18,
+                        fontSize: 26,
+                        letterSpacing: 0,
                       ),
                     ),
+                    SizedBox(height: 5),
                     Text(
                       'Центральный command/chat поток. Инструменты и агенты подключаются к задаче.',
                       style: TextStyle(
                         color: Color(0xFF8B97A8),
-                        fontSize: 12,
-                        height: 1.35,
+                        fontSize: 14,
+                        height: 1.45,
                       ),
                     ),
                   ],
                 ),
               ),
-              const StatusBadge(label: 'mock mode'),
+              const StatusBadge(label: 'session active'),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 28),
           Align(
             alignment: Alignment.centerRight,
             child: _MessageBubble(
@@ -564,18 +680,27 @@ class _CommandComposer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _WorkPanel(
-      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      glow: true,
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Text(
+            'Что хочешь сделать?',
+            style: TextStyle(
+              color: Color(0xFFE8EEF8),
+              fontWeight: FontWeight.w900,
+              fontSize: 13,
+            ),
+          ),
+          const SizedBox(height: 10),
           TextField(
             controller: controller,
             minLines: 1,
             maxLines: 4,
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.terminal_rounded),
-              hintText:
-                  'Например: сделать 10 Reels для трека, найти AI-фриланс, оживить старые фото...',
+              hintText: 'Что хочешь сделать?',
               suffixIcon: IconButton(
                 tooltip: 'Собрать план',
                 onPressed: onSubmit,
@@ -584,23 +709,23 @@ class _CommandComposer extends StatelessWidget {
             ),
             onSubmitted: (_) => onSubmit(),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              FilledButton.icon(
-                key: const ValueKey('build-plan-button'),
-                onPressed: onSubmit,
-                icon: const Icon(Icons.route_rounded),
-                label: const Text('Собрать план'),
-              ),
               for (final goal in goals)
                 ActionChip(
                   avatar: Icon(goal.icon, size: 16),
                   label: Text(goal.label),
                   onPressed: () => onGoal(goal.task),
                 ),
+              FilledButton.icon(
+                key: const ValueKey('build-plan-button'),
+                onPressed: onSubmit,
+                icon: const Icon(Icons.arrow_upward_rounded),
+                label: const Text('Собрать план'),
+              ),
             ],
           ),
         ],
@@ -628,11 +753,11 @@ class _AssistantPlan extends StatelessWidget {
     return Container(
       key: const ValueKey('recommended-plan'),
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D111A),
-        border: Border.all(color: const Color(0xFF263244)),
-        borderRadius: BorderRadius.circular(10),
+        color: const Color(0xB80A0E14),
+        border: Border.all(color: const Color(0x30263244)),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -717,8 +842,8 @@ class _ContextPanel extends StatelessWidget {
     return Container(
       width: 306,
       decoration: const BoxDecoration(
-        color: Color(0xD8070A0F),
-        border: Border(left: BorderSide(color: Color(0xFF1E2734))),
+        color: Color(0xB805070B),
+        border: Border(left: BorderSide(color: Color(0x661E2734))),
       ),
       padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
       child: _ContextPanelContent(
@@ -824,25 +949,33 @@ class _WorkPanel extends StatelessWidget {
   const _WorkPanel({
     required this.child,
     this.padding = const EdgeInsets.all(16),
+    this.glow = false,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
+  final bool glow;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: const Color(0xD20D111A),
-        border: Border.all(color: const Color(0xFF263244)),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x30000000),
-            blurRadius: 34,
-            offset: Offset(0, 18),
+        color: const Color(0xC80B0F16),
+        border: Border.all(color: const Color(0x33263244)),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          const BoxShadow(
+            color: Color(0x42000000),
+            blurRadius: 38,
+            offset: Offset(0, 20),
           ),
+          if (glow)
+            const BoxShadow(
+              color: Color(0x146BE4C9),
+              blurRadius: 30,
+              spreadRadius: -6,
+            ),
         ],
       ),
       child: child,
@@ -1047,20 +1180,22 @@ class _RailItem extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 6),
       child: Material(
         color: selected ? const Color(0xFF111C22) : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(8),
-          child: Container(
+          borderRadius: BorderRadius.circular(10),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            curve: Curves.easeOutCubic,
             padding: EdgeInsets.symmetric(
               horizontal: 10,
               vertical: dense ? 8 : 10,
             ),
             decoration: BoxDecoration(
               border: Border.all(
-                color: selected ? const Color(0xFF2A5D59) : Colors.transparent,
+                color: selected ? const Color(0x552A5D59) : Colors.transparent,
               ),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(10),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

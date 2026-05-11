@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 
 class AppTheme {
   static ThemeData dark() {
-    const background = Color(0xFF090B10);
-    const surface = Color(0xFF121722);
-    const surfaceHigh = Color(0xFF18202D);
-    const border = Color(0xFF263244);
-    const primary = Color(0xFF6BE4C9);
+    const background = Color(0xFF05070B);
+    const surface = Color(0xFF0B0F16);
+    const surfaceHigh = Color(0xFF111821);
+    const border = Color(0xFF202936);
+    const primary = Color(0xFFBFEFE4);
 
     return ThemeData(
       useMaterial3: true,
@@ -28,8 +28,8 @@ class AppTheme {
         fontFamily: 'Segoe UI',
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: const Color(0xEE0B0F16),
-        indicatorColor: primary.withValues(alpha: 0.18),
+        backgroundColor: const Color(0xF205070B),
+        indicatorColor: primary.withValues(alpha: 0.12),
         labelTextStyle: WidgetStateProperty.resolveWith(
           (states) => TextStyle(
             color: states.contains(WidgetState.selected)
@@ -51,25 +51,25 @@ class AppTheme {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: const Color(0xFF0E131C),
-        hintStyle: const TextStyle(color: Color(0xFF7E8B9D)),
+        fillColor: const Color(0xFF090D13),
+        hintStyle: const TextStyle(color: Color(0xFF697384)),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: border),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0x66202936)),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: border),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0x66202936)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: primary),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(color: Color(0x99BFEFE4)),
         ),
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: const Color(0xFF101722),
-        selectedColor: primary.withValues(alpha: 0.16),
-        side: const BorderSide(color: border),
+        backgroundColor: const Color(0xFF0D121A),
+        selectedColor: primary.withValues(alpha: 0.10),
+        side: const BorderSide(color: Color(0x55202936)),
         labelStyle: const TextStyle(
           color: Color(0xFFC8D2E1),
           fontWeight: FontWeight.w600,
@@ -85,10 +85,10 @@ class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: primary,
-          foregroundColor: const Color(0xFF061311),
+          backgroundColor: const Color(0xFFE8EEF8),
+          foregroundColor: const Color(0xFF05070B),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           textStyle: const TextStyle(fontWeight: FontWeight.w900),
@@ -97,9 +97,9 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: const Color(0xFFE8EEF8),
-          side: const BorderSide(color: border),
+          side: const BorderSide(color: Color(0x66202936)),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(14),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
