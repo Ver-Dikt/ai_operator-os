@@ -1,11 +1,11 @@
 {
-    "name": "ai_operator_os",
-    "short_name": "ai_operator_os",
+    "name": "AI Operator OS",
+    "short_name": "AI Operator",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Cross-platform catalog for managing an AI tool stack.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -1,4 +1,4 @@
-package com.example.ai_operator_os
+package com.verdikt.aioperatoros
 
 import io.flutter.embedding.android.FlutterActivity
 

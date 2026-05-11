@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
-            VALUE "FileDescription", "ai_operator_os" "\0"
+            VALUE "CompanyName", "Ver-Dikt" "\0"
+            VALUE "FileDescription", "AI Operator OS" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "ai_operator_os" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.example. All rights reserved." "\0"
+            VALUE "InternalName", "AI Operator OS" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 Ver-Dikt. All rights reserved." "\0"
             VALUE "OriginalFilename", "ai_operator_os.exe" "\0"
-            VALUE "ProductName", "ai_operator_os" "\0"
+            VALUE "ProductName", "AI Operator OS" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END
