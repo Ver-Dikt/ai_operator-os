@@ -26,6 +26,9 @@ class WorkspaceSession {
     required this.promptBlocks,
     required this.output,
     required this.openedTools,
+    required this.generatedPrompts,
+    required this.launchedFlows,
+    required this.copiedPrompts,
     required this.usedHelpers,
     required this.workflowIds,
     this.routeSeed,
@@ -48,6 +51,9 @@ class WorkspaceSession {
   final List<String> promptBlocks;
   final String output;
   final List<String> openedTools;
+  final List<String> generatedPrompts;
+  final List<String> launchedFlows;
+  final List<String> copiedPrompts;
   final List<String> usedHelpers;
   final List<String> workflowIds;
   final String? routeSeed;
@@ -66,6 +72,9 @@ class WorkspaceSession {
     List<String>? promptBlocks,
     String? output,
     List<String>? openedTools,
+    List<String>? generatedPrompts,
+    List<String>? launchedFlows,
+    List<String>? copiedPrompts,
     List<String>? usedHelpers,
     List<String>? workflowIds,
     String? routeSeed,
@@ -86,6 +95,9 @@ class WorkspaceSession {
       promptBlocks: promptBlocks ?? this.promptBlocks,
       output: output ?? this.output,
       openedTools: openedTools ?? this.openedTools,
+      generatedPrompts: generatedPrompts ?? this.generatedPrompts,
+      launchedFlows: launchedFlows ?? this.launchedFlows,
+      copiedPrompts: copiedPrompts ?? this.copiedPrompts,
       usedHelpers: usedHelpers ?? this.usedHelpers,
       workflowIds: workflowIds ?? this.workflowIds,
       routeSeed: routeSeed ?? this.routeSeed,
@@ -109,6 +121,9 @@ class WorkspaceSession {
       'promptBlocks': promptBlocks,
       'output': output,
       'openedTools': openedTools,
+      'generatedPrompts': generatedPrompts,
+      'launchedFlows': launchedFlows,
+      'copiedPrompts': copiedPrompts,
       'usedHelpers': usedHelpers,
       'workflowIds': workflowIds,
       'routeSeed': routeSeed,
@@ -140,6 +155,9 @@ class WorkspaceSession {
       promptBlocks: _stringList(json['promptBlocks']),
       output: json['output'] as String? ?? '',
       openedTools: _stringList(json['openedTools']),
+      generatedPrompts: _stringList(json['generatedPrompts']),
+      launchedFlows: _stringList(json['launchedFlows']),
+      copiedPrompts: _stringList(json['copiedPrompts']),
       usedHelpers: _stringList(json['usedHelpers']),
       workflowIds: _stringList(json['workflowIds']),
       routeSeed: json['routeSeed'] as String?,

@@ -5,6 +5,7 @@ import '../ai_operator_app.dart';
 import '../data/seed_free_credits.dart';
 import '../models/ai_agent.dart';
 import '../models/ai_tool.dart';
+import '../models/execution_mode.dart';
 import '../models/monetization.dart';
 import '../models/route_plan.dart';
 import '../models/routing_recommendation.dart';
@@ -14,7 +15,7 @@ import '../models/workspace_memory.dart';
 import '../services/graph_repository.dart';
 import '../services/router_service.dart';
 import '../services/storage_service.dart';
-import '../services/url_service.dart';
+import '../services/tool_launcher_service.dart';
 import '../state/app_settings.dart';
 
 enum _WorkMode { agents, text, design, video, audio, toolkit }
@@ -136,7 +137,7 @@ Future<void> _launchToolWebsite(BuildContext context, AiTool tool) async {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(content: Text('Подготовка prompt bundle для ${tool.name}...')),
   );
-  await const UrlService().open(tool.url);
+  await const ToolLauncherService().openExternalTool(tool);
 }
 
 class _ModeSettingConfig {
@@ -510,9 +511,11 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
   _TaskSession? _currentTaskSession;
   final Map<_WorkMode, _CreativeSession> _creativeSessions = {};
   final StorageService _storage = const StorageService();
+  final ToolLauncherService _toolLauncher = const ToolLauncherService();
   List<WorkspaceSession> _memorySessions = const [];
   List<MemoryProject> _memoryProjects = const [];
   String? _activeSessionId;
+  ExecutionMode _executionMode = ExecutionMode.manual;
 
   @override
   void initState() {
@@ -578,6 +581,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                       sessions: _memorySessions,
                       projects: _memoryProjects,
                       activeSessionId: _activeSessionId,
+                      executionMode: _executionMode,
                       activeViewType: _activeViewType,
                       activeWorkflowId: _activeWorkflowId,
                       activeAgentId: _activeAgentId,
@@ -595,6 +599,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                       onQuickGoal: _quickGoal,
                       onCloseActive: _closeActiveWork,
                       onSaveToProject: _saveActiveSessionToProject,
+                      onWorkspaceExecution: _handleWorkspaceExecution,
                       onOpenWorkflow: _openWorkflow,
                       onOpenAgent: _openAgent,
                       onOpenTool: _openTool,
@@ -629,11 +634,13 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                       aspect: _aspect,
                       quality: _quality,
                       settings: settings,
+                      executionMode: _executionMode,
                       onMode: _switchMode,
                       onSubmit: _buildPlan,
                       onQuickGoal: _quickGoal,
                       onCloseActive: _closeActiveWork,
                       onSaveToProject: _saveActiveSessionToProject,
+                      onWorkspaceExecution: _handleWorkspaceExecution,
                       onOpenWorkflow: _openWorkflow,
                       onOpenAgent: _openAgent,
                       onOpenTool: _openTool,
@@ -846,6 +853,9 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
       promptBlocks: session.promptBlocks,
       output: session.output,
       openedTools: existing?.openedTools ?? const [],
+      generatedPrompts: existing?.generatedPrompts ?? [session.output],
+      launchedFlows: existing?.launchedFlows ?? const [],
+      copiedPrompts: existing?.copiedPrompts ?? const [],
       usedHelpers: existing?.usedHelpers ?? const [],
       workflowIds: existing?.workflowIds ?? const [],
       routeSeed: task,
@@ -872,6 +882,9 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
       promptBlocks: plan.promptSuggestions,
       output: plan.steps.map((step) => step.title).join(' → '),
       openedTools: plan.toolIds,
+      generatedPrompts: existing?.generatedPrompts ?? plan.promptSuggestions,
+      launchedFlows: existing?.launchedFlows ?? const [],
+      copiedPrompts: existing?.copiedPrompts ?? const [],
       usedHelpers: plan.agentIds,
       workflowIds: plan.workflowIds,
       routeSeed: task,
@@ -1016,6 +1029,9 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
       promptBlocks: existing?.promptBlocks ?? const [],
       output: preview,
       openedTools: existing?.openedTools ?? const [],
+      generatedPrompts: existing?.generatedPrompts ?? const [],
+      launchedFlows: existing?.launchedFlows ?? const [],
+      copiedPrompts: existing?.copiedPrompts ?? const [],
       usedHelpers: usedHelpers,
       workflowIds: workflowIds,
       entityId: entityId,
@@ -1118,6 +1134,12 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
               ? 'пока нет'
               : session.openedTools.join(', '),
         ),
+        (
+          title: 'Execution history',
+          value: session.launchedFlows.isEmpty
+              ? 'новый runtime flow'
+              : session.launchedFlows.take(2).join(' / '),
+        ),
       ],
       promptBlocks: session.promptBlocks,
       timestamp: session.updatedAt,
@@ -1170,6 +1192,95 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
       session.copyWith(
         updatedAt: DateTime.now(),
         openedTools: tools.take(8).toList(),
+      ),
+    );
+  }
+
+  Future<void> _handleWorkspaceExecution(
+    _WorkspaceActionSpec action,
+    String prompt,
+  ) async {
+    final nextMode = action.toolId != null
+        ? ExecutionMode.browserLaunch
+        : action.copyOutput
+        ? ExecutionMode.manual
+        : ExecutionMode.manual;
+    setState(() => _executionMode = nextMode);
+
+    if (action.copyOutput) {
+      await _toolLauncher.copyPrompt(prompt);
+      _recordExecutionHistory(copiedPrompt: prompt);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Final production prompt скопирован')),
+      );
+      return;
+    }
+
+    if (action.toolId != null) {
+      final tool = _firstOrNull(
+        const GraphRepository().toolsByIds([action.toolId!]),
+      );
+      if (tool != null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Открытие ${tool.name}... prompt уже в буфере'),
+          ),
+        );
+        await _toolLauncher.continueInTool(tool, prompt);
+        _recordExecutionHistory(
+          openedToolId: tool.id,
+          launchedFlow: '${action.label} → ${tool.name}',
+          generatedPrompt: prompt,
+        );
+      } else {
+        _recordExecutionHistory(launchedFlow: action.label);
+      }
+      return;
+    }
+
+    _recordExecutionHistory(
+      generatedPrompt: prompt,
+      launchedFlow: action.flowEvent ?? action.label,
+    );
+  }
+
+  void _recordExecutionHistory({
+    String? openedToolId,
+    String? generatedPrompt,
+    String? launchedFlow,
+    String? copiedPrompt,
+  }) {
+    if (_activeSessionId == null) return;
+    final session = _sessionById(_activeSessionId!);
+    if (session == null) return;
+    final tools = [...session.openedTools];
+    if (openedToolId != null && !tools.contains(openedToolId)) {
+      tools.insert(0, openedToolId);
+    }
+    final generated = [...session.generatedPrompts];
+    if (generatedPrompt != null && generatedPrompt.trim().isNotEmpty) {
+      generated.insert(0, generatedPrompt);
+    }
+    final launched = [...session.launchedFlows];
+    if (launchedFlow != null && launchedFlow.trim().isNotEmpty) {
+      launched.insert(
+        0,
+        '${_formatSessionTime(DateTime.now())} • $launchedFlow',
+      );
+    }
+    final copied = [...session.copiedPrompts];
+    if (copiedPrompt != null && copiedPrompt.trim().isNotEmpty) {
+      copied.insert(0, copiedPrompt);
+    }
+    _upsertMemorySession(
+      session.copyWith(
+        updatedAt: DateTime.now(),
+        openedTools: tools.take(10).toList(),
+        generatedPrompts: generated.take(12).toList(),
+        launchedFlows: launched.take(12).toList(),
+        copiedPrompts: copied.take(12).toList(),
       ),
     );
   }
@@ -1334,6 +1445,7 @@ class _DesktopStation extends StatelessWidget {
     required this.sessions,
     required this.projects,
     required this.activeSessionId,
+    required this.executionMode,
     required this.activeViewType,
     required this.activeWorkflowId,
     required this.activeAgentId,
@@ -1351,6 +1463,7 @@ class _DesktopStation extends StatelessWidget {
     required this.onQuickGoal,
     required this.onCloseActive,
     required this.onSaveToProject,
+    required this.onWorkspaceExecution,
     required this.onOpenWorkflow,
     required this.onOpenAgent,
     required this.onOpenTool,
@@ -1379,6 +1492,7 @@ class _DesktopStation extends StatelessWidget {
   final List<WorkspaceSession> sessions;
   final List<MemoryProject> projects;
   final String? activeSessionId;
+  final ExecutionMode executionMode;
   final _ActiveViewType activeViewType;
   final String? activeWorkflowId;
   final String? activeAgentId;
@@ -1396,6 +1510,8 @@ class _DesktopStation extends StatelessWidget {
   final ValueChanged<String> onQuickGoal;
   final VoidCallback onCloseActive;
   final VoidCallback onSaveToProject;
+  final void Function(_WorkspaceActionSpec action, String prompt)
+  onWorkspaceExecution;
   final ValueChanged<String?> onOpenWorkflow;
   final ValueChanged<String?> onOpenAgent;
   final ValueChanged<String?> onOpenTool;
@@ -1435,6 +1551,7 @@ class _DesktopStation extends StatelessWidget {
                   activeUseCaseId: activeUseCaseId,
                   activeSummaryTitle: activeSummaryTitle,
                   activeSummarySubtitle: activeSummarySubtitle,
+                  executionMode: executionMode,
                   onOpenWorkflow: onOpenWorkflow,
                   onOpenAgent: onOpenAgent,
                   onOpenTool: onOpenTool,
@@ -1442,6 +1559,7 @@ class _DesktopStation extends StatelessWidget {
                   onBack: onBack,
                   onCloseActive: onCloseActive,
                   onSaveToProject: onSaveToProject,
+                  onWorkspaceExecution: onWorkspaceExecution,
                 ),
               ),
             ),
@@ -1488,6 +1606,7 @@ class _DesktopStation extends StatelessWidget {
             activeAgentId: activeAgentId,
             activeToolId: activeToolId,
             activeUseCaseId: activeUseCaseId,
+            executionMode: executionMode,
             onModel: onModel,
             onAspect: onAspect,
             onQuality: onQuality,
@@ -1531,11 +1650,13 @@ class _MobileStation extends StatelessWidget {
     required this.aspect,
     required this.quality,
     required this.settings,
+    required this.executionMode,
     required this.onMode,
     required this.onSubmit,
     required this.onQuickGoal,
     required this.onCloseActive,
     required this.onSaveToProject,
+    required this.onWorkspaceExecution,
     required this.onOpenWorkflow,
     required this.onOpenAgent,
     required this.onOpenTool,
@@ -1563,11 +1684,14 @@ class _MobileStation extends StatelessWidget {
   final String aspect;
   final String quality;
   final AppSettings settings;
+  final ExecutionMode executionMode;
   final ValueChanged<_WorkMode> onMode;
   final VoidCallback onSubmit;
   final ValueChanged<String> onQuickGoal;
   final VoidCallback onCloseActive;
   final VoidCallback onSaveToProject;
+  final void Function(_WorkspaceActionSpec action, String prompt)
+  onWorkspaceExecution;
   final ValueChanged<String?> onOpenWorkflow;
   final ValueChanged<String?> onOpenAgent;
   final ValueChanged<String?> onOpenTool;
@@ -1599,6 +1723,7 @@ class _MobileStation extends StatelessWidget {
             activeUseCaseId: activeUseCaseId,
             activeSummaryTitle: activeSummaryTitle,
             activeSummarySubtitle: activeSummarySubtitle,
+            executionMode: executionMode,
             onOpenWorkflow: onOpenWorkflow,
             onOpenAgent: onOpenAgent,
             onOpenTool: onOpenTool,
@@ -1606,6 +1731,7 @@ class _MobileStation extends StatelessWidget {
             onBack: onBack,
             onCloseActive: onCloseActive,
             onSaveToProject: onSaveToProject,
+            onWorkspaceExecution: onWorkspaceExecution,
           ),
         ),
         const SizedBox(height: 14),
@@ -1629,6 +1755,7 @@ class _MobileStation extends StatelessWidget {
           activeAgentId: activeAgentId,
           activeToolId: activeToolId,
           activeUseCaseId: activeUseCaseId,
+          executionMode: executionMode,
           onModel: onModel,
           onAspect: onAspect,
           onQuality: onQuality,
@@ -2151,6 +2278,7 @@ class _CenterStage extends StatelessWidget {
     required this.activeUseCaseId,
     required this.activeSummaryTitle,
     required this.activeSummarySubtitle,
+    required this.executionMode,
     required this.onOpenWorkflow,
     required this.onOpenAgent,
     required this.onOpenTool,
@@ -2158,6 +2286,7 @@ class _CenterStage extends StatelessWidget {
     required this.onBack,
     required this.onCloseActive,
     required this.onSaveToProject,
+    required this.onWorkspaceExecution,
   });
 
   final _WorkMode mode;
@@ -2171,6 +2300,7 @@ class _CenterStage extends StatelessWidget {
   final String? activeUseCaseId;
   final String? activeSummaryTitle;
   final String? activeSummarySubtitle;
+  final ExecutionMode executionMode;
   final ValueChanged<String?> onOpenWorkflow;
   final ValueChanged<String?> onOpenAgent;
   final ValueChanged<String?> onOpenTool;
@@ -2178,6 +2308,8 @@ class _CenterStage extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback onCloseActive;
   final VoidCallback onSaveToProject;
+  final void Function(_WorkspaceActionSpec action, String prompt)
+  onWorkspaceExecution;
 
   @override
   Widget build(BuildContext context) {
@@ -2196,8 +2328,9 @@ class _CenterStage extends StatelessWidget {
           : _CreativeWorkspaceStage(
               session: creativeSession!,
               onClose: onCloseActive,
-              onOpenTool: onOpenTool,
               onSaveToProject: onSaveToProject,
+              onWorkspaceExecution: onWorkspaceExecution,
+              executionMode: executionMode,
               key: ValueKey(
                 'creative-${creativeSession!.mode.name}-${creativeSession!.timestamp.millisecondsSinceEpoch}',
               ),
@@ -2816,14 +2949,17 @@ class _CreativeWorkspaceStage extends StatelessWidget {
     super.key,
     required this.session,
     required this.onClose,
-    required this.onOpenTool,
     required this.onSaveToProject,
+    required this.onWorkspaceExecution,
+    required this.executionMode,
   });
 
   final _CreativeSession session;
   final VoidCallback onClose;
-  final ValueChanged<String?> onOpenTool;
   final VoidCallback onSaveToProject;
+  final void Function(_WorkspaceActionSpec action, String prompt)
+  onWorkspaceExecution;
+  final ExecutionMode executionMode;
 
   @override
   Widget build(BuildContext context) {
@@ -2866,12 +3002,17 @@ class _CreativeWorkspaceStage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
+              _ExecutionModeStrip(mode: executionMode),
+              const SizedBox(height: 12),
               _WorkspaceOutputBlock(
-                title: session.outputTitle,
-                value: session.output,
+                title: 'FINAL PRODUCTION PROMPT',
+                value: _productionPromptForSession(session),
               ),
               const SizedBox(height: 12),
-              _WorkspaceModeBoard(session: session, onOpenTool: onOpenTool),
+              _WorkspaceModeBoard(
+                session: session,
+                onExecute: onWorkspaceExecution,
+              ),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 10,
@@ -2895,9 +3036,17 @@ class _CreativeWorkspaceStage extends StatelessWidget {
               _ResponsiveActionBar(
                 children: [
                   OutlinedButton.icon(
-                    onPressed: () => _copyText(context, session.output),
+                    onPressed: () => onWorkspaceExecution(
+                      const _WorkspaceActionSpec(
+                        'Copy final prompt',
+                        Icons.copy_rounded,
+                        false,
+                        copyOutput: true,
+                      ),
+                      _productionPromptForSession(session),
+                    ),
                     icon: const Icon(Icons.copy_rounded),
-                    label: const Text('Reuse prompt'),
+                    label: const Text('Copy final prompt'),
                   ),
                   OutlinedButton.icon(
                     onPressed: () => _copyText(context, session.output),
@@ -2964,11 +3113,25 @@ class _WorkspaceOutputBlock extends StatelessWidget {
   }
 }
 
+String _productionPromptForSession(_CreativeSession session) {
+  final blocks = session.promptBlocks.isEmpty
+      ? session.output
+      : session.promptBlocks.join('\n\n');
+  final modeNote = switch (session.mode) {
+    _WorkMode.text => 'Production mode: AI Writer IDE',
+    _WorkMode.design => 'Production mode: Image Direction Lab',
+    _WorkMode.video => 'Production mode: Cinematic Production Table',
+    _WorkMode.audio => 'Production mode: Sound Lab',
+    _ => 'Production mode: AI Operator OS',
+  };
+  return '$modeNote\n\n${session.output}\n\nExecution prompt:\n$blocks';
+}
+
 class _WorkspaceModeBoard extends StatelessWidget {
-  const _WorkspaceModeBoard({required this.session, required this.onOpenTool});
+  const _WorkspaceModeBoard({required this.session, required this.onExecute});
 
   final _CreativeSession session;
-  final ValueChanged<String?> onOpenTool;
+  final void Function(_WorkspaceActionSpec action, String prompt) onExecute;
 
   @override
   Widget build(BuildContext context) {
@@ -3025,8 +3188,8 @@ class _WorkspaceModeBoard extends StatelessWidget {
                         onPressed: () => _runWorkspaceAction(
                           context,
                           action,
-                          session.output,
-                          onOpenTool,
+                          _productionPromptForSession(session),
+                          onExecute,
                         ),
                         icon: Icon(action.icon),
                         label: Text(action.label),
@@ -3035,8 +3198,8 @@ class _WorkspaceModeBoard extends StatelessWidget {
                         onPressed: () => _runWorkspaceAction(
                           context,
                           action,
-                          session.output,
-                          onOpenTool,
+                          _productionPromptForSession(session),
+                          onExecute,
                         ),
                         icon: Icon(action.icon),
                         label: Text(action.label),
@@ -3157,7 +3320,7 @@ class _WorkspaceBoardSpec {
       _WorkMode.text => const _WorkspaceBoardSpec(
         title: 'AI writer IDE',
         nextStep:
-            'продолжить черновик в ChatGPT или превратить результат в промпт',
+            '1. открыть ChatGPT/Claude 2. вставить prompt 3. получить draft 4. refine',
         icon: Icons.edit_note_rounded,
         blocks: [
           _WorkspaceBoardBlockSpec(
@@ -3187,12 +3350,27 @@ class _WorkspaceBoardSpec {
           ),
         ],
         actions: [
-          _WorkspaceActionSpec('Continue', Icons.play_arrow_rounded, true),
-          _WorkspaceActionSpec('Rewrite', Icons.auto_fix_high_rounded, false),
-          _WorkspaceActionSpec('Expand', Icons.unfold_more_rounded, false),
           _WorkspaceActionSpec(
-            'Convert to prompt',
-            Icons.terminal_rounded,
+            'Continue in ChatGPT',
+            Icons.open_in_new_rounded,
+            true,
+            toolId: 'chatgpt',
+          ),
+          _WorkspaceActionSpec(
+            'Open Claude',
+            Icons.open_in_new_rounded,
+            false,
+            toolId: 'claude',
+          ),
+          _WorkspaceActionSpec(
+            'Open Gemini',
+            Icons.open_in_new_rounded,
+            false,
+            toolId: 'gemini',
+          ),
+          _WorkspaceActionSpec(
+            'Copy production prompt',
+            Icons.copy_rounded,
             false,
             copyOutput: true,
           ),
@@ -3200,7 +3378,7 @@ class _WorkspaceBoardSpec {
       ),
       _WorkMode.design => const _WorkspaceBoardSpec(
         title: 'Image direction lab',
-        nextStep: 'открыть Midjourney или Leonardo и вставить собранный prompt',
+        nextStep: '1. открыть Leonardo 2. вставить prompt 3. upscale 4. export',
         icon: Icons.auto_awesome_mosaic_outlined,
         blocks: [
           _WorkspaceBoardBlockSpec(
@@ -3225,7 +3403,18 @@ class _WorkspaceBoardSpec {
           ),
         ],
         actions: [
-          _WorkspaceActionSpec('Generate', Icons.auto_awesome_rounded, true),
+          _WorkspaceActionSpec(
+            'Generate prompt',
+            Icons.auto_awesome_rounded,
+            true,
+            flowEvent: 'generate_prompt',
+          ),
+          _WorkspaceActionSpec(
+            'Refine prompt',
+            Icons.auto_fix_high_rounded,
+            false,
+            flowEvent: 'refine_prompt',
+          ),
           _WorkspaceActionSpec(
             'Open Leonardo',
             Icons.open_in_new_rounded,
@@ -3245,7 +3434,13 @@ class _WorkspaceBoardSpec {
             toolId: 'flux-playground',
           ),
           _WorkspaceActionSpec(
-            'Copy prompt',
+            'Open Playground',
+            Icons.open_in_new_rounded,
+            false,
+            toolId: 'flux-playground',
+          ),
+          _WorkspaceActionSpec(
+            'Copy final prompt',
             Icons.copy_rounded,
             false,
             copyOutput: true,
@@ -3254,7 +3449,8 @@ class _WorkspaceBoardSpec {
       ),
       _WorkMode.video => const _WorkspaceBoardSpec(
         title: 'Cinematic production table',
-        nextStep: 'открыть Kling, Veo или Runway и запустить первую сцену',
+        nextStep:
+            '1. открыть Kling 2. вставить prompt 3. сгенерировать preview 4. открыть Runway 5. сделать polish',
         icon: Icons.local_movies_outlined,
         blocks: [
           _WorkspaceBoardBlockSpec(
@@ -3280,9 +3476,16 @@ class _WorkspaceBoardSpec {
         ],
         actions: [
           _WorkspaceActionSpec(
-            'Generate scene',
+            'Generate prompt',
             Icons.play_arrow_rounded,
             true,
+            flowEvent: 'generate_prompt',
+          ),
+          _WorkspaceActionSpec(
+            'Refine prompt',
+            Icons.auto_fix_high_rounded,
+            false,
+            flowEvent: 'refine_prompt',
           ),
           _WorkspaceActionSpec(
             'Open Kling',
@@ -3303,20 +3506,23 @@ class _WorkspaceBoardSpec {
             toolId: 'runway',
           ),
           _WorkspaceActionSpec(
-            'Export storyboard',
-            Icons.ios_share_rounded,
+            'Copy final prompt',
+            Icons.copy_rounded,
             false,
+            copyOutput: true,
           ),
           _WorkspaceActionSpec(
-            'Continue sequence',
+            'Continue flow',
             Icons.skip_next_rounded,
             false,
+            flowEvent: 'continue_flow',
           ),
         ],
       ),
       _WorkMode.audio => const _WorkspaceBoardSpec(
         title: 'Sound lab',
-        nextStep: 'открыть ElevenLabs или Suno и перенести voice/music prompt',
+        nextStep:
+            '1. открыть ElevenLabs/Suno 2. вставить prompt 3. preview 4. export',
         icon: Icons.graphic_eq_rounded,
         blocks: [
           _WorkspaceBoardBlockSpec(
@@ -3354,7 +3560,13 @@ class _WorkspaceBoardSpec {
             toolId: 'suno',
           ),
           _WorkspaceActionSpec(
-            'Copy voice prompt',
+            'Generate prompt',
+            Icons.auto_awesome_rounded,
+            false,
+            flowEvent: 'generate_prompt',
+          ),
+          _WorkspaceActionSpec(
+            'Copy final prompt',
             Icons.copy_rounded,
             false,
             copyOutput: true,
@@ -3392,6 +3604,7 @@ class _WorkspaceActionSpec {
     this.primary, {
     this.toolId,
     this.copyOutput = false,
+    this.flowEvent,
   });
 
   final String label;
@@ -3399,27 +3612,20 @@ class _WorkspaceActionSpec {
   final bool primary;
   final String? toolId;
   final bool copyOutput;
+  final String? flowEvent;
 }
 
 void _runWorkspaceAction(
   BuildContext context,
   _WorkspaceActionSpec action,
   String output,
-  ValueChanged<String?> onOpenTool,
+  void Function(_WorkspaceActionSpec action, String prompt) onExecute,
 ) {
-  if (action.copyOutput) {
-    _copyText(context, output);
+  if (action.copyOutput || action.toolId != null || action.flowEvent != null) {
+    onExecute(action, output);
     return;
   }
-  if (action.toolId != null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Подготовка prompt bundle для ${action.label}...'),
-      ),
-    );
-    onOpenTool(action.toolId);
-    return;
-  }
+  onExecute(action, output);
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(content: Text('${action.label}: готово к ручному шагу')),
   );
@@ -4784,6 +4990,7 @@ class _SettingsPanel extends StatelessWidget {
     required this.quality,
     required this.mode,
     required this.settings,
+    required this.executionMode,
     required this.activeViewType,
     required this.activeWorkflowId,
     required this.activeAgentId,
@@ -4802,6 +5009,7 @@ class _SettingsPanel extends StatelessWidget {
   final String quality;
   final _WorkMode mode;
   final AppSettings settings;
+  final ExecutionMode executionMode;
   final _ActiveViewType activeViewType;
   final String? activeWorkflowId;
   final String? activeAgentId;
@@ -4894,14 +5102,16 @@ class _SettingsPanel extends StatelessWidget {
             ),
             _SettingsGroup(
               title: 'Режим выполнения',
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  _ExecutionModeStrip(mode: executionMode),
+                  const SizedBox(height: 8),
                   _PathRow('Ручной запуск', Icons.open_in_new_rounded),
                   _PathRow('API позже', Icons.api_rounded),
                   _PathRow('Локально позже', Icons.dns_outlined),
-                  SizedBox(height: 6),
-                  Text(
+                  const SizedBox(height: 6),
+                  const Text(
                     'Сейчас OS работает в ручном режиме: она собирает маршрут, промпты и инструменты. На следующих этапах подключим OpenAI API, Ollama и автоматические агенты.',
                     style: TextStyle(
                       color: Color(0xFF8B8F9A),
@@ -5043,6 +5253,25 @@ class _SelectLine extends StatelessWidget {
       onChanged: (value) {
         if (value != null) onChanged(value);
       },
+    );
+  }
+}
+
+class _ExecutionModeStrip extends StatelessWidget {
+  const _ExecutionModeStrip({required this.mode});
+
+  final ExecutionMode mode;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        _RouteBadge(mode.label.toUpperCase()),
+        const _StateBadge('Runtime foundation'),
+        const _StateBadge('No API yet'),
+      ],
     );
   }
 }

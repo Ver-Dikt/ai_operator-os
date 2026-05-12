@@ -256,6 +256,16 @@ final seedTools = <AiTool>[
     rating: 4.5,
   ),
   _tool(
+    id: 'flux-playground',
+    name: 'Flux Playground',
+    category: ToolCategory.image,
+    url: 'https://playground.bfl.ai/image/generate',
+    pricing: PricingType.freemium,
+    bestFor: 'Flux image generation, быстрые production prompt тесты',
+    tags: ['image', 'flux', 'playground', 'free'],
+    rating: 4.5,
+  ),
+  _tool(
     id: 'piclumen',
     name: 'PicLumen',
     category: ToolCategory.image,
