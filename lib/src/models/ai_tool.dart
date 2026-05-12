@@ -4,8 +4,9 @@ enum ToolPlatform { web, desktop, mobile, api, local }
 
 enum ToolIntegrationType {
   externalManual,
-  apiConnected,
-  localConnected,
+  apiLater,
+  localLater,
+  connected,
   planned,
 }
 
@@ -13,8 +14,9 @@ extension ToolIntegrationTypeLabel on ToolIntegrationType {
   String get label {
     return switch (this) {
       ToolIntegrationType.externalManual => 'Открывается вручную',
-      ToolIntegrationType.apiConnected => 'Подключено',
-      ToolIntegrationType.localConnected => 'Локально подключено',
+      ToolIntegrationType.apiLater => 'API позже',
+      ToolIntegrationType.localLater => 'Локально позже',
+      ToolIntegrationType.connected => 'Подключено',
       ToolIntegrationType.planned => 'Скоро',
     };
   }

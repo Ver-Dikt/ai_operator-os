@@ -46,9 +46,9 @@ AiTool _tool({
     integrationType:
         integration ??
         (platforms.contains(ToolPlatform.local)
-            ? ToolIntegrationType.planned
+            ? ToolIntegrationType.localLater
             : hasApi
-            ? ToolIntegrationType.planned
+            ? ToolIntegrationType.apiLater
             : ToolIntegrationType.externalManual),
   );
 }

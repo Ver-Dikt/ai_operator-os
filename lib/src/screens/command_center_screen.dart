@@ -76,6 +76,70 @@ extension _WorkModeUi on _WorkMode {
       _WorkMode.toolkit => Icons.grid_view_rounded,
     };
   }
+
+  String get placeholder {
+    return switch (this) {
+      _WorkMode.agents => 'Опиши задачу для команды агентов...',
+      _WorkMode.text =>
+        'Напиши текстовую, аналитическую или research-задачу...',
+      _WorkMode.design =>
+        'Опиши изображение, постер, бренд или визуальный стиль...',
+      _WorkMode.video => 'Опиши видео, сцену, Reels или cinematic shot...',
+      _WorkMode.audio => 'Опиши озвучку, музыку, дубляж или промо трека...',
+      _WorkMode.toolkit =>
+        'Что нужно найти, сравнить или собрать из нейросетей?',
+    };
+  }
+
+  List<({String label, String task})> get quickActions {
+    return switch (this) {
+      _WorkMode.agents => const [
+        (label: 'Подобрать агентов', task: 'Подобрать агентов под мою задачу'),
+        (label: 'Назначить задачу', task: 'Разбить задачу между агентами'),
+        (
+          label: 'Проверить результат',
+          task: 'Проверить результат через QA Agent',
+        ),
+      ],
+      _WorkMode.text => const [
+        (label: 'Research brief', task: 'Собрать research brief по теме'),
+        (label: 'Посты', task: 'Написать серию постов для соцсетей'),
+        (label: 'Промпт', task: 'Улучшить промпт под конкретную модель'),
+      ],
+      _WorkMode.design => const [
+        (
+          label: 'Постер',
+          task: 'Сделать визуальный стиль и промпт для постера',
+        ),
+        (label: 'Обложка', task: 'Собрать prompt pack для обложки'),
+        (label: 'Брендинг', task: 'Собрать AI brand moodboard'),
+      ],
+      _WorkMode.video => const [
+        (label: 'AI Reels', task: 'Сделать 10 Reels для трека'),
+        (label: 'Сцена', task: 'Собрать cinematic AI scene builder'),
+        (
+          label: 'Локализация',
+          task: 'Локализовать видео: перевод, голос, субтитры',
+        ),
+      ],
+      _WorkMode.audio => const [
+        (
+          label: 'Voiceover',
+          task: 'Подготовить voiceover и инструменты озвучки',
+        ),
+        (label: 'Music promo', task: 'Продвинуть музыкальный релиз'),
+        (label: 'Dubbing', task: 'Собрать workflow дубляжа видео'),
+      ],
+      _WorkMode.toolkit => const [
+        (label: 'Free stack', task: 'Найти бесплатный AI stack под задачу'),
+        (
+          label: 'Сравнить',
+          task: 'Сравнить платные и бесплатные AI инструменты',
+        ),
+        (label: 'Local', task: 'Подобрать локальные AI инструменты'),
+      ],
+    };
+  }
 }
 
 class CommandCenterScreen extends StatefulWidget {
@@ -97,27 +161,6 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
   String _model = 'Auto Router';
   String _aspect = '9:16';
   String _quality = 'Balanced';
-
-  static const _quickGoals = <({String label, String task})>[
-    (
-      label: 'AI-видео',
-      task: 'Сделать кинематографичное AI-видео для соцсетей',
-    ),
-    (label: 'Музыка', task: 'Сделать 10 Reels для музыкального трека'),
-    (
-      label: 'Фриланс',
-      task: 'Найти AI-фриланс задачи и путь к первым клиентам',
-    ),
-    (label: 'Оживить фото', task: 'Оживить старые фото как услугу'),
-    (
-      label: 'Локализация',
-      task: 'Локализовать видео: перевод, озвучка и субтитры',
-    ),
-    (
-      label: 'Автоматизация',
-      task: 'Построить n8n workflow для повторяющейся задачи',
-    ),
-  ];
 
   @override
   void dispose() {
@@ -159,6 +202,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                   onOpenWorkflow: _openWorkflow,
                   onOpenAgent: _openAgent,
                   onOpenTool: _openTool,
+                  onNewSession: _newSession,
                   onModel: (value) => setState(() => _model = value),
                   onAspect: (value) => setState(() => _aspect = value),
                   onQuality: (value) => setState(() => _quality = value),
@@ -228,6 +272,15 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     });
   }
 
+  void _newSession() {
+    setState(() {
+      _taskController.clear();
+      _recommendation = null;
+      _activeEntity = _ActiveEntity.none;
+      _activeEntityId = null;
+    });
+  }
+
   void _resetParameters() {
     setState(() {
       _model = 'Auto Router';
@@ -256,6 +309,7 @@ class _DesktopStation extends StatelessWidget {
     required this.onOpenWorkflow,
     required this.onOpenAgent,
     required this.onOpenTool,
+    required this.onNewSession,
     required this.onModel,
     required this.onAspect,
     required this.onQuality,
@@ -280,6 +334,7 @@ class _DesktopStation extends StatelessWidget {
   final ValueChanged<String?> onOpenWorkflow;
   final ValueChanged<String?> onOpenAgent;
   final ValueChanged<String?> onOpenTool;
+  final VoidCallback onNewSession;
   final ValueChanged<String> onModel;
   final ValueChanged<String> onAspect;
   final ValueChanged<String> onQuality;
@@ -321,6 +376,7 @@ class _DesktopStation extends StatelessWidget {
             onOpenWorkflow: onOpenWorkflow,
             onOpenAgent: onOpenAgent,
             onOpenTool: onOpenTool,
+            onNewSession: onNewSession,
           ),
         ),
         Positioned(
@@ -346,6 +402,7 @@ class _DesktopStation extends StatelessWidget {
           right: 380,
           bottom: 24,
           child: _PromptComposer(
+            mode: mode,
             controller: taskController,
             onSubmit: onSubmit,
             onQuickGoal: onQuickGoal,
@@ -420,6 +477,7 @@ class _MobileStation extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         _PromptComposer(
+          mode: mode,
           controller: taskController,
           onSubmit: onSubmit,
           onQuickGoal: onQuickGoal,
@@ -590,6 +648,7 @@ class _HistoryPanel extends StatelessWidget {
     required this.onOpenWorkflow,
     required this.onOpenAgent,
     required this.onOpenTool,
+    required this.onNewSession,
   });
 
   final String tab;
@@ -598,96 +657,157 @@ class _HistoryPanel extends StatelessWidget {
   final ValueChanged<String?> onOpenWorkflow;
   final ValueChanged<String?> onOpenAgent;
   final ValueChanged<String?> onOpenTool;
+  final VoidCallback onNewSession;
 
   @override
   Widget build(BuildContext context) {
     return _GlassPanel(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TextField(
-            decoration: InputDecoration(
-              isDense: true,
-              prefixIcon: const Icon(Icons.search_rounded, size: 16),
-              suffixIcon: const Icon(Icons.close_rounded, size: 14),
-              hintText: 'Поиск',
-              contentPadding: const EdgeInsets.symmetric(vertical: 10),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: Color(0x12FFFFFF)),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              for (final item in ['все', 'изб', 'проекты'])
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
                 Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 4),
-                    child: _TinyTab(
-                      label: item,
-                      selected: tab == item,
-                      onTap: () => onTab(item),
-                    ),
+                  child: FilledButton.icon(
+                    onPressed: onNewSession,
+                    icon: const Icon(Icons.add_rounded, size: 16),
+                    label: const Text('Сессия'),
                   ),
                 ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          const _PanelLabel('Избранное'),
-          _HistoryItem('неделя 3', 'saved stack', () {}),
-          _HistoryItem('неделя 2', 'prompt route', () {}),
-          _HistoryItem('идеи', 'creative queue', () {}),
-          _HistoryItem(
-            'Проект 1',
-            'active',
-            () => onNavigate(AppDestination.projects),
-          ),
-          const SizedBox(height: 14),
-          const _PanelLabel('На этой неделе'),
-          _HistoryItem(
-            'AI Short Video Factory',
-            'workflow',
-            () => onOpenWorkflow('ai-short-video-factory'),
-          ),
-          _HistoryItem(
-            'Music Promo Pack',
-            'workflow',
-            () => onOpenWorkflow('music-release-promo-pack'),
-          ),
-          _HistoryItem(
-            'AI Freelance Scout',
-            'use case',
-            () => onOpenAgent('research-agent'),
-          ),
-          const SizedBox(height: 14),
-          const _PanelLabel('Ранее'),
-          _HistoryItem(
-            'Photo Restoration Service',
-            'client work',
-            () => onOpenWorkflow('ai-tool-finder'),
-          ),
-          _HistoryItem(
-            'Video Localization',
-            'pipeline',
-            () => onOpenTool('heygen'),
-          ),
-          _HistoryItem(
-            'Automation Builder',
-            'n8n idea',
-            () => onOpenAgent('automation-architect-agent'),
-          ),
-          const SizedBox(height: 4),
-          _HistoryFooter(
-            onNavigate: onNavigate,
-            onOpenWorkflow: onOpenWorkflow,
-            onOpenAgent: onOpenAgent,
-            onOpenTool: onOpenTool,
-          ),
-        ],
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => onNavigate(AppDestination.projects),
+                    icon: const Icon(
+                      Icons.create_new_folder_outlined,
+                      size: 16,
+                    ),
+                    label: const Text('Проект'),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              decoration: InputDecoration(
+                isDense: true,
+                prefixIcon: const Icon(Icons.search_rounded, size: 16),
+                hintText: 'Поиск по workspace',
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: Color(0x12FFFFFF)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                for (final item in ['все', 'сессии', 'избр'])
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: _TinyTab(
+                        label: item,
+                        selected: tab == item,
+                        onTap: () => onTab(item),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const _PanelLabel('АКТИВНАЯ СЕССИЯ'),
+            _HistoryItem(
+              title: '10 Reels для трека',
+              subtitle: 'planning',
+              type: 'session',
+              icon: Icons.bolt_rounded,
+              onTap: () => onOpenWorkflow('ai-short-video-factory'),
+            ),
+            const SizedBox(height: 14),
+            const _PanelLabel('ПОСЛЕДНИЕ СЕССИИ'),
+            _HistoryItem(
+              title: 'AI-фриланс разведка',
+              subtitle: 'session',
+              type: 'session',
+              icon: Icons.manage_search_rounded,
+              onTap: () => onOpenAgent('research-agent'),
+            ),
+            _HistoryItem(
+              title: 'Локализация видео',
+              subtitle: 'manual execution',
+              type: 'workflow',
+              icon: Icons.subtitles_outlined,
+              onTap: () => onOpenTool('heygen'),
+            ),
+            const SizedBox(height: 14),
+            const _PanelLabel('ПРОЕКТЫ'),
+            _HistoryItem(
+              title: 'Музыкальный релиз',
+              subtitle: 'project',
+              type: 'project',
+              icon: Icons.folder_outlined,
+              onTap: () => onNavigate(AppDestination.projects),
+            ),
+            _HistoryItem(
+              title: 'AI Automation Agency',
+              subtitle: 'project',
+              type: 'project',
+              icon: Icons.folder_outlined,
+              onTap: () => onNavigate(AppDestination.projects),
+            ),
+            const SizedBox(height: 14),
+            const _PanelLabel('ИЗБРАННОЕ'),
+            _HistoryItem(
+              title: 'AI Short Video Factory',
+              subtitle: 'workflow',
+              type: 'workflow',
+              icon: Icons.schema_outlined,
+              onTap: () => onOpenWorkflow('ai-short-video-factory'),
+            ),
+            _HistoryItem(
+              title: 'Director Agent',
+              subtitle: 'agent',
+              type: 'agent',
+              icon: Icons.smart_toy_outlined,
+              onTap: () => onOpenAgent('director-agent'),
+            ),
+            _HistoryItem(
+              title: 'ChatGPT',
+              subtitle: 'tool',
+              type: 'tool',
+              icon: Icons.grid_view_rounded,
+              onTap: () => onOpenTool('chatgpt'),
+            ),
+            const SizedBox(height: 14),
+            const _PanelLabel('НЕДАВНИЕ ИНСТРУМЕНТЫ'),
+            _HistoryItem(
+              title: 'Kling',
+              subtitle: 'video tool',
+              type: 'tool',
+              icon: Icons.movie_creation_outlined,
+              onTap: () => onOpenTool('kling'),
+            ),
+            _HistoryItem(
+              title: 'ElevenLabs',
+              subtitle: 'voice tool',
+              type: 'tool',
+              icon: Icons.record_voice_over_outlined,
+              onTap: () => onOpenTool('elevenlabs'),
+            ),
+            const SizedBox(height: 6),
+            _HistoryFooter(
+              onNavigate: onNavigate,
+              onOpenWorkflow: onOpenWorkflow,
+              onOpenAgent: onOpenAgent,
+              onOpenTool: onOpenTool,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -737,9 +857,98 @@ class _CenterStage extends StatelessWidget {
       );
     }
 
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 220),
-      child: stage,
+    return Column(
+      children: [
+        _SessionHeader(
+          mode: mode,
+          recommendation: recommendation,
+          activeEntity: activeEntity,
+        ),
+        const SizedBox(height: 18),
+        Expanded(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 220),
+            child: stage,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SessionHeader extends StatelessWidget {
+  const _SessionHeader({
+    required this.mode,
+    required this.recommendation,
+    required this.activeEntity,
+  });
+
+  final _WorkMode mode;
+  final RoutingRecommendation? recommendation;
+  final _ActiveEntity activeEntity;
+
+  @override
+  Widget build(BuildContext context) {
+    final sessionName = recommendation?.task ?? 'Новая рабочая сессия';
+    final activeWork = activeEntity == _ActiveEntity.none
+        ? 'без активного объекта'
+        : switch (activeEntity) {
+            _ActiveEntity.workflow => 'workflow открыт',
+            _ActiveEntity.agent => 'агент активен',
+            _ActiveEntity.tool => 'инструмент открыт',
+            _ActiveEntity.none => 'без активного объекта',
+          };
+    final status = activeEntity != _ActiveEntity.none
+        ? 'manual execution'
+        : recommendation == null
+        ? 'draft'
+        : 'planning';
+
+    return _GlassPanel(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final badges = [
+            _SoftBadge(mode.label),
+            _SoftBadge(activeWork),
+            _SoftBadge(status),
+          ];
+          final title = Row(
+            children: [
+              const Icon(Icons.radio_button_checked_rounded, size: 15),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  sessionName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
+          );
+          if (constraints.maxWidth < 520) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                title,
+                const SizedBox(height: 8),
+                Wrap(spacing: 6, runSpacing: 6, children: badges),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: title),
+              const SizedBox(width: 10),
+              Wrap(spacing: 6, runSpacing: 6, children: badges),
+            ],
+          );
+        },
+      ),
     );
   }
 }
@@ -788,7 +997,15 @@ class _EmptyModeStage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 18),
-            const _CapabilityStrip(),
+            Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              alignment: WrapAlignment.center,
+              children: [
+                for (final action in mode.quickActions)
+                  _SoftBadge(action.label),
+              ],
+            ),
           ],
         ),
       ),
@@ -1258,7 +1475,7 @@ class _ToolStage extends StatelessWidget {
               children: [
                 _SoftBadge(tool!.category.label),
                 _SoftBadge(tool!.pricingType.label),
-                _SoftBadge(tool!.hasApi ? 'API позже' : 'manual'),
+                _SoftBadge(tool!.integrationType.label),
                 if (tool!.isLocal) const _SoftBadge('local'),
               ],
             ),
@@ -1430,11 +1647,13 @@ class _MissingEntityStage extends StatelessWidget {
 
 class _PromptComposer extends StatelessWidget {
   const _PromptComposer({
+    required this.mode,
     required this.controller,
     required this.onSubmit,
     required this.onQuickGoal,
   });
 
+  final _WorkMode mode;
   final TextEditingController controller;
   final VoidCallback onSubmit;
   final ValueChanged<String> onQuickGoal;
@@ -1453,7 +1672,7 @@ class _PromptComposer extends StatelessWidget {
                 minLines: 1,
                 maxLines: 3,
                 decoration: InputDecoration(
-                  hintText: 'Напишите вашу задачу...',
+                  hintText: mode.placeholder,
                   prefixIcon: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: const [
@@ -1495,7 +1714,7 @@ class _PromptComposer extends StatelessWidget {
           runSpacing: 7,
           alignment: WrapAlignment.center,
           children: [
-            for (final goal in _CommandCenterScreenState._quickGoals)
+            for (final goal in mode.quickActions)
               ActionChip(
                 label: Text(goal.label),
                 onPressed: () => onQuickGoal(goal.task),
@@ -1587,16 +1806,7 @@ class _SettingsPanel extends StatelessWidget {
               onChanged: onQuality,
             ),
           ),
-          _SettingsGroup(
-            title: 'Стиль / Референсы',
-            child: Column(
-              children: const [
-                _ReferenceBox(label: 'референс стиля'),
-                SizedBox(height: 8),
-                _ReferenceBox(label: 'референс объекта'),
-              ],
-            ),
-          ),
+          _SettingsGroup(title: 'Контекст режима', child: _ModeContext(mode)),
           _SettingsGroup(
             title: 'Выполнение',
             child: const Column(
@@ -1774,6 +1984,49 @@ class _SegmentedValues extends StatelessWidget {
   }
 }
 
+class _ModeContext extends StatelessWidget {
+  const _ModeContext(this.mode);
+
+  final _WorkMode mode;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = switch (mode) {
+      _WorkMode.agents => const [
+        ('Active agent', Icons.smart_toy_outlined),
+        ('Task handoff', Icons.swap_horiz_rounded),
+        ('Human approval', Icons.verified_user_outlined),
+      ],
+      _WorkMode.text => const [
+        ('Research depth', Icons.manage_search_rounded),
+        ('Tone control', Icons.tune_rounded),
+        ('Copy output', Icons.copy_rounded),
+      ],
+      _WorkMode.design => const [
+        ('Style reference', Icons.image_outlined),
+        ('Brand mood', Icons.palette_outlined),
+        ('Format', Icons.crop_rounded),
+      ],
+      _WorkMode.video => const [
+        ('Aspect ratio', Icons.aspect_ratio_rounded),
+        ('Shot plan', Icons.movie_creation_outlined),
+        ('Manual render', Icons.open_in_new_rounded),
+      ],
+      _WorkMode.audio => const [
+        ('Voice model', Icons.record_voice_over_outlined),
+        ('Music mood', Icons.graphic_eq_rounded),
+        ('Dubbing flow', Icons.subtitles_outlined),
+      ],
+      _WorkMode.toolkit => const [
+        ('Free/pro/local', Icons.route_outlined),
+        ('Integration status', Icons.hub_outlined),
+        ('Alternatives', Icons.compare_arrows_rounded),
+      ],
+    };
+    return Column(children: [for (final row in rows) _PathRow(row.$1, row.$2)]);
+  }
+}
+
 class _TinyTab extends StatelessWidget {
   const _TinyTab({
     required this.label,
@@ -1817,10 +2070,18 @@ class _TinyTab extends StatelessWidget {
 }
 
 class _HistoryItem extends StatelessWidget {
-  const _HistoryItem(this.title, this.subtitle, this.onTap);
+  const _HistoryItem({
+    required this.title,
+    required this.subtitle,
+    required this.type,
+    required this.icon,
+    required this.onTap,
+  });
 
   final String title;
   final String subtitle;
+  final String type;
+  final IconData icon;
   final VoidCallback onTap;
 
   @override
@@ -1830,20 +2091,43 @@ class _HistoryItem extends StatelessWidget {
       borderRadius: BorderRadius.circular(8),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+            Icon(icon, size: 15, color: const Color(0xFF8B8F9A)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFF7D828D),
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
             ),
+            const SizedBox(width: 6),
             Text(
-              subtitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Color(0xFF7D828D), fontSize: 10),
+              type,
+              style: const TextStyle(
+                color: Color(0xFF6F7480),
+                fontSize: 9,
+                fontWeight: FontWeight.w900,
+              ),
             ),
           ],
         ),
@@ -1905,24 +2189,6 @@ class _MiniIconButton extends StatelessWidget {
   }
 }
 
-class _CapabilityStrip extends StatelessWidget {
-  const _CapabilityStrip();
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      alignment: WrapAlignment.center,
-      children: const [
-        _SoftBadge('агенты'),
-        _SoftBadge('workflow'),
-        _SoftBadge('free/pro/local'),
-      ],
-    );
-  }
-}
-
 class _RouteLine extends StatelessWidget {
   const _RouteLine(this.label, this.value);
 
@@ -1955,37 +2221,6 @@ class _RouteLine extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ReferenceBox extends StatelessWidget {
-  const _ReferenceBox({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 54,
-      decoration: BoxDecoration(
-        color: const Color(0x0AFFFFFF),
-        border: Border.all(color: const Color(0x12FFFFFF)),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Center(
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.add_rounded, size: 18, color: Color(0xFF8B8F9A)),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: const TextStyle(color: Color(0xFF8B8F9A), fontSize: 12),
-            ),
-          ],
-        ),
       ),
     );
   }
