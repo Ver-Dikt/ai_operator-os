@@ -50,6 +50,8 @@ class _WorkModeConfig {
     required this.title,
     required this.description,
     required this.promptPlaceholder,
+    required this.modelTitle,
+    required this.modelHelper,
     required this.models,
     required this.settings,
     required this.quickActions,
@@ -63,6 +65,8 @@ class _WorkModeConfig {
   final String title;
   final String description;
   final String promptPlaceholder;
+  final String modelTitle;
+  final String modelHelper;
   final List<String> models;
   final List<_ModeSettingConfig> settings;
   final List<({String label, String task})> quickActions;
@@ -81,6 +85,8 @@ extension _WorkModeUi on _WorkMode {
         description:
             'Поставь задачу - OS подберет агентов, роли и ручные/автоматические шаги.',
         promptPlaceholder: 'Опиши задачу для команды агентов...',
+        modelTitle: 'AI-помощник',
+        modelHelper: 'Кто ведет задачу и распределяет роли.',
         models: [
           'Авто-агент',
           'Агент-маршрутизатор',
@@ -127,6 +133,8 @@ extension _WorkModeUi on _WorkMode {
         description: 'Идеи, статьи, анализ, код, research, промпты.',
         promptPlaceholder:
             'Что написать, объяснить, проанализировать или улучшить?',
+        modelTitle: 'Текстовая модель',
+        modelHelper: 'Основная модель для текста, анализа и промптов.',
         models: ['ChatGPT', 'Claude', 'Gemini', 'Mistral', 'Ollama Local'],
         settings: [
           _ModeSettingConfig('Тип задачи', [
@@ -164,6 +172,9 @@ extension _WorkModeUi on _WorkMode {
         title: 'Дизайн-студия',
         description: 'Изображения, обложки, постеры, брендинг, AI-инфлюенсеры.',
         promptPlaceholder: 'Опиши изображение, стиль, постер или обложку...',
+        modelTitle: 'Дизайн-модель',
+        modelHelper:
+            'Основной движок генерации изображений и визуального стиля.',
         models: [
           'Midjourney',
           'ChatGPT Images',
@@ -209,9 +220,13 @@ extension _WorkModeUi on _WorkMode {
         label: 'Видео',
         icon: Icons.movie_creation_outlined,
         title: 'Видео-режиссер',
-        description: 'Сцены, Reels, Shorts, image-to-video, cinematic prompts.',
+        description:
+            'Сцены, shot plan, storyboard, camera motion, visual beats и cinematic prompts.',
         promptPlaceholder: 'Опиши сцену, ролик, Reels или видео-идею...',
-        models: ['Kling', 'Runway', 'Pika', 'Veo / Flow', 'Luma', 'Sora'],
+        modelTitle: 'Видео-модель',
+        modelHelper:
+            'Основной движок генерации видео. ChatGPT здесь только помощник для промпта.',
+        models: ['Kling', 'Veo / Flow', 'Runway', 'Pika', 'Luma', 'Sora'],
         settings: [
           _ModeSettingConfig('Формат', ['9:16', '16:9', '1:1']),
           _ModeSettingConfig('Длина', ['5 сек', '10 сек', '30 сек', '60 сек']),
@@ -225,7 +240,13 @@ extension _WorkModeUi on _WorkMode {
         ],
         quickActions: [
           (label: 'AI Reels', task: 'Сделать 10 Reels для трека'),
-          (label: 'Сцена', task: 'Собрать cinematic AI scene builder'),
+          (label: 'Storyboard', task: 'Собрать storyboard и shot plan'),
+          (label: 'Trailer', task: 'Собрать AI trailer plan'),
+          (label: 'Scene Builder', task: 'Собрать cinematic AI scene builder'),
+          (
+            label: 'Cinematic Shot',
+            task: 'Собрать cinematic shot с camera motion',
+          ),
           (
             label: 'Локализация',
             task: 'Локализовать видео: перевод, голос, субтитры',
@@ -240,7 +261,7 @@ extension _WorkModeUi on _WorkMode {
           'luma',
           'sora',
         ],
-        emptyStateHints: ['сцена', 'кадр', 'монтаж'],
+        emptyStateHints: ['сцены', 'shot plan', 'camera motion'],
       ),
       _WorkMode.audio => const _WorkModeConfig(
         label: 'Аудио',
@@ -248,6 +269,9 @@ extension _WorkModeUi on _WorkMode {
         title: 'Аудио-студия',
         description: 'Voiceover, музыка, озвучка, дубляж, транскрибация.',
         promptPlaceholder: 'Опиши голос, музыку, озвучку или аудио-задачу...',
+        modelTitle: 'Аудио-модель',
+        modelHelper:
+            'Основной движок для голоса, музыки, дубляжа или транскрибации.',
         models: ['ElevenLabs', 'Suno', 'Udio', 'Stable Audio', 'Whisper'],
         settings: [
           _ModeSettingConfig('Тип', [
@@ -272,7 +296,7 @@ extension _WorkModeUi on _WorkMode {
             task: 'Подготовить voiceover и инструменты озвучки',
           ),
           (label: 'Music promo', task: 'Продвинуть музыкальный релиз'),
-          (label: 'Dubbing', task: 'Собрать workflow дубляжа видео'),
+          (label: 'Dubbing', task: 'Собрать сценарий дубляжа видео'),
         ],
         recommendedToolIds: [
           'elevenlabs',
@@ -289,6 +313,8 @@ extension _WorkModeUi on _WorkMode {
         title: 'База нейросетей',
         description: 'Поиск, сравнение и подбор AI-инструментов под задачу.',
         promptPlaceholder: 'Какую нейросеть или инструмент ищем?',
+        modelTitle: 'Поиск инструментов',
+        modelHelper: 'Фильтры и категории вместо выбора генеративной модели.',
         models: [],
         showModelSelector: false,
         settings: [
@@ -359,7 +385,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
   String? _activeUseCaseId;
   String? _activeSummaryTitle;
   String? _activeSummarySubtitle;
-  String _historyTab = 'Сессии';
+  String _historyTab = 'Задачи';
   String _model = _WorkMode.design.config.models.first;
   String _aspect = '9:16';
   String _quality = 'Balanced';
@@ -546,7 +572,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
 
   void _resetParameters() {
     setState(() {
-      _model = 'Auto Router';
+      _model = _mode.config.models.isEmpty ? '' : _mode.config.models.first;
       _aspect = '9:16';
       _quality = 'Balanced';
     });
@@ -770,7 +796,7 @@ class _MobileStation extends StatelessWidget {
         _TopBar(mode: mode, onMode: onMode, compact: true),
         const SizedBox(height: 18),
         SizedBox(
-          height: 420,
+          height: 460,
           child: _CenterStage(
             mode: mode,
             recommendation: recommendation,
@@ -1009,7 +1035,7 @@ class _HistoryPanel extends StatelessWidget {
                   child: FilledButton.icon(
                     onPressed: onNewSession,
                     icon: const Icon(Icons.add_rounded, size: 16),
-                    label: const Text('Новая сессия'),
+                    label: const Text('Новая задача'),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -1017,7 +1043,7 @@ class _HistoryPanel extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: () => onOpenProject(
                       'Новый проект',
-                      'Проект: постоянная работа с сессиями, сценариями и результатами',
+                      'Проект: постоянная работа с задачами, планами и результатами',
                     ),
                     icon: const Icon(
                       Icons.create_new_folder_outlined,
@@ -1034,7 +1060,7 @@ class _HistoryPanel extends StatelessWidget {
                 isDense: true,
                 prefixIcon: const Icon(Icons.search_rounded, size: 16),
                 hintText:
-                    'Найти сессию, проект, агент, сценарий или инструмент...',
+                    'Найти задачу, проект, AI-помощника, план или инструмент...',
                 contentPadding: const EdgeInsets.symmetric(vertical: 10),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -1045,7 +1071,7 @@ class _HistoryPanel extends StatelessWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                for (final item in ['Сессии', 'Проекты', 'Избранное'])
+                for (final item in ['Задачи', 'Проекты', 'Избранное'])
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.only(right: 4),
@@ -1059,43 +1085,43 @@ class _HistoryPanel extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            if (tab == 'Сессии') ...[
-              const _PanelLabel('ТЕКУЩАЯ СЕССИЯ'),
+            if (tab == 'Задачи') ...[
+              const _PanelLabel('АКТИВНАЯ ЗАДАЧА'),
               _HistoryItem(
                 title: '10 Reels для трека',
-                subtitle: 'активная сессия',
-                type: 'сессия',
+                subtitle: 'активная задача',
+                type: 'задача',
                 icon: Icons.bolt_rounded,
                 onTap: () => onOpenSession(
                   '10 Reels для трека',
-                  'Активная сессия: workflow, агенты и инструменты остаются внутри Workstation',
+                  'Активная задача: план, AI-помощники и инструменты остаются внутри рабочей станции',
                 ),
               ),
               const SizedBox(height: 14),
-              const _PanelLabel('ПОСЛЕДНИЕ СЕССИИ'),
+              const _PanelLabel('НЕДАВНИЕ ЗАДАЧИ'),
               _HistoryItem(
                 title: 'AI-фриланс разведка',
-                subtitle: 'сессия',
-                type: 'сессия',
+                subtitle: 'задача',
+                type: 'задача',
                 icon: Icons.manage_search_rounded,
                 onTap: () => onOpenUseCase('find-ai-freelance-jobs'),
               ),
               _HistoryItem(
                 title: 'Оживление фото',
-                subtitle: 'сессия',
-                type: 'сессия',
+                subtitle: 'задача',
+                type: 'задача',
                 icon: Icons.photo_library_outlined,
                 onTap: () => onOpenUseCase('restore-old-photos-service'),
               ),
               _HistoryItem(
                 title: 'Локализация видео',
-                subtitle: 'сессия',
-                type: 'сессия',
+                subtitle: 'задача',
+                type: 'задача',
                 icon: Icons.subtitles_outlined,
                 onTap: () => onOpenUseCase('video-localization'),
               ),
               const SizedBox(height: 14),
-              const _PanelLabel('СЦЕНАРИИ - ГОТОВЫЕ МАРШРУТЫ'),
+              const _PanelLabel('БЫСТРЫЕ СЦЕНАРИИ'),
               _HistoryItem(
                 title: 'AI Short Video Factory',
                 subtitle: 'сценарий',
@@ -1110,6 +1136,72 @@ class _HistoryPanel extends StatelessWidget {
                 icon: Icons.queue_music_outlined,
                 onTap: () => onOpenWorkflow('music-release-promo-pack'),
               ),
+              _HistoryItem(
+                title: 'Storyboard Builder',
+                subtitle: 'сценарий',
+                type: 'сценарий',
+                icon: Icons.view_timeline_outlined,
+                onTap: () => onOpenWorkflow('cinematic-scene-builder'),
+              ),
+              _HistoryItem(
+                title: 'Trailer Builder',
+                subtitle: 'сценарий',
+                type: 'сценарий',
+                icon: Icons.local_movies_outlined,
+                onTap: () => onOpenWorkflow('ai-short-video-factory'),
+              ),
+              const SizedBox(height: 14),
+              const _PanelLabel('ПРОЕКТЫ'),
+              _HistoryItem(
+                title: 'Музыкальный релиз',
+                subtitle: 'проект',
+                type: 'проект',
+                icon: Icons.folder_outlined,
+                onTap: () => onOpenProject(
+                  'Музыкальный релиз',
+                  'Постоянный проект: задачи, планы работы и результаты',
+                ),
+              ),
+              _HistoryItem(
+                title: 'Контент-завод',
+                subtitle: 'проект',
+                type: 'проект',
+                icon: Icons.folder_outlined,
+                onTap: () => onOpenProject(
+                  'Контент-завод',
+                  'Проект для пакетной генерации Shorts, Reels и постов',
+                ),
+              ),
+              const SizedBox(height: 14),
+              const _PanelLabel('ИЗБРАННЫЕ ИНСТРУМЕНТЫ'),
+              _HistoryItem(
+                title: 'Kling',
+                subtitle: 'видео-инструмент',
+                type: 'инструмент',
+                icon: Icons.movie_creation_outlined,
+                onTap: () => onOpenTool('kling'),
+              ),
+              _HistoryItem(
+                title: 'ChatGPT',
+                subtitle: 'текст / промпты',
+                type: 'инструмент',
+                icon: Icons.grid_view_rounded,
+                onTap: () => onOpenTool('chatgpt'),
+              ),
+              _HistoryItem(
+                title: 'n8n',
+                subtitle: 'автоматизация',
+                type: 'инструмент',
+                icon: Icons.account_tree_outlined,
+                onTap: () => onOpenTool('n8n'),
+              ),
+              _HistoryItem(
+                title: 'Midjourney',
+                subtitle: 'дизайн-инструмент',
+                type: 'инструмент',
+                icon: Icons.auto_awesome_mosaic_outlined,
+                onTap: () => onOpenTool('midjourney'),
+              ),
             ],
             if (tab == 'Проекты') ...[
               const _PanelLabel('ПРОЕКТЫ'),
@@ -1120,7 +1212,7 @@ class _HistoryPanel extends StatelessWidget {
                 icon: Icons.folder_outlined,
                 onTap: () => onOpenProject(
                   'Музыкальный релиз',
-                  'Постоянный проект: сессии, сценарии и результаты',
+                  'Постоянный проект: задачи, планы работы и результаты',
                 ),
               ),
               _HistoryItem(
@@ -1145,16 +1237,16 @@ class _HistoryPanel extends StatelessWidget {
               ),
             ],
             if (tab == 'Избранное') ...[
-              const _PanelLabel('АГЕНТЫ'),
+              const _PanelLabel('AI-ПОМОЩНИКИ'),
               _HistoryItem(
-                title: 'Агент-режиссер',
-                subtitle: 'агент',
-                type: 'агент',
+                title: 'AI-помощник-режиссер',
+                subtitle: 'AI-помощник',
+                type: 'помощник',
                 icon: Icons.smart_toy_outlined,
                 onTap: () => onOpenAgent('director-agent'),
               ),
               const SizedBox(height: 10),
-              const _PanelLabel('СЦЕНАРИИ'),
+              const _PanelLabel('ПЛАНЫ РАБОТЫ'),
               _HistoryItem(
                 title: 'AI Short Video Factory',
                 subtitle: 'сценарий',
@@ -1163,7 +1255,7 @@ class _HistoryPanel extends StatelessWidget {
                 onTap: () => onOpenWorkflow('ai-short-video-factory'),
               ),
               const SizedBox(height: 10),
-              const _PanelLabel('ИНСТРУМЕНТЫ'),
+              const _PanelLabel('ИЗБРАННЫЕ ИНСТРУМЕНТЫ'),
               _HistoryItem(
                 title: 'Kling',
                 subtitle: 'инструмент',
@@ -1310,20 +1402,21 @@ class _SessionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sessionName = recommendation?.task ?? 'Новая рабочая сессия';
+    final sessionName =
+        recommendation?.task ?? 'Новая задача в рабочей станции';
     final activeWork = switch (activeViewType) {
       _ActiveViewType.empty => 'без активного объекта',
       _ActiveViewType.routePlan => 'AI-маршрут',
-      _ActiveViewType.workflow => 'workflow открыт',
-      _ActiveViewType.agent => 'агент активен',
+      _ActiveViewType.workflow => 'план работы открыт',
+      _ActiveViewType.agent => 'AI-помощник подключен',
       _ActiveViewType.tool => 'инструмент открыт',
       _ActiveViewType.useCase => 'кейс открыт',
-      _ActiveViewType.session => 'сессия открыта',
+      _ActiveViewType.session => 'задача открыта',
       _ActiveViewType.project => 'проект открыт',
     };
     final status = switch (activeViewType) {
-      _ActiveViewType.empty => 'draft',
-      _ActiveViewType.routePlan => 'planning',
+      _ActiveViewType.empty => 'черновик',
+      _ActiveViewType.routePlan => 'планирование',
       _ActiveViewType.workflow ||
       _ActiveViewType.agent ||
       _ActiveViewType.tool ||
@@ -1421,6 +1514,23 @@ class _EmptyModeStage extends StatelessWidget {
                 color: Color(0xFF8B8F9A),
                 fontSize: 13,
                 height: 1.45,
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              switch (mode) {
+                _WorkMode.video =>
+                  'Опиши ролик или сцену. OS подберет план работы, видео-инструменты и AI-помощников.',
+                _WorkMode.toolkit => 'Найди подходящую нейросеть под задачу.',
+                _WorkMode.agents =>
+                  'AI-помощники помогают закрывать отдельные этапы работы.',
+                _ => 'Опиши задачу. OS соберет маршрут, промпты и инструменты.',
+              },
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFF7D828D),
+                fontSize: 12,
+                height: 1.35,
               ),
             ),
             const SizedBox(height: 18),
@@ -1556,7 +1666,7 @@ class _ToolSearchResult extends StatelessWidget {
           const SizedBox(width: 10),
           OutlinedButton(
             onPressed: () => onOpenTool(tool.id),
-            child: const Text('Открыть внутри OS'),
+            child: const Text('Открыть в OS'),
           ),
         ],
       ),
@@ -1610,10 +1720,13 @@ class _RouteStage extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             _RouteLine('Тип задачи', recommendation.estimatedCost),
-            _RouteLine('Сценарий', recommendation.recommendedWorkflow),
-            _RouteLine('Агенты', agents.map((item) => item.name).join(' / ')),
+            _RouteLine('План работы', recommendation.recommendedWorkflow),
             _RouteLine(
-              'Инструменты',
+              'AI-помощники',
+              agents.map((item) => item.name).join(' / '),
+            ),
+            _RouteLine(
+              'Нейросети / Инструменты',
               tools.map((item) => item.name).join(' / '),
             ),
             _RouteLine(
@@ -1622,7 +1735,7 @@ class _RouteStage extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Сейчас OS работает в ручном режиме: она собирает маршрут, промпты и инструменты. На следующих этапах мы подключим OpenAI API, Ollama и автоматические агенты.',
+              'Сейчас OS помогает вручную: собирает промпты, AI-маршрут и нужные нейросети. API и локальные агенты подключим позже.',
               style: TextStyle(
                 color: Color(0xFF8B8F9A),
                 fontSize: 12,
@@ -1637,17 +1750,17 @@ class _RouteStage extends StatelessWidget {
                 FilledButton.icon(
                   onPressed: () => onOpenWorkflow(recommendation.workflowId),
                   icon: const Icon(Icons.play_arrow_rounded),
-                  label: const Text('Открыть сценарий'),
+                  label: const Text('Открыть план работы'),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => onOpenAgent(firstAgentId),
                   icon: const Icon(Icons.smart_toy_outlined),
-                  label: const Text('Агент'),
+                  label: const Text('Подключить AI-помощника'),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => onOpenTool(firstToolId),
                   icon: const Icon(Icons.grid_view_rounded),
-                  label: const Text('Тул-кит'),
+                  label: const Text('Открыть инструменты'),
                 ),
               ],
             ),
@@ -1741,8 +1854,8 @@ class _EntityStage extends StatelessWidget {
         title: activeSummaryTitle ?? 'Рабочая область',
         subtitle:
             activeSummarySubtitle ??
-            'Здесь будут сессии, сценарии, агенты, инструменты и результаты.',
-        type: activeViewType == _ActiveViewType.session ? 'сессия' : 'проект',
+            'Здесь будут задачи, планы работы, AI-помощники, инструменты и результаты.',
+        type: activeViewType == _ActiveViewType.session ? 'задача' : 'проект',
         onOpenWorkflow: onOpenWorkflow,
         onOpenUseCase: onOpenUseCase,
       ),
@@ -1766,7 +1879,7 @@ class _WorkflowStage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (workflow == null) {
-      return const _MissingEntityStage('Сценарий не найден');
+      return const _MissingEntityStage('План работы не найден');
     }
 
     final graph = const GraphRepository();
@@ -1794,7 +1907,7 @@ class _WorkflowStage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const _PanelLabel('АКТИВНЫЙ СЦЕНАРИЙ'),
+              const _PanelLabel('ПЛАН РАБОТЫ'),
               const SizedBox(height: 10),
               Text(
                 workflow!.title,
@@ -1808,6 +1921,11 @@ class _WorkflowStage extends StatelessWidget {
               Text(
                 workflow!.description,
                 style: const TextStyle(color: Color(0xFF9AA0AA), height: 1.35),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Пошаговый AI-сценарий для выполнения задачи.',
+                style: TextStyle(color: Color(0xFF7D828D), fontSize: 12),
               ),
               const SizedBox(height: 14),
               Wrap(
@@ -1825,12 +1943,14 @@ class _WorkflowStage extends StatelessWidget {
                 _StageStep(step: step, onOpenTool: onOpenTool),
               const SizedBox(height: 12),
               _LinkedNames(
-                title: 'Агенты',
+                title: 'AI-помощники',
                 names: agents.map((item) => item.name).toList(),
+                helper: 'AI-помощники для отдельных этапов работы.',
               ),
               _LinkedNames(
-                title: 'Инструменты',
+                title: 'Нейросети / Инструменты',
                 names: tools.map((item) => item.name).toList(),
+                helper: 'Нейросети и сервисы, используемые в этом плане.',
               ),
               const SizedBox(height: 18),
               Wrap(
@@ -1841,12 +1961,12 @@ class _WorkflowStage extends StatelessWidget {
                     onPressed: () {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Сценарий запущен в ручном режиме'),
+                          content: Text('План работы запущен вручную'),
                         ),
                       );
                     },
                     icon: const Icon(Icons.play_arrow_rounded),
-                    label: const Text('Начать'),
+                    label: const Text('Начать вручную'),
                   ),
                   OutlinedButton.icon(
                     onPressed: () => _copyText(context, firstPrompt),
@@ -1858,14 +1978,14 @@ class _WorkflowStage extends StatelessWidget {
                         ? null
                         : () => onOpenTool(tools.first.id),
                     icon: const Icon(Icons.open_in_new_rounded),
-                    label: const Text('Открыть инструмент'),
+                    label: const Text('Открыть инструменты'),
                   ),
                   OutlinedButton.icon(
                     onPressed: agents.isEmpty
                         ? null
                         : () => onOpenAgent(agents.first.id),
                     icon: const Icon(Icons.smart_toy_outlined),
-                    label: const Text('Агент'),
+                    label: const Text('Подключить AI-помощника'),
                   ),
                   OutlinedButton.icon(
                     onPressed: () {
@@ -1874,7 +1994,7 @@ class _WorkflowStage extends StatelessWidget {
                       );
                     },
                     icon: const Icon(Icons.bookmark_add_outlined),
-                    label: const Text('Сохранить'),
+                    label: const Text('Сохранить результат'),
                   ),
                 ],
               ),
@@ -1899,7 +2019,9 @@ class _AgentStage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (agent == null) return const _MissingEntityStage('Агент не найден');
+    if (agent == null) {
+      return const _MissingEntityStage('AI-помощник не найден');
+    }
 
     final graph = const GraphRepository();
     final tools = graph.toolsByIds([
@@ -1916,7 +2038,7 @@ class _AgentStage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            const _PanelLabel('АКТИВНЫЙ АГЕНТ'),
+            const _PanelLabel('AI-ПОМОЩНИК'),
             const SizedBox(height: 10),
             Row(
               children: [
@@ -1949,13 +2071,18 @@ class _AgentStage extends StatelessWidget {
               agent!.description,
               style: const TextStyle(color: Color(0xFFE5E7EC), height: 1.35),
             ),
+            const SizedBox(height: 8),
+            const Text(
+              'AI-помощник закрывает отдельный этап работы и подсказывает следующий ручной шаг.',
+              style: TextStyle(color: Color(0xFF7D828D), fontSize: 12),
+            ),
             const SizedBox(height: 16),
             _LinkedNames(
-              title: 'Инструменты агента',
+              title: 'Нейросети / Инструменты',
               names: tools.map((item) => item.name).toList(),
             ),
             _LinkedNames(
-              title: 'Сценарии',
+              title: 'Планы работы',
               names: workflows.map((item) => item.title).toList(),
             ),
             const SizedBox(height: 14),
@@ -1969,7 +2096,7 @@ class _AgentStage extends StatelessWidget {
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('${agent!.name}: mock output готов'),
+                        content: Text('${agent!.name}: демо-ответ готов'),
                       ),
                     );
                   },
@@ -1986,14 +2113,14 @@ class _AgentStage extends StatelessWidget {
                       ? null
                       : () => onOpenTool(tools.first.id),
                   icon: const Icon(Icons.grid_view_rounded),
-                  label: const Text('Инструмент'),
+                  label: const Text('Открыть инструменты'),
                 ),
                 OutlinedButton.icon(
                   onPressed: workflows.isEmpty
                       ? null
                       : () => onOpenWorkflow(workflows.first.id),
                   icon: const Icon(Icons.schema_outlined),
-                  label: const Text('Сценарий'),
+                  label: const Text('Открыть план работы'),
                 ),
               ],
             ),
@@ -2017,7 +2144,9 @@ class _ToolStage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (tool == null) return const _MissingEntityStage('Инструмент не найден');
+    if (tool == null) {
+      return const _MissingEntityStage('Нейросеть / инструмент не найдены');
+    }
 
     final graph = const GraphRepository();
     final agents = graph.agentsByIds(tool!.agentIds);
@@ -2033,7 +2162,7 @@ class _ToolStage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            const _PanelLabel('АКТИВНЫЙ ИНСТРУМЕНТ'),
+            const _PanelLabel('НЕЙРОСЕТЬ / ИНСТРУМЕНТ'),
             const SizedBox(height: 10),
             Row(
               children: [
@@ -2055,6 +2184,11 @@ class _ToolStage extends StatelessWidget {
               tool!.description,
               style: const TextStyle(color: Color(0xFFE5E7EC), height: 1.35),
             ),
+            const SizedBox(height: 8),
+            const Text(
+              'Это сервис из рабочего стека. Сейчас он запускается вручную: открой сайт и вставь подготовленный промпт.',
+              style: TextStyle(color: Color(0xFF7D828D), fontSize: 12),
+            ),
             const SizedBox(height: 14),
             Wrap(
               spacing: 7,
@@ -2071,11 +2205,11 @@ class _ToolStage extends StatelessWidget {
             _RouteLine('Бесплатно', tool!.freeCreditsInfo),
             _RouteLine('Ограничения', tool!.limitations),
             _LinkedNames(
-              title: 'Агенты',
+              title: 'AI-помощники',
               names: agents.map((item) => item.name).toList(),
             ),
             _LinkedNames(
-              title: 'Сценарии',
+              title: 'Планы работы',
               names: workflows.map((item) => item.title).toList(),
             ),
             const SizedBox(height: 14),
@@ -2100,14 +2234,14 @@ class _ToolStage extends StatelessWidget {
                       ? null
                       : () => onOpenAgent(agents.first.id),
                   icon: const Icon(Icons.smart_toy_outlined),
-                  label: const Text('Агент'),
+                  label: const Text('Подключить AI-помощника'),
                 ),
                 OutlinedButton.icon(
                   onPressed: workflows.isEmpty
                       ? null
                       : () => onOpenWorkflow(workflows.first.id),
                   icon: const Icon(Icons.schema_outlined),
-                  label: const Text('Сценарий'),
+                  label: const Text('Добавить в план работы'),
                 ),
               ],
             ),
@@ -2171,21 +2305,23 @@ class _UseCaseStage extends StatelessWidget {
                 _SoftBadge(useCase!.category),
                 _SoftBadge(useCase!.monetizationPotential.name),
                 _SoftBadge(
-                  useCase!.requiresHumanReview ? 'human review' : 'assisted',
+                  useCase!.requiresHumanReview
+                      ? 'проверка человеком'
+                      : 'с поддержкой OS',
                 ),
               ],
             ),
             const SizedBox(height: 16),
             _LinkedNames(
-              title: 'Сценарии',
+              title: 'Планы работы',
               names: workflows.map((item) => item.title).toList(),
             ),
             _LinkedNames(
-              title: 'Агенты',
+              title: 'AI-помощники',
               names: agents.map((item) => item.name).toList(),
             ),
             _LinkedNames(
-              title: 'Инструменты',
+              title: 'Нейросети / Инструменты',
               names: tools.map((item) => item.name).toList(),
             ),
             const SizedBox(height: 16),
@@ -2198,21 +2334,21 @@ class _UseCaseStage extends StatelessWidget {
                       ? null
                       : () => onOpenWorkflow(workflows.first.id),
                   icon: const Icon(Icons.play_arrow_rounded),
-                  label: const Text('Открыть сценарий'),
+                  label: const Text('Открыть план работы'),
                 ),
                 OutlinedButton.icon(
                   onPressed: agents.isEmpty
                       ? null
                       : () => onOpenAgent(agents.first.id),
                   icon: const Icon(Icons.smart_toy_outlined),
-                  label: const Text('Агент'),
+                  label: const Text('Подключить AI-помощника'),
                 ),
                 OutlinedButton.icon(
                   onPressed: tools.isEmpty
                       ? null
                       : () => onOpenTool(tools.first.id),
                   icon: const Icon(Icons.grid_view_rounded),
-                  label: const Text('Инструмент'),
+                  label: const Text('Открыть инструменты'),
                 ),
               ],
             ),
@@ -2273,7 +2409,7 @@ class _SummaryStage extends StatelessWidget {
                 FilledButton.icon(
                   onPressed: () => onOpenWorkflow('ai-short-video-factory'),
                   icon: const Icon(Icons.schema_outlined),
-                  label: const Text('Открыть сценарий'),
+                  label: const Text('Открыть план работы'),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => onOpenUseCase('make-10-reels-for-track'),
@@ -2352,17 +2488,35 @@ class _StageStep extends StatelessWidget {
 }
 
 class _LinkedNames extends StatelessWidget {
-  const _LinkedNames({required this.title, required this.names});
+  const _LinkedNames({required this.title, required this.names, this.helper});
 
   final String title;
   final List<String> names;
+  final String? helper;
 
   @override
   Widget build(BuildContext context) {
     if (names.isEmpty) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: _RouteLine(title, names.take(4).join(' / ')),
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _RouteLine(title, names.take(4).join(' / ')),
+          if (helper != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 118),
+              child: Text(
+                helper!,
+                style: const TextStyle(
+                  color: Color(0xFF7D828D),
+                  fontSize: 11,
+                  height: 1.25,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -2380,7 +2534,7 @@ class _ManualModeBox extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
       ),
       child: const Text(
-        'Демо-режим: OS готовит маршрут, ссылки и промпты. API и Local подключим позже без перестройки рабочего экрана.',
+        'Сейчас OS помогает вручную: собирает промпты, маршруты и инструменты. API, Local и автоматические агенты подключим позже.',
         style: TextStyle(color: Color(0xFF9AA0AA), fontSize: 12, height: 1.35),
       ),
     );
@@ -2554,9 +2708,7 @@ class _SettingsPanel extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           _SettingsGroup(
-            title: config.showModelSelector
-                ? 'Параметры режима: ${config.label}'
-                : 'Фильтры инструментов',
+            title: config.modelTitle,
             trailing: TextButton(
               onPressed: onReset,
               child: const Text('Сброс'),
@@ -2564,6 +2716,15 @@ class _SettingsPanel extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text(
+                  config.modelHelper,
+                  style: const TextStyle(
+                    color: Color(0xFF8B8F9A),
+                    fontSize: 11,
+                    height: 1.3,
+                  ),
+                ),
+                const SizedBox(height: 8),
                 if (config.showModelSelector) ...[
                   _SelectLine(
                     value: model,
@@ -2586,7 +2747,7 @@ class _SettingsPanel extends StatelessWidget {
                         onPressed: () =>
                             onOpenTool(_firstOrNull(config.recommendedToolIds)),
                         icon: const Icon(Icons.grid_view_rounded, size: 16),
-                        label: const Text('Открыть подборку'),
+                        label: const Text('Открыть инструменты'),
                       ),
                       OutlinedButton.icon(
                         onPressed: null,
@@ -2601,9 +2762,12 @@ class _SettingsPanel extends StatelessWidget {
               ],
             ),
           ),
-          _SettingsGroup(title: 'Контекст режима', child: _ModeContext(mode)),
           _SettingsGroup(
-            title: 'Выполнение',
+            title: 'AI-помощники и контекст',
+            child: _ModeContext(mode),
+          ),
+          _SettingsGroup(
+            title: 'Режим выполнения',
             child: const Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -2624,10 +2788,13 @@ class _SettingsPanel extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           _SettingsGroup(
-            title: 'Статус',
+            title: 'Следующее действие',
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _MetaLine('Режим', settings.operatorMode.name),
+                _NextActionHint(mode: mode, activeViewType: activeViewType),
+                const SizedBox(height: 8),
+                _MetaLine('Режим OS', settings.operatorMode.name),
                 _MetaLine('Ollama', settings.ollamaBaseUrl),
                 if (seedFreeCredits.isNotEmpty)
                   _MetaLine('Бесплатно', seedFreeCredits.first.service),
@@ -2646,7 +2813,7 @@ class _SettingsPanel extends StatelessWidget {
               Expanded(
                 child: FilledButton(
                   onPressed: () => onOpenWorkflow(null),
-                  child: const Text('Сценарий'),
+                  child: const Text('Открыть план'),
                 ),
               ),
             ],
@@ -2840,15 +3007,15 @@ class _ActiveContextPanel extends StatelessWidget {
                 activeWorkflowId ?? 'ai-short-video-factory',
               ]),
             )?.title ??
-            'Сценарий',
+            'План работы',
       _ActiveViewType.agent =>
         _firstOrNull(
               graph.agentsByIds([activeAgentId ?? 'tool-router-agent']),
             )?.name ??
-            'Агент',
+            'AI-помощник',
       _ActiveViewType.tool =>
         _firstOrNull(graph.toolsByIds([activeToolId ?? 'chatgpt']))?.name ??
-            'Инструмент',
+            'Нейросеть / Инструмент',
       _ActiveViewType.useCase =>
         _firstOrNull(
               graph.useCasesByIds([
@@ -2857,18 +3024,18 @@ class _ActiveContextPanel extends StatelessWidget {
             )?.title ??
             'Кейс',
       _ActiveViewType.routePlan => 'AI-маршрут',
-      _ActiveViewType.session => 'Сессия',
+      _ActiveViewType.session => 'Текущая задача',
       _ActiveViewType.project => 'Проект',
       _ActiveViewType.empty => 'Настройки режима',
     };
     final rows = switch (activeViewType) {
       _ActiveViewType.workflow => const [
-        ('Настройки сценария', Icons.schema_outlined),
+        ('Настройки плана', Icons.schema_outlined),
         ('Ручное выполнение', Icons.touch_app_outlined),
         ('Сохранить результаты', Icons.bookmark_add_outlined),
       ],
       _ActiveViewType.agent => const [
-        ('Задача агента', Icons.smart_toy_outlined),
+        ('Задача помощника', Icons.smart_toy_outlined),
         ('Демо-режим', Icons.science_outlined),
         ('API позже', Icons.api_rounded),
       ],
@@ -2890,7 +3057,9 @@ class _ActiveContextPanel extends StatelessWidget {
     };
 
     return _SettingsGroup(
-      title: 'Активный контекст',
+      title: activeViewType == _ActiveViewType.empty
+          ? 'Активный режим'
+          : 'Активный объект',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2935,8 +3104,8 @@ class _ModeContext extends StatelessWidget {
       ],
       _WorkMode.video => const [
         ('Формат кадра', Icons.aspect_ratio_rounded),
-        ('План сцены', Icons.movie_creation_outlined),
-        ('Ручной рендер', Icons.open_in_new_rounded),
+        ('Shot plan / сцены', Icons.movie_creation_outlined),
+        ('Ручная генерация', Icons.open_in_new_rounded),
       ],
       _WorkMode.audio => const [
         ('Голосовая модель', Icons.record_voice_over_outlined),
@@ -2944,7 +3113,7 @@ class _ModeContext extends StatelessWidget {
         ('Дубляж', Icons.subtitles_outlined),
       ],
       _WorkMode.toolkit => const [
-        ('Free/pro/local', Icons.route_outlined),
+        ('Бесплатно / Pro / Local', Icons.route_outlined),
         ('Статус интеграции', Icons.hub_outlined),
         ('Альтернативы', Icons.compare_arrows_rounded),
       ],
@@ -2962,6 +3131,61 @@ class _ModeContext extends StatelessWidget {
             style: const TextStyle(color: Color(0xFF9AA0AA), fontSize: 11),
           ),
         ],
+      ],
+    );
+  }
+}
+
+class _NextActionHint extends StatelessWidget {
+  const _NextActionHint({required this.mode, required this.activeViewType});
+
+  final _WorkMode mode;
+  final _ActiveViewType activeViewType;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = switch (activeViewType) {
+      _ActiveViewType.workflow =>
+        mode == _WorkMode.video
+            ? 'Скопируй первый промпт и открой видео-инструмент.'
+            : 'Начни вручную: скопируй первый промпт и открой нужный инструмент.',
+      _ActiveViewType.agent =>
+        'Назначь задачу AI-помощнику и используй демо-ответ как план действий.',
+      _ActiveViewType.tool =>
+        'Открой сайт инструмента и вставь подготовленный промпт.',
+      _ActiveViewType.useCase =>
+        'Открой план работы, чтобы увидеть шаги, помощников и инструменты.',
+      _ActiveViewType.routePlan =>
+        'Выбери план работы, AI-помощника или инструмент из AI-маршрута.',
+      _ActiveViewType.session || _ActiveViewType.project =>
+        'Продолжи задачу: открой быстрый план или подбери инструмент.',
+      _ActiveViewType.empty => switch (mode) {
+        _WorkMode.video =>
+          'Опиши ролик: OS соберет сцены, shot plan и видео-инструменты.',
+        _WorkMode.toolkit => 'Найди нейросеть и открой ее внутри OS.',
+        _ => 'Опиши задачу внизу, чтобы собрать AI-маршрут.',
+      },
+    };
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(
+          Icons.arrow_forward_rounded,
+          size: 14,
+          color: Color(0xFFFFA07A),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: Color(0xFFD7D9DF),
+              fontSize: 11,
+              height: 1.35,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
       ],
     );
   }
