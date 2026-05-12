@@ -10,8 +10,10 @@ import '../models/route_plan.dart';
 import '../models/routing_recommendation.dart';
 import '../models/use_case.dart';
 import '../models/workflow_template.dart';
+import '../models/workspace_memory.dart';
 import '../services/graph_repository.dart';
 import '../services/router_service.dart';
+import '../services/storage_service.dart';
 import '../services/url_service.dart';
 import '../state/app_settings.dart';
 
@@ -30,6 +32,13 @@ enum _ActiveViewType {
 }
 
 T? _firstOrNull<T>(List<T> items) => items.isEmpty ? null : items.first;
+
+T? _firstWhereOrNull<T>(Iterable<T> items, bool Function(T item) test) {
+  for (final item in items) {
+    if (test(item)) return item;
+  }
+  return null;
+}
 
 String _formatSessionTime(DateTime value) {
   final hour = value.hour.toString().padLeft(2, '0');
@@ -500,12 +509,33 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
   String _quality = 'Сбалансировано';
   _TaskSession? _currentTaskSession;
   final Map<_WorkMode, _CreativeSession> _creativeSessions = {};
+  final StorageService _storage = const StorageService();
+  List<WorkspaceSession> _memorySessions = const [];
+  List<MemoryProject> _memoryProjects = const [];
+  String? _activeSessionId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMemory();
+  }
 
   @override
   void dispose() {
     _taskController.dispose();
     _shortcutFocusNode.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadMemory() async {
+    final sessions = await _storage.loadSessions();
+    final projects = await _storage.loadProjects();
+    if (!mounted) return;
+    setState(() {
+      _memorySessions = sessions;
+      _memoryProjects = projects;
+      _activeSessionId = sessions.isEmpty ? null : sessions.first.id;
+    });
   }
 
   @override
@@ -545,6 +575,9 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                       recommendation: _recommendation,
                       creativeSession: _creativeSessions[_mode],
                       currentTaskSession: _currentTaskSession,
+                      sessions: _memorySessions,
+                      projects: _memoryProjects,
+                      activeSessionId: _activeSessionId,
                       activeViewType: _activeViewType,
                       activeWorkflowId: _activeWorkflowId,
                       activeAgentId: _activeAgentId,
@@ -561,12 +594,16 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                       onSubmit: _buildPlan,
                       onQuickGoal: _quickGoal,
                       onCloseActive: _closeActiveWork,
+                      onSaveToProject: _saveActiveSessionToProject,
                       onOpenWorkflow: _openWorkflow,
                       onOpenAgent: _openAgent,
                       onOpenTool: _openTool,
                       onOpenUseCase: _openUseCase,
-                      onOpenSession: _openSessionSummary,
-                      onOpenProject: _openProjectSummary,
+                      onOpenSession: _openSessionById,
+                      onOpenProject: _openProjectById,
+                      onCreateProject: _createProjectFromActiveSession,
+                      onToggleSessionPinned: _toggleSessionPinned,
+                      onToggleSessionFavorite: _toggleSessionFavorite,
                       onNewSession: _newSession,
                       onBack: _goBackInline,
                       onModel: (value) => setState(() => _model = value),
@@ -596,6 +633,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                       onSubmit: _buildPlan,
                       onQuickGoal: _quickGoal,
                       onCloseActive: _closeActiveWork,
+                      onSaveToProject: _saveActiveSessionToProject,
                       onOpenWorkflow: _openWorkflow,
                       onOpenAgent: _openAgent,
                       onOpenTool: _openTool,
@@ -642,6 +680,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     final task = _taskController.text.trim().isEmpty
         ? _defaultTaskForMode(_mode)
         : _taskController.text.trim();
+    WorkspaceSession? sessionToSave;
     setState(() {
       if (_mode == _WorkMode.toolkit) {
         _activeViewType = _ActiveViewType.empty;
@@ -655,15 +694,21 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
           route: _routePlan!,
           timestamp: DateTime.now(),
         );
+        sessionToSave = _routeSessionFromPlan(_routePlan!, task);
         _historyTab = 'Задачи';
         _activeViewType = _ActiveViewType.routePlan;
       } else {
-        _creativeSessions[_mode] = _buildCreativeSession(_mode, task);
+        final creativeSession = _buildCreativeSession(_mode, task);
+        _creativeSessions[_mode] = creativeSession;
+        sessionToSave = _memorySessionFromCreative(creativeSession, task);
         _activeViewType = _ActiveViewType.creativeSession;
       }
       _activeViewHistory.clear();
       _clearActiveIds();
     });
+    if (sessionToSave != null) {
+      _upsertMemorySession(sessionToSave!);
+    }
   }
 
   String _defaultTaskForMode(_WorkMode mode) {
@@ -781,31 +826,155 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     };
   }
 
+  WorkspaceSession _memorySessionFromCreative(
+    _CreativeSession session,
+    String task,
+  ) {
+    final existing = _activeSessionForMode(session.mode);
+    final now = DateTime.now();
+    return WorkspaceSession(
+      id: existing?.id ?? _newMemoryId('session'),
+      title: _compactTitle(task, fallback: session.title),
+      type: _sessionTypeForMode(session.mode),
+      category: session.mode.label,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+      preview: session.subtitle,
+      workspaceType: session.mode.name,
+      pinned: existing?.pinned ?? false,
+      favorite: existing?.favorite ?? false,
+      promptBlocks: session.promptBlocks,
+      output: session.output,
+      openedTools: existing?.openedTools ?? const [],
+      usedHelpers: existing?.usedHelpers ?? const [],
+      workflowIds: existing?.workflowIds ?? const [],
+      routeSeed: task,
+      projectId: existing?.projectId,
+    );
+  }
+
+  WorkspaceSession _routeSessionFromPlan(RoutePlan plan, String task) {
+    final existing = _activeSessionId == null
+        ? null
+        : _sessionById(_activeSessionId!);
+    final now = DateTime.now();
+    return WorkspaceSession(
+      id: existing?.id ?? _newMemoryId('route'),
+      title: plan.title,
+      type: WorkspaceSessionType.workflow,
+      category: plan.routeType,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+      preview: plan.detectedGoal,
+      workspaceType: _WorkMode.agents.name,
+      pinned: true,
+      favorite: existing?.favorite ?? false,
+      promptBlocks: plan.promptSuggestions,
+      output: plan.steps.map((step) => step.title).join(' → '),
+      openedTools: plan.toolIds,
+      usedHelpers: plan.agentIds,
+      workflowIds: plan.workflowIds,
+      routeSeed: task,
+      projectId: existing?.projectId,
+    );
+  }
+
+  WorkspaceSession? _activeSessionForMode(_WorkMode mode) {
+    if (_activeSessionId == null) return null;
+    final session = _sessionById(_activeSessionId!);
+    if (session?.workspaceType == mode.name) return session;
+    return null;
+  }
+
+  WorkspaceSession? _sessionById(String id) {
+    for (final session in _memorySessions) {
+      if (session.id == id) return session;
+    }
+    return null;
+  }
+
+  WorkspaceSessionType _sessionTypeForMode(_WorkMode mode) {
+    return switch (mode) {
+      _WorkMode.text => WorkspaceSessionType.text,
+      _WorkMode.design => WorkspaceSessionType.image,
+      _WorkMode.video => WorkspaceSessionType.video,
+      _WorkMode.audio => WorkspaceSessionType.audio,
+      _WorkMode.agents => WorkspaceSessionType.workflow,
+      _WorkMode.toolkit => WorkspaceSessionType.workflow,
+    };
+  }
+
+  String _newMemoryId(String prefix) {
+    return '$prefix-${DateTime.now().microsecondsSinceEpoch}';
+  }
+
+  String _compactTitle(String value, {required String fallback}) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return fallback;
+    return trimmed.length <= 36 ? trimmed : '${trimmed.substring(0, 36)}...';
+  }
+
   void _openWorkflow(String? id) {
+    final workflow = _firstOrNull(
+      const GraphRepository().workflowsByIds([id ?? 'ai-short-video-factory']),
+    );
     setState(() {
       _rememberActiveState();
       _activeViewType = _ActiveViewType.workflow;
       _clearActiveIds();
       _activeWorkflowId = id;
     });
+    if (workflow != null) {
+      _upsertMemorySession(
+        _entityMemorySession(
+          title: workflow.title,
+          preview: workflow.description,
+          type: WorkspaceSessionType.workflow,
+          category: 'план работы',
+          entityId: workflow.id,
+          workflowIds: [workflow.id],
+        ),
+      );
+    }
   }
 
   void _openAgent(String? id) {
+    final agent = _firstOrNull(
+      const GraphRepository().agentsByIds([id ?? 'tool-router-agent']),
+    );
     setState(() {
       _rememberActiveState();
       _activeViewType = _ActiveViewType.agent;
       _clearActiveIds();
       _activeAgentId = id;
     });
+    if (agent != null) {
+      _upsertMemorySession(
+        _entityMemorySession(
+          title: agent.name,
+          preview: agent.role,
+          type: WorkspaceSessionType.helper,
+          category: 'AI-помощник',
+          entityId: agent.id,
+          usedHelpers: [agent.id],
+        ),
+      );
+    }
   }
 
   void _openTool(String? id) {
+    final tool = _firstOrNull(
+      const GraphRepository().toolsByIds([id ?? 'chatgpt']),
+    );
     setState(() {
       _rememberActiveState();
       _activeViewType = _ActiveViewType.tool;
       _clearActiveIds();
       _activeToolId = id;
     });
+    if (tool != null) {
+      _touchActiveSession(openedToolId: tool.id);
+    }
   }
 
   void _openUseCase(String? id) {
@@ -817,24 +986,142 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     });
   }
 
-  void _openSessionSummary(String title, String subtitle) {
-    setState(() {
-      _rememberActiveState();
-      _activeViewType = _ActiveViewType.session;
-      _clearActiveIds();
-      _activeSummaryTitle = title;
-      _activeSummarySubtitle = subtitle;
-    });
+  WorkspaceSession _entityMemorySession({
+    required String title,
+    required String preview,
+    required WorkspaceSessionType type,
+    required String category,
+    required String entityId,
+    List<String> workflowIds = const [],
+    List<String> usedHelpers = const [],
+  }) {
+    final existing = _firstWhereOrNull(
+      _memorySessions,
+      (session) => session.entityId == entityId && session.type == type,
+    );
+    final now = DateTime.now();
+    return WorkspaceSession(
+      id: existing?.id ?? _newMemoryId(type.name),
+      title: title,
+      type: type,
+      category: category,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+      preview: preview,
+      workspaceType: type == WorkspaceSessionType.helper
+          ? _WorkMode.agents.name
+          : _WorkMode.agents.name,
+      pinned: existing?.pinned ?? false,
+      favorite: existing?.favorite ?? false,
+      promptBlocks: existing?.promptBlocks ?? const [],
+      output: preview,
+      openedTools: existing?.openedTools ?? const [],
+      usedHelpers: usedHelpers,
+      workflowIds: workflowIds,
+      entityId: entityId,
+      projectId: existing?.projectId,
+    );
   }
 
-  void _openProjectSummary(String title, String subtitle) {
+  void _openSessionById(String id) {
+    final session = _sessionById(id);
+    if (session == null) return;
+    setState(() {
+      _activeSessionId = session.id;
+      _taskController.text = session.routeSeed ?? session.title;
+      _activeViewHistory.clear();
+      _clearActiveIds();
+      if (session.type == WorkspaceSessionType.workflow &&
+          session.workflowIds.isNotEmpty) {
+        _mode = _WorkMode.agents;
+        _activeViewType = _ActiveViewType.workflow;
+        _activeWorkflowId = session.workflowIds.first;
+      } else if (session.type == WorkspaceSessionType.helper &&
+          session.usedHelpers.isNotEmpty) {
+        _mode = _WorkMode.agents;
+        _activeViewType = _ActiveViewType.agent;
+        _activeAgentId = session.usedHelpers.first;
+      } else if (session.workspaceType == _WorkMode.agents.name) {
+        _mode = _WorkMode.agents;
+        final router = const RouterService();
+        _routePlan = router.buildRoutePlan(session.routeSeed ?? session.title);
+        _recommendation = router.recommend(session.routeSeed ?? session.title);
+        _currentTaskSession = _TaskSession(
+          title: session.title,
+          mode: _routePlan!.recommendedMode,
+          route: _routePlan!,
+          timestamp: session.updatedAt,
+        );
+        _activeViewType = _ActiveViewType.routePlan;
+      } else {
+        final restoredMode = _modeFromSession(session);
+        _mode = restoredMode;
+        _creativeSessions[restoredMode] = _creativeSessionFromMemory(session);
+        _activeViewType = _ActiveViewType.creativeSession;
+      }
+      _historyTab = 'Задачи';
+    });
+    _touchSession(id);
+  }
+
+  void _openProjectById(String id) {
+    final project = _firstWhereOrNull(
+      _memoryProjects,
+      (project) => project.id == id,
+    );
+    if (project == null) return;
     setState(() {
       _rememberActiveState();
       _activeViewType = _ActiveViewType.project;
       _clearActiveIds();
-      _activeSummaryTitle = title;
-      _activeSummarySubtitle = subtitle;
+      _activeSummaryTitle = project.title;
+      _activeSummarySubtitle =
+          '${project.description}\n${project.sessionIds.length} сессий • updated ${_formatSessionTime(project.updatedAt)}';
+      _historyTab = 'Проекты';
     });
+  }
+
+  _WorkMode _modeFromSession(WorkspaceSession session) {
+    return _WorkMode.values.firstWhere(
+      (mode) => mode.name == session.workspaceType,
+      orElse: () {
+        return switch (session.type) {
+          WorkspaceSessionType.text => _WorkMode.text,
+          WorkspaceSessionType.image => _WorkMode.design,
+          WorkspaceSessionType.video => _WorkMode.video,
+          WorkspaceSessionType.audio => _WorkMode.audio,
+          WorkspaceSessionType.helper ||
+          WorkspaceSessionType.workflow => _WorkMode.agents,
+        };
+      },
+    );
+  }
+
+  _CreativeSession _creativeSessionFromMemory(WorkspaceSession session) {
+    final mode = _modeFromSession(session);
+    return _CreativeSession(
+      mode: mode,
+      title: session.title,
+      subtitle: 'Восстановлено из памяти OS • ${session.category}',
+      outputTitle: 'Сохраненный результат',
+      output: session.output.isEmpty ? session.preview : session.output,
+      sections: [
+        (
+          title: 'Memory',
+          value:
+              'created ${_formatSessionTime(session.createdAt)}, updated ${_formatSessionTime(session.updatedAt)}',
+        ),
+        (title: 'Project', value: session.projectId ?? 'не назначен'),
+        (
+          title: 'Opened tools',
+          value: session.openedTools.isEmpty
+              ? 'пока нет'
+              : session.openedTools.join(', '),
+        ),
+      ],
+      promptBlocks: session.promptBlocks,
+      timestamp: session.updatedAt,
+    );
   }
 
   void _newSession() {
@@ -851,6 +1138,119 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
       _activeViewHistory.clear();
       _clearActiveIds();
     });
+  }
+
+  void _upsertMemorySession(WorkspaceSession session) {
+    final next = [
+      session,
+      ..._memorySessions.where((item) => item.id != session.id),
+    ]..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    setState(() {
+      _memorySessions = next.take(60).toList();
+      _activeSessionId = session.id;
+    });
+    _storage.saveSessions(_memorySessions);
+  }
+
+  void _touchSession(String id) {
+    final session = _sessionById(id);
+    if (session == null) return;
+    _upsertMemorySession(session.copyWith(updatedAt: DateTime.now()));
+  }
+
+  void _touchActiveSession({String? openedToolId}) {
+    if (_activeSessionId == null) return;
+    final session = _sessionById(_activeSessionId!);
+    if (session == null) return;
+    final tools = [...session.openedTools];
+    if (openedToolId != null && !tools.contains(openedToolId)) {
+      tools.insert(0, openedToolId);
+    }
+    _upsertMemorySession(
+      session.copyWith(
+        updatedAt: DateTime.now(),
+        openedTools: tools.take(8).toList(),
+      ),
+    );
+  }
+
+  void _toggleSessionPinned(String id) {
+    final session = _sessionById(id);
+    if (session == null) return;
+    _upsertMemorySession(
+      session.copyWith(pinned: !session.pinned, updatedAt: DateTime.now()),
+    );
+  }
+
+  void _toggleSessionFavorite(String id) {
+    final session = _sessionById(id);
+    if (session == null) return;
+    _upsertMemorySession(
+      session.copyWith(favorite: !session.favorite, updatedAt: DateTime.now()),
+    );
+  }
+
+  void _saveActiveSessionToProject() {
+    if (_activeSessionId == null || _memoryProjects.isEmpty) return;
+    final session = _sessionById(_activeSessionId!);
+    if (session == null) return;
+    final preferred = _projectForSession(session) ?? _memoryProjects.first;
+    final ids = [
+      session.id,
+      ...preferred.sessionIds.where((id) => id != session.id),
+    ];
+    final updatedProject = preferred.copyWith(
+      sessionIds: ids,
+      updatedAt: DateTime.now(),
+    );
+    setState(() {
+      _memoryProjects = [
+        updatedProject,
+        ..._memoryProjects.where((project) => project.id != preferred.id),
+      ];
+    });
+    _storage.saveProjects(_memoryProjects);
+    _upsertMemorySession(
+      session.copyWith(projectId: preferred.id, updatedAt: DateTime.now()),
+    );
+  }
+
+  void _createProjectFromActiveSession() {
+    final now = DateTime.now();
+    final session = _activeSessionId == null
+        ? null
+        : _sessionById(_activeSessionId!);
+    final project = MemoryProject(
+      id: _newMemoryId('project'),
+      title: session == null ? 'Новый проект' : 'Проект: ${session.title}',
+      description: session == null
+          ? 'Локальный проект для будущих сессий и результатов.'
+          : 'Создан из активной сессии: ${session.preview}',
+      category: session?.type.label ?? 'workspace',
+      sessionIds: session == null ? const [] : [session.id],
+      createdAt: now,
+      updatedAt: now,
+      pinned: true,
+    );
+    setState(() {
+      _memoryProjects = [project, ..._memoryProjects];
+      _historyTab = 'Проекты';
+    });
+    _storage.saveProjects(_memoryProjects);
+    if (session != null) {
+      _upsertMemorySession(
+        session.copyWith(projectId: project.id, updatedAt: now),
+      );
+    }
+  }
+
+  MemoryProject? _projectForSession(WorkspaceSession session) {
+    return _firstWhereOrNull(
+      _memoryProjects,
+      (project) =>
+          project.category == session.type.label ||
+          project.id == session.projectId,
+    );
   }
 
   void _closeActiveWork() {
@@ -931,6 +1331,9 @@ class _DesktopStation extends StatelessWidget {
     required this.recommendation,
     required this.creativeSession,
     required this.currentTaskSession,
+    required this.sessions,
+    required this.projects,
+    required this.activeSessionId,
     required this.activeViewType,
     required this.activeWorkflowId,
     required this.activeAgentId,
@@ -947,12 +1350,16 @@ class _DesktopStation extends StatelessWidget {
     required this.onSubmit,
     required this.onQuickGoal,
     required this.onCloseActive,
+    required this.onSaveToProject,
     required this.onOpenWorkflow,
     required this.onOpenAgent,
     required this.onOpenTool,
     required this.onOpenUseCase,
     required this.onOpenSession,
     required this.onOpenProject,
+    required this.onCreateProject,
+    required this.onToggleSessionPinned,
+    required this.onToggleSessionFavorite,
     required this.onNewSession,
     required this.onBack,
     required this.onModel,
@@ -969,6 +1376,9 @@ class _DesktopStation extends StatelessWidget {
   final RoutingRecommendation? recommendation;
   final _CreativeSession? creativeSession;
   final _TaskSession? currentTaskSession;
+  final List<WorkspaceSession> sessions;
+  final List<MemoryProject> projects;
+  final String? activeSessionId;
   final _ActiveViewType activeViewType;
   final String? activeWorkflowId;
   final String? activeAgentId;
@@ -985,12 +1395,16 @@ class _DesktopStation extends StatelessWidget {
   final VoidCallback onSubmit;
   final ValueChanged<String> onQuickGoal;
   final VoidCallback onCloseActive;
+  final VoidCallback onSaveToProject;
   final ValueChanged<String?> onOpenWorkflow;
   final ValueChanged<String?> onOpenAgent;
   final ValueChanged<String?> onOpenTool;
   final ValueChanged<String?> onOpenUseCase;
-  final void Function(String title, String subtitle) onOpenSession;
-  final void Function(String title, String subtitle) onOpenProject;
+  final ValueChanged<String> onOpenSession;
+  final ValueChanged<String> onOpenProject;
+  final VoidCallback onCreateProject;
+  final ValueChanged<String> onToggleSessionPinned;
+  final ValueChanged<String> onToggleSessionFavorite;
   final VoidCallback onNewSession;
   final VoidCallback onBack;
   final ValueChanged<String> onModel;
@@ -1027,6 +1441,7 @@ class _DesktopStation extends StatelessWidget {
                   onOpenUseCase: onOpenUseCase,
                   onBack: onBack,
                   onCloseActive: onCloseActive,
+                  onSaveToProject: onSaveToProject,
                 ),
               ),
             ),
@@ -1040,6 +1455,9 @@ class _DesktopStation extends StatelessWidget {
           child: _HistoryPanel(
             tab: historyTab,
             currentTaskSession: currentTaskSession,
+            sessions: sessions,
+            projects: projects,
+            activeSessionId: activeSessionId,
             onTab: onHistoryTab,
             onNavigate: onNavigate,
             onOpenWorkflow: onOpenWorkflow,
@@ -1048,6 +1466,9 @@ class _DesktopStation extends StatelessWidget {
             onOpenUseCase: onOpenUseCase,
             onOpenSession: onOpenSession,
             onOpenProject: onOpenProject,
+            onCreateProject: onCreateProject,
+            onToggleSessionPinned: onToggleSessionPinned,
+            onToggleSessionFavorite: onToggleSessionFavorite,
             onNewSession: onNewSession,
           ),
         ),
@@ -1114,6 +1535,7 @@ class _MobileStation extends StatelessWidget {
     required this.onSubmit,
     required this.onQuickGoal,
     required this.onCloseActive,
+    required this.onSaveToProject,
     required this.onOpenWorkflow,
     required this.onOpenAgent,
     required this.onOpenTool,
@@ -1145,6 +1567,7 @@ class _MobileStation extends StatelessWidget {
   final VoidCallback onSubmit;
   final ValueChanged<String> onQuickGoal;
   final VoidCallback onCloseActive;
+  final VoidCallback onSaveToProject;
   final ValueChanged<String?> onOpenWorkflow;
   final ValueChanged<String?> onOpenAgent;
   final ValueChanged<String?> onOpenTool;
@@ -1182,6 +1605,7 @@ class _MobileStation extends StatelessWidget {
             onOpenUseCase: onOpenUseCase,
             onBack: onBack,
             onCloseActive: onCloseActive,
+            onSaveToProject: onSaveToProject,
           ),
         ),
         const SizedBox(height: 14),
@@ -1366,6 +1790,9 @@ class _HistoryPanel extends StatelessWidget {
   const _HistoryPanel({
     required this.tab,
     required this.currentTaskSession,
+    required this.sessions,
+    required this.projects,
+    required this.activeSessionId,
     required this.onTab,
     required this.onNavigate,
     required this.onOpenWorkflow,
@@ -1374,23 +1801,43 @@ class _HistoryPanel extends StatelessWidget {
     required this.onOpenUseCase,
     required this.onOpenSession,
     required this.onOpenProject,
+    required this.onCreateProject,
+    required this.onToggleSessionPinned,
+    required this.onToggleSessionFavorite,
     required this.onNewSession,
   });
 
   final String tab;
   final _TaskSession? currentTaskSession;
+  final List<WorkspaceSession> sessions;
+  final List<MemoryProject> projects;
+  final String? activeSessionId;
   final ValueChanged<String> onTab;
   final ValueChanged<AppDestination> onNavigate;
   final ValueChanged<String?> onOpenWorkflow;
   final ValueChanged<String?> onOpenAgent;
   final ValueChanged<String?> onOpenTool;
   final ValueChanged<String?> onOpenUseCase;
-  final void Function(String title, String subtitle) onOpenSession;
-  final void Function(String title, String subtitle) onOpenProject;
+  final ValueChanged<String> onOpenSession;
+  final ValueChanged<String> onOpenProject;
+  final VoidCallback onCreateProject;
+  final ValueChanged<String> onToggleSessionPinned;
+  final ValueChanged<String> onToggleSessionFavorite;
   final VoidCallback onNewSession;
 
   @override
   Widget build(BuildContext context) {
+    final activeSessions = [
+      ...sessions.where((session) => session.id == activeSessionId),
+      ...sessions.where(
+        (session) => session.pinned && session.id != activeSessionId,
+      ),
+    ].take(4).toList();
+    final recentSessions = sessions.take(6).toList();
+    final favoriteSessions = sessions
+        .where((session) => session.favorite || session.pinned)
+        .take(6)
+        .toList();
     return _GlassPanel(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
       child: SingleChildScrollView(
@@ -1430,10 +1877,7 @@ class _HistoryPanel extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => onOpenProject(
-                      'Новый проект',
-                      'Проект: постоянная работа с задачами, планами и результатами',
-                    ),
+                    onPressed: onCreateProject,
                     icon: const Icon(
                       Icons.create_new_folder_outlined,
                       size: 16,
@@ -1477,19 +1921,25 @@ class _HistoryPanel extends StatelessWidget {
             if (tab == 'Задачи') ...[
               const _PanelLabel('АКТИВНЫЕ ЗАДАЧИ'),
               const _SectionHint('то, над чем работаешь сейчас'),
-              if (currentTaskSession == null)
+              if (activeSessions.isEmpty && currentTaskSession == null)
                 _HistoryItem(
                   title: '10 Reels для трека',
                   subtitle: 'активная задача',
                   type: 'задача',
                   icon: Icons.bolt_rounded,
                   active: true,
-                  onTap: () => onOpenSession(
-                    '10 Reels для трека',
-                    'Активная задача: план, AI-помощники и инструменты остаются внутри рабочей станции',
-                  ),
+                  onTap: () => onOpenWorkflow('ai-short-video-factory'),
                 )
-              else
+              else if (activeSessions.isNotEmpty)
+                for (final session in activeSessions)
+                  _MemorySessionItem(
+                    session: session,
+                    active: session.id == activeSessionId,
+                    onOpen: () => onOpenSession(session.id),
+                    onPin: () => onToggleSessionPinned(session.id),
+                    onFavorite: () => onToggleSessionFavorite(session.id),
+                  )
+              else if (currentTaskSession != null)
                 _HistoryItem(
                   title: 'Текущая задача',
                   subtitle:
@@ -1497,58 +1947,38 @@ class _HistoryPanel extends StatelessWidget {
                   type: currentTaskSession!.route.routeType,
                   icon: Icons.route_rounded,
                   active: true,
-                  onTap: () => onOpenSession(
-                    currentTaskSession!.title,
-                    currentTaskSession!.route.detectedGoal,
+                  onTap: () => onOpenWorkflow(
+                    _firstOrNull(currentTaskSession!.route.workflowIds),
                   ),
                 ),
               const SizedBox(height: 14),
               const _PanelLabel('ПОСЛЕДНИЕ СЕССИИ'),
               const _SectionHint('быстрый возврат к прошлым рабочим сессиям'),
-              _HistoryItem(
-                title: 'AI-фриланс разведка',
-                subtitle: 'задача',
-                type: 'задача',
-                icon: Icons.manage_search_rounded,
-                onTap: () => onOpenUseCase('find-ai-freelance-jobs'),
-              ),
-              _HistoryItem(
-                title: 'Оживление фото',
-                subtitle: 'задача',
-                type: 'задача',
-                icon: Icons.photo_library_outlined,
-                onTap: () => onOpenUseCase('restore-old-photos-service'),
-              ),
-              _HistoryItem(
-                title: 'Локализация видео',
-                subtitle: 'задача',
-                type: 'задача',
-                icon: Icons.subtitles_outlined,
-                onTap: () => onOpenUseCase('video-localization'),
-              ),
+              if (recentSessions.isEmpty) ...[
+                _HistoryItem(
+                  title: 'AI-фриланс разведка',
+                  subtitle: 'mock session',
+                  type: 'задача',
+                  icon: Icons.manage_search_rounded,
+                  onTap: () => onOpenUseCase('find-ai-freelance-jobs'),
+                ),
+              ] else
+                for (final session in recentSessions)
+                  _MemorySessionItem(
+                    session: session,
+                    active: session.id == activeSessionId,
+                    onOpen: () => onOpenSession(session.id),
+                    onPin: () => onToggleSessionPinned(session.id),
+                    onFavorite: () => onToggleSessionFavorite(session.id),
+                  ),
               const SizedBox(height: 14),
               const _PanelLabel('ПРОЕКТЫ'),
               const _SectionHint('долгие направления работы'),
-              _HistoryItem(
-                title: 'Музыкальный релиз',
-                subtitle: 'проект',
-                type: 'проект',
-                icon: Icons.folder_outlined,
-                onTap: () => onOpenProject(
-                  'Музыкальный релиз',
-                  'Постоянный проект: задачи, планы работы и результаты',
+              for (final project in projects.take(3))
+                _ProjectMemoryItem(
+                  project: project,
+                  onOpen: () => onOpenProject(project.id),
                 ),
-              ),
-              _HistoryItem(
-                title: 'Контент-завод',
-                subtitle: 'проект',
-                type: 'проект',
-                icon: Icons.folder_outlined,
-                onTap: () => onOpenProject(
-                  'Контент-завод',
-                  'Проект для пакетной генерации Shorts, Reels и постов',
-                ),
-              ),
               const SizedBox(height: 14),
               const _PanelLabel('AI HELPERS'),
               const _SectionHint('AI-помощники для отдельных этапов'),
@@ -1631,38 +2061,28 @@ class _HistoryPanel extends StatelessWidget {
             ],
             if (tab == 'Проекты') ...[
               const _PanelLabel('ПРОЕКТЫ'),
-              _HistoryItem(
-                title: 'Музыкальный релиз',
-                subtitle: 'проект',
-                type: 'проект',
-                icon: Icons.folder_outlined,
-                onTap: () => onOpenProject(
-                  'Музыкальный релиз',
-                  'Постоянный проект: задачи, планы работы и результаты',
+              const _SectionHint('project memory, сессии и продолжение работы'),
+              for (final project in projects)
+                _ProjectMemoryItem(
+                  project: project,
+                  onOpen: () => onOpenProject(project.id),
                 ),
-              ),
-              _HistoryItem(
-                title: 'Контент-фабрика',
-                subtitle: 'проект',
-                type: 'проект',
-                icon: Icons.folder_outlined,
-                onTap: () => onOpenProject(
-                  'Контент-фабрика',
-                  'Проект для пакетной генерации Shorts, Reels и постов',
-                ),
-              ),
-              _HistoryItem(
-                title: 'AI-сервисы для клиентов',
-                subtitle: 'проект',
-                type: 'проект',
-                icon: Icons.folder_outlined,
-                onTap: () => onOpenProject(
-                  'AI-сервисы для клиентов',
-                  'Проект для клиентских сценариев, предложений и результатов',
-                ),
-              ),
             ],
             if (tab == 'Избранное') ...[
+              const _PanelLabel('ИЗБРАННЫЕ СЕССИИ'),
+              const _SectionHint('pin/favorite для быстрого возврата'),
+              if (favoriteSessions.isEmpty)
+                const _SectionHint('добавь сессию в избранное звездочкой')
+              else
+                for (final session in favoriteSessions)
+                  _MemorySessionItem(
+                    session: session,
+                    active: session.id == activeSessionId,
+                    onOpen: () => onOpenSession(session.id),
+                    onPin: () => onToggleSessionPinned(session.id),
+                    onFavorite: () => onToggleSessionFavorite(session.id),
+                  ),
+              const SizedBox(height: 10),
               const _PanelLabel('AI-ПОМОЩНИКИ'),
               _HistoryItem(
                 title: 'AI-помощник-режиссер',
@@ -1737,6 +2157,7 @@ class _CenterStage extends StatelessWidget {
     required this.onOpenUseCase,
     required this.onBack,
     required this.onCloseActive,
+    required this.onSaveToProject,
   });
 
   final _WorkMode mode;
@@ -1756,6 +2177,7 @@ class _CenterStage extends StatelessWidget {
   final ValueChanged<String?> onOpenUseCase;
   final VoidCallback onBack;
   final VoidCallback onCloseActive;
+  final VoidCallback onSaveToProject;
 
   @override
   Widget build(BuildContext context) {
@@ -1775,6 +2197,7 @@ class _CenterStage extends StatelessWidget {
               session: creativeSession!,
               onClose: onCloseActive,
               onOpenTool: onOpenTool,
+              onSaveToProject: onSaveToProject,
               key: ValueKey(
                 'creative-${creativeSession!.mode.name}-${creativeSession!.timestamp.millisecondsSinceEpoch}',
               ),
@@ -1794,6 +2217,7 @@ class _CenterStage extends StatelessWidget {
               onOpenAgent: onOpenAgent,
               onOpenTool: onOpenTool,
               onClose: onCloseActive,
+              onSaveToProject: onSaveToProject,
               key: const ValueKey('route-stage'),
             );
     } else {
@@ -2155,6 +2579,7 @@ class _RouteStage extends StatelessWidget {
     required this.onOpenAgent,
     required this.onOpenTool,
     required this.onClose,
+    required this.onSaveToProject,
   });
 
   final RoutePlan routePlan;
@@ -2162,6 +2587,7 @@ class _RouteStage extends StatelessWidget {
   final ValueChanged<String?> onOpenAgent;
   final ValueChanged<String?> onOpenTool;
   final VoidCallback onClose;
+  final VoidCallback onSaveToProject;
 
   @override
   Widget build(BuildContext context) {
@@ -2279,7 +2705,7 @@ class _RouteStage extends StatelessWidget {
                   FilledButton.icon(
                     onPressed: () => onOpenWorkflow(firstWorkflowId),
                     icon: const Icon(Icons.play_arrow_rounded),
-                    label: const Text('Открыть план работы'),
+                    label: const Text('Continue workflow'),
                   ),
                   OutlinedButton.icon(
                     onPressed: () => onOpenAgent(firstAgentId),
@@ -2297,9 +2723,14 @@ class _RouteStage extends StatelessWidget {
                     label: const Text('Новый запрос'),
                   ),
                   OutlinedButton.icon(
+                    onPressed: onSaveToProject,
+                    icon: const Icon(Icons.drive_file_move_outline),
+                    label: const Text('Save to project'),
+                  ),
+                  OutlinedButton.icon(
                     onPressed: onClose,
                     icon: const Icon(Icons.keyboard_return_rounded),
-                    label: const Text('Вернуться к рабочему пространству'),
+                    label: const Text('Reopen workspace'),
                   ),
                 ],
               ),
@@ -2386,11 +2817,13 @@ class _CreativeWorkspaceStage extends StatelessWidget {
     required this.session,
     required this.onClose,
     required this.onOpenTool,
+    required this.onSaveToProject,
   });
 
   final _CreativeSession session;
   final VoidCallback onClose;
   final ValueChanged<String?> onOpenTool;
+  final VoidCallback onSaveToProject;
 
   @override
   Widget build(BuildContext context) {
@@ -2464,12 +2897,27 @@ class _CreativeWorkspaceStage extends StatelessWidget {
                   OutlinedButton.icon(
                     onPressed: () => _copyText(context, session.output),
                     icon: const Icon(Icons.copy_rounded),
-                    label: const Text('Скопировать результат'),
+                    label: const Text('Reuse prompt'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => _copyText(context, session.output),
+                    icon: const Icon(Icons.copy_all_rounded),
+                    label: const Text('Duplicate session'),
                   ),
                   OutlinedButton.icon(
                     onPressed: onClose,
                     icon: const Icon(Icons.refresh_rounded),
                     label: const Text('Очистить'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: onSaveToProject,
+                    icon: const Icon(Icons.drive_file_move_outline),
+                    label: const Text('Save to project'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: onSaveToProject,
+                    icon: const Icon(Icons.folder_open_outlined),
+                    label: const Text('Continue project'),
                   ),
                 ],
               ),
@@ -4932,6 +5380,109 @@ class _TinyTab extends StatelessWidget {
   }
 }
 
+class _MemorySessionItem extends StatelessWidget {
+  const _MemorySessionItem({
+    required this.session,
+    required this.active,
+    required this.onOpen,
+    required this.onPin,
+    required this.onFavorite,
+  });
+
+  final WorkspaceSession session;
+  final bool active;
+  final VoidCallback onOpen;
+  final VoidCallback onPin;
+  final VoidCallback onFavorite;
+
+  @override
+  Widget build(BuildContext context) {
+    return _HistoryItem(
+      title: session.title,
+      subtitle:
+          '${session.category} • updated ${_formatSessionTime(session.updatedAt)}',
+      type: session.type.label,
+      icon: _sessionIcon(session.type),
+      active: active,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _MiniMemoryButton(
+            icon: session.pinned ? Icons.push_pin : Icons.push_pin_outlined,
+            onTap: onPin,
+            active: session.pinned,
+          ),
+          _MiniMemoryButton(
+            icon: session.favorite ? Icons.star : Icons.star_border_rounded,
+            onTap: onFavorite,
+            active: session.favorite,
+          ),
+        ],
+      ),
+      onTap: onOpen,
+    );
+  }
+}
+
+class _ProjectMemoryItem extends StatelessWidget {
+  const _ProjectMemoryItem({required this.project, required this.onOpen});
+
+  final MemoryProject project;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    return _HistoryItem(
+      title: project.title,
+      subtitle:
+          '${project.category} • ${project.sessionIds.length} сессий • ${_formatSessionTime(project.updatedAt)}',
+      type: project.pinned ? 'pinned' : 'проект',
+      icon: Icons.folder_special_outlined,
+      active: project.pinned,
+      onTap: onOpen,
+    );
+  }
+}
+
+class _MiniMemoryButton extends StatelessWidget {
+  const _MiniMemoryButton({
+    required this.icon,
+    required this.onTap,
+    required this.active,
+  });
+
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool active;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(999),
+      child: Padding(
+        padding: const EdgeInsets.all(3),
+        child: Icon(
+          icon,
+          size: 13,
+          color: active ? const Color(0xFFFF9A78) : const Color(0xFF6F7480),
+        ),
+      ),
+    );
+  }
+}
+
+IconData _sessionIcon(WorkspaceSessionType type) {
+  return switch (type) {
+    WorkspaceSessionType.text => Icons.article_outlined,
+    WorkspaceSessionType.image => Icons.image_outlined,
+    WorkspaceSessionType.video => Icons.movie_creation_outlined,
+    WorkspaceSessionType.audio => Icons.graphic_eq_rounded,
+    WorkspaceSessionType.helper => Icons.smart_toy_outlined,
+    WorkspaceSessionType.workflow => Icons.schema_outlined,
+  };
+}
+
 class _HistoryItem extends StatelessWidget {
   const _HistoryItem({
     required this.title,
@@ -4940,6 +5491,7 @@ class _HistoryItem extends StatelessWidget {
     required this.icon,
     required this.onTap,
     this.active = false,
+    this.trailing,
   });
 
   final String title;
@@ -4948,6 +5500,7 @@ class _HistoryItem extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
   final bool active;
+  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -5000,14 +5553,26 @@ class _HistoryItem extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 6),
-            Text(
-              type,
-              style: const TextStyle(
-                color: Color(0xFF6F7480),
-                fontSize: 9,
-                fontWeight: FontWeight.w900,
+            trailing ??
+                Text(
+                  type,
+                  style: const TextStyle(
+                    color: Color(0xFF6F7480),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+            if (trailing != null) ...[
+              const SizedBox(width: 4),
+              Text(
+                type,
+                style: const TextStyle(
+                  color: Color(0xFF6F7480),
+                  fontSize: 9,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
