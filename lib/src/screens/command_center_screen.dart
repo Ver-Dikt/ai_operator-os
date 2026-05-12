@@ -123,6 +123,13 @@ Future<void> _copyText(BuildContext context, String text) async {
   ).showSnackBar(const SnackBar(content: Text('Скопировано в буфер')));
 }
 
+Future<void> _launchToolWebsite(BuildContext context, AiTool tool) async {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text('Подготовка prompt bundle для ${tool.name}...')),
+  );
+  await const UrlService().open(tool.url);
+}
+
 class _ModeSettingConfig {
   const _ModeSettingConfig(this.title, this.values);
 
@@ -475,6 +482,7 @@ class CommandCenterScreen extends StatefulWidget {
 
 class _CommandCenterScreenState extends State<CommandCenterScreen> {
   final TextEditingController _taskController = TextEditingController();
+  final FocusNode _shortcutFocusNode = FocusNode();
   _WorkMode _mode = _WorkMode.design;
   RoutePlan? _routePlan;
   RoutingRecommendation? _recommendation;
@@ -496,6 +504,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
   @override
   void dispose() {
     _taskController.dispose();
+    _shortcutFocusNode.dispose();
     super.dispose();
   }
 
@@ -503,87 +512,102 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
   Widget build(BuildContext context) {
     final settings = AppSettingsScope.of(context);
     final isWide = MediaQuery.sizeOf(context).width >= 980;
-    return Scaffold(
-      backgroundColor: const Color(0xFF050608),
-      body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: RadialGradient(
-            center: Alignment.topCenter,
-            radius: 1.25,
-            colors: [Color(0xFF171820), Color(0xFF050608)],
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        const SingleActivator(LogicalKeyboardKey.escape): _closeActiveWork,
+      },
+      child: KeyboardListener(
+        autofocus: true,
+        focusNode: _shortcutFocusNode,
+        onKeyEvent: (event) {
+          if (event is KeyDownEvent &&
+              event.logicalKey == LogicalKeyboardKey.escape) {
+            _closeActiveWork();
+          }
+        },
+        child: Scaffold(
+          backgroundColor: const Color(0xFF050608),
+          body: DecoratedBox(
+            decoration: const BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment.topCenter,
+                radius: 1.25,
+                colors: [Color(0xFF171820), Color(0xFF050608)],
+              ),
+            ),
+            child: SafeArea(
+              child: isWide
+                  ? _DesktopStation(
+                      mode: _mode,
+                      historyTab: _historyTab,
+                      taskController: _taskController,
+                      routePlan: _routePlan,
+                      recommendation: _recommendation,
+                      creativeSession: _creativeSessions[_mode],
+                      currentTaskSession: _currentTaskSession,
+                      activeViewType: _activeViewType,
+                      activeWorkflowId: _activeWorkflowId,
+                      activeAgentId: _activeAgentId,
+                      activeToolId: _activeToolId,
+                      activeUseCaseId: _activeUseCaseId,
+                      activeSummaryTitle: _activeSummaryTitle,
+                      activeSummarySubtitle: _activeSummarySubtitle,
+                      model: _model,
+                      aspect: _aspect,
+                      quality: _quality,
+                      settings: settings,
+                      onMode: _switchMode,
+                      onHistoryTab: (tab) => setState(() => _historyTab = tab),
+                      onSubmit: _buildPlan,
+                      onQuickGoal: _quickGoal,
+                      onCloseActive: _closeActiveWork,
+                      onOpenWorkflow: _openWorkflow,
+                      onOpenAgent: _openAgent,
+                      onOpenTool: _openTool,
+                      onOpenUseCase: _openUseCase,
+                      onOpenSession: _openSessionSummary,
+                      onOpenProject: _openProjectSummary,
+                      onNewSession: _newSession,
+                      onBack: _goBackInline,
+                      onModel: (value) => setState(() => _model = value),
+                      onAspect: (value) => setState(() => _aspect = value),
+                      onQuality: (value) => setState(() => _quality = value),
+                      onReset: _resetParameters,
+                      onNavigate: widget.onNavigate,
+                    )
+                  : _MobileStation(
+                      mode: _mode,
+                      taskController: _taskController,
+                      routePlan: _routePlan,
+                      recommendation: _recommendation,
+                      creativeSession: _creativeSessions[_mode],
+                      activeViewType: _activeViewType,
+                      activeWorkflowId: _activeWorkflowId,
+                      activeAgentId: _activeAgentId,
+                      activeToolId: _activeToolId,
+                      activeUseCaseId: _activeUseCaseId,
+                      activeSummaryTitle: _activeSummaryTitle,
+                      activeSummarySubtitle: _activeSummarySubtitle,
+                      model: _model,
+                      aspect: _aspect,
+                      quality: _quality,
+                      settings: settings,
+                      onMode: _switchMode,
+                      onSubmit: _buildPlan,
+                      onQuickGoal: _quickGoal,
+                      onCloseActive: _closeActiveWork,
+                      onOpenWorkflow: _openWorkflow,
+                      onOpenAgent: _openAgent,
+                      onOpenTool: _openTool,
+                      onOpenUseCase: _openUseCase,
+                      onBack: _goBackInline,
+                      onModel: (value) => setState(() => _model = value),
+                      onAspect: (value) => setState(() => _aspect = value),
+                      onQuality: (value) => setState(() => _quality = value),
+                      onReset: _resetParameters,
+                    ),
+            ),
           ),
-        ),
-        child: SafeArea(
-          child: isWide
-              ? _DesktopStation(
-                  mode: _mode,
-                  historyTab: _historyTab,
-                  taskController: _taskController,
-                  routePlan: _routePlan,
-                  recommendation: _recommendation,
-                  creativeSession: _creativeSessions[_mode],
-                  currentTaskSession: _currentTaskSession,
-                  activeViewType: _activeViewType,
-                  activeWorkflowId: _activeWorkflowId,
-                  activeAgentId: _activeAgentId,
-                  activeToolId: _activeToolId,
-                  activeUseCaseId: _activeUseCaseId,
-                  activeSummaryTitle: _activeSummaryTitle,
-                  activeSummarySubtitle: _activeSummarySubtitle,
-                  model: _model,
-                  aspect: _aspect,
-                  quality: _quality,
-                  settings: settings,
-                  onMode: _switchMode,
-                  onHistoryTab: (tab) => setState(() => _historyTab = tab),
-                  onSubmit: _buildPlan,
-                  onQuickGoal: _quickGoal,
-                  onCloseActive: _closeActiveWork,
-                  onOpenWorkflow: _openWorkflow,
-                  onOpenAgent: _openAgent,
-                  onOpenTool: _openTool,
-                  onOpenUseCase: _openUseCase,
-                  onOpenSession: _openSessionSummary,
-                  onOpenProject: _openProjectSummary,
-                  onNewSession: _newSession,
-                  onBack: _goBackInline,
-                  onModel: (value) => setState(() => _model = value),
-                  onAspect: (value) => setState(() => _aspect = value),
-                  onQuality: (value) => setState(() => _quality = value),
-                  onReset: _resetParameters,
-                  onNavigate: widget.onNavigate,
-                )
-              : _MobileStation(
-                  mode: _mode,
-                  taskController: _taskController,
-                  routePlan: _routePlan,
-                  recommendation: _recommendation,
-                  creativeSession: _creativeSessions[_mode],
-                  activeViewType: _activeViewType,
-                  activeWorkflowId: _activeWorkflowId,
-                  activeAgentId: _activeAgentId,
-                  activeToolId: _activeToolId,
-                  activeUseCaseId: _activeUseCaseId,
-                  activeSummaryTitle: _activeSummaryTitle,
-                  activeSummarySubtitle: _activeSummarySubtitle,
-                  model: _model,
-                  aspect: _aspect,
-                  quality: _quality,
-                  settings: settings,
-                  onMode: _switchMode,
-                  onSubmit: _buildPlan,
-                  onQuickGoal: _quickGoal,
-                  onCloseActive: _closeActiveWork,
-                  onOpenWorkflow: _openWorkflow,
-                  onOpenAgent: _openAgent,
-                  onOpenTool: _openTool,
-                  onOpenUseCase: _openUseCase,
-                  onBack: _goBackInline,
-                  onModel: (value) => setState(() => _model = value),
-                  onAspect: (value) => setState(() => _aspect = value),
-                  onQuality: (value) => setState(() => _quality = value),
-                  onReset: _resetParameters,
-                ),
         ),
       ),
     );
@@ -1451,7 +1475,7 @@ class _HistoryPanel extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             if (tab == 'Задачи') ...[
-              const _PanelLabel('АКТИВНАЯ ЗАДАЧА'),
+              const _PanelLabel('АКТИВНЫЕ ЗАДАЧИ'),
               const _SectionHint('то, над чем работаешь сейчас'),
               if (currentTaskSession == null)
                 _HistoryItem(
@@ -1459,6 +1483,7 @@ class _HistoryPanel extends StatelessWidget {
                   subtitle: 'активная задача',
                   type: 'задача',
                   icon: Icons.bolt_rounded,
+                  active: true,
                   onTap: () => onOpenSession(
                     '10 Reels для трека',
                     'Активная задача: план, AI-помощники и инструменты остаются внутри рабочей станции',
@@ -1471,13 +1496,14 @@ class _HistoryPanel extends StatelessWidget {
                       '${currentTaskSession!.mode} • ${_formatSessionTime(currentTaskSession!.timestamp)}',
                   type: currentTaskSession!.route.routeType,
                   icon: Icons.route_rounded,
+                  active: true,
                   onTap: () => onOpenSession(
                     currentTaskSession!.title,
                     currentTaskSession!.route.detectedGoal,
                   ),
                 ),
               const SizedBox(height: 14),
-              const _PanelLabel('НЕДАВНИЕ ЗАДАЧИ'),
+              const _PanelLabel('ПОСЛЕДНИЕ СЕССИИ'),
               const _SectionHint('быстрый возврат к прошлым рабочим сессиям'),
               _HistoryItem(
                 title: 'AI-фриланс разведка',
@@ -1499,6 +1525,77 @@ class _HistoryPanel extends StatelessWidget {
                 type: 'задача',
                 icon: Icons.subtitles_outlined,
                 onTap: () => onOpenUseCase('video-localization'),
+              ),
+              const SizedBox(height: 14),
+              const _PanelLabel('ПРОЕКТЫ'),
+              const _SectionHint('долгие направления работы'),
+              _HistoryItem(
+                title: 'Музыкальный релиз',
+                subtitle: 'проект',
+                type: 'проект',
+                icon: Icons.folder_outlined,
+                onTap: () => onOpenProject(
+                  'Музыкальный релиз',
+                  'Постоянный проект: задачи, планы работы и результаты',
+                ),
+              ),
+              _HistoryItem(
+                title: 'Контент-завод',
+                subtitle: 'проект',
+                type: 'проект',
+                icon: Icons.folder_outlined,
+                onTap: () => onOpenProject(
+                  'Контент-завод',
+                  'Проект для пакетной генерации Shorts, Reels и постов',
+                ),
+              ),
+              const SizedBox(height: 14),
+              const _PanelLabel('AI HELPERS'),
+              const _SectionHint('AI-помощники для отдельных этапов'),
+              _HistoryItem(
+                title: 'AI-помощник-режиссер',
+                subtitle: 'сцены и раскадровка',
+                type: 'помощник',
+                icon: Icons.smart_toy_outlined,
+                onTap: () => onOpenAgent('director-agent'),
+              ),
+              _HistoryItem(
+                title: 'Prompt operator',
+                subtitle: 'промпты и улучшения',
+                type: 'помощник',
+                icon: Icons.psychology_alt_outlined,
+                onTap: () => onOpenAgent('prompt-engineer-agent'),
+              ),
+              const SizedBox(height: 14),
+              const _PanelLabel('ИНСТРУМЕНТЫ'),
+              const _SectionHint('нейросети и сервисы под рукой'),
+              _HistoryItem(
+                title: 'Kling',
+                subtitle: 'видео-инструмент',
+                type: 'инструмент',
+                icon: Icons.movie_creation_outlined,
+                onTap: () => onOpenTool('kling'),
+              ),
+              _HistoryItem(
+                title: 'ChatGPT',
+                subtitle: 'текст / промпты',
+                type: 'инструмент',
+                icon: Icons.grid_view_rounded,
+                onTap: () => onOpenTool('chatgpt'),
+              ),
+              _HistoryItem(
+                title: 'n8n',
+                subtitle: 'автоматизация',
+                type: 'инструмент',
+                icon: Icons.account_tree_outlined,
+                onTap: () => onOpenTool('n8n'),
+              ),
+              _HistoryItem(
+                title: 'Midjourney',
+                subtitle: 'дизайн-инструмент',
+                type: 'инструмент',
+                icon: Icons.auto_awesome_mosaic_outlined,
+                onTap: () => onOpenTool('midjourney'),
               ),
               const SizedBox(height: 14),
               const _PanelLabel('БЫСТРЫЕ СЦЕНАРИИ'),
@@ -1530,60 +1627,6 @@ class _HistoryPanel extends StatelessWidget {
                 type: 'сценарий',
                 icon: Icons.local_movies_outlined,
                 onTap: () => onOpenWorkflow('ai-short-video-factory'),
-              ),
-              const SizedBox(height: 14),
-              const _PanelLabel('ПРОЕКТЫ'),
-              const _SectionHint('долгие направления работы'),
-              _HistoryItem(
-                title: 'Музыкальный релиз',
-                subtitle: 'проект',
-                type: 'проект',
-                icon: Icons.folder_outlined,
-                onTap: () => onOpenProject(
-                  'Музыкальный релиз',
-                  'Постоянный проект: задачи, планы работы и результаты',
-                ),
-              ),
-              _HistoryItem(
-                title: 'Контент-завод',
-                subtitle: 'проект',
-                type: 'проект',
-                icon: Icons.folder_outlined,
-                onTap: () => onOpenProject(
-                  'Контент-завод',
-                  'Проект для пакетной генерации Shorts, Reels и постов',
-                ),
-              ),
-              const SizedBox(height: 14),
-              const _PanelLabel('ИЗБРАННЫЕ ИНСТРУМЕНТЫ'),
-              const _SectionHint('нейросети, которые часто используешь'),
-              _HistoryItem(
-                title: 'Kling',
-                subtitle: 'видео-инструмент',
-                type: 'инструмент',
-                icon: Icons.movie_creation_outlined,
-                onTap: () => onOpenTool('kling'),
-              ),
-              _HistoryItem(
-                title: 'ChatGPT',
-                subtitle: 'текст / промпты',
-                type: 'инструмент',
-                icon: Icons.grid_view_rounded,
-                onTap: () => onOpenTool('chatgpt'),
-              ),
-              _HistoryItem(
-                title: 'n8n',
-                subtitle: 'автоматизация',
-                type: 'инструмент',
-                icon: Icons.account_tree_outlined,
-                onTap: () => onOpenTool('n8n'),
-              ),
-              _HistoryItem(
-                title: 'Midjourney',
-                subtitle: 'дизайн-инструмент',
-                type: 'инструмент',
-                icon: Icons.auto_awesome_mosaic_outlined,
-                onTap: () => onOpenTool('midjourney'),
               ),
             ],
             if (tab == 'Проекты') ...[
@@ -1731,6 +1774,7 @@ class _CenterStage extends StatelessWidget {
           : _CreativeWorkspaceStage(
               session: creativeSession!,
               onClose: onCloseActive,
+              onOpenTool: onOpenTool,
               key: ValueKey(
                 'creative-${creativeSession!.mode.name}-${creativeSession!.timestamp.millisecondsSinceEpoch}',
               ),
@@ -1767,6 +1811,7 @@ class _CenterStage extends StatelessWidget {
         onOpenTool: onOpenTool,
         onOpenUseCase: onOpenUseCase,
         onBack: onBack,
+        onClose: onCloseActive,
         key: ValueKey(
           '${activeViewType.name}-${activeWorkflowId ?? activeAgentId ?? activeToolId ?? activeUseCaseId ?? activeSummaryTitle ?? 'default'}',
         ),
@@ -1938,11 +1983,16 @@ class _EmptyModeStage extends StatelessWidget {
             Text(
               switch (mode) {
                 _WorkMode.video =>
-                  'Опиши ролик или сцену. OS подберет план работы, видео-инструменты и AI-помощников.',
+                  'Опиши сцену, кадр или reel. OS соберет cinematic prompt и storyboard.',
                 _WorkMode.toolkit => 'Найди подходящую нейросеть под задачу.',
                 _WorkMode.agents =>
                   'AI-помощники помогают закрывать отдельные этапы работы.',
-                _ => 'Опиши задачу. OS соберет маршрут, промпты и инструменты.',
+                _WorkMode.text =>
+                  'Пиши, исследуй, редактируй и превращай идеи в рабочие тексты.',
+                _WorkMode.design =>
+                  'Собери промпт, стиль, композицию и референсы для генерации изображения.',
+                _WorkMode.audio =>
+                  'Опиши голос, музыку или дубляж. OS соберет звуковой бриф.',
               },
               textAlign: TextAlign.center,
               style: const TextStyle(
@@ -2335,10 +2385,12 @@ class _CreativeWorkspaceStage extends StatelessWidget {
     super.key,
     required this.session,
     required this.onClose,
+    required this.onOpenTool,
   });
 
   final _CreativeSession session;
   final VoidCallback onClose;
+  final ValueChanged<String?> onOpenTool;
 
   @override
   Widget build(BuildContext context) {
@@ -2385,6 +2437,8 @@ class _CreativeWorkspaceStage extends StatelessWidget {
                 title: session.outputTitle,
                 value: session.output,
               ),
+              const SizedBox(height: 12),
+              _WorkspaceModeBoard(session: session, onOpenTool: onOpenTool),
               const SizedBox(height: 12),
               Wrap(
                 spacing: 10,
@@ -2460,6 +2514,467 @@ class _WorkspaceOutputBlock extends StatelessWidget {
       ),
     );
   }
+}
+
+class _WorkspaceModeBoard extends StatelessWidget {
+  const _WorkspaceModeBoard({required this.session, required this.onOpenTool});
+
+  final _CreativeSession session;
+  final ValueChanged<String?> onOpenTool;
+
+  @override
+  Widget build(BuildContext context) {
+    final spec = _WorkspaceBoardSpec.forMode(session.mode);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0x0AFFFFFF),
+        border: Border.all(color: const Color(0x12FFFFFF)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(spec.icon, size: 17, color: const Color(0xFFFF9A78)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  spec.title,
+                  style: const TextStyle(
+                    color: Color(0xFFF2F3F5),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              const _StateBadge('Ready'),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _NextStepCard(text: spec.nextStep),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final block in spec.blocks)
+                _WorkspaceBoardBlock(
+                  icon: block.icon,
+                  title: block.title,
+                  value: block.value,
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _ResponsiveActionBar(
+            children: [
+              for (final action in spec.actions)
+                action.primary
+                    ? FilledButton.icon(
+                        onPressed: () => _runWorkspaceAction(
+                          context,
+                          action,
+                          session.output,
+                          onOpenTool,
+                        ),
+                        icon: Icon(action.icon),
+                        label: Text(action.label),
+                      )
+                    : OutlinedButton.icon(
+                        onPressed: () => _runWorkspaceAction(
+                          context,
+                          action,
+                          session.output,
+                          onOpenTool,
+                        ),
+                        icon: Icon(action.icon),
+                        label: Text(action.label),
+                      ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WorkspaceBoardBlock extends StatelessWidget {
+  const _WorkspaceBoardBlock({
+    required this.icon,
+    required this.title,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String title;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 150,
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: const Color(0x08FFFFFF),
+          border: Border.all(color: const Color(0x10FFFFFF)),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 16, color: const Color(0xFFB0B4BE)),
+            const SizedBox(height: 7),
+            Text(
+              title,
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: const TextStyle(
+                color: Color(0xFF8B8F9A),
+                fontSize: 10,
+                height: 1.25,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NextStepCard extends StatelessWidget {
+  const _NextStepCard({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: const Color(0x12FF7A4D),
+        border: Border.all(color: const Color(0x24FF7A4D)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.arrow_forward_rounded,
+            size: 16,
+            color: Color(0xFFFF9A78),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Следующий шаг: $text',
+              style: const TextStyle(
+                color: Color(0xFFF2F3F5),
+                fontSize: 11,
+                height: 1.3,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WorkspaceBoardSpec {
+  const _WorkspaceBoardSpec({
+    required this.title,
+    required this.nextStep,
+    required this.icon,
+    required this.blocks,
+    required this.actions,
+  });
+
+  final String title;
+  final String nextStep;
+  final IconData icon;
+  final List<_WorkspaceBoardBlockSpec> blocks;
+  final List<_WorkspaceActionSpec> actions;
+
+  static _WorkspaceBoardSpec forMode(_WorkMode mode) {
+    return switch (mode) {
+      _WorkMode.text => const _WorkspaceBoardSpec(
+        title: 'AI writer IDE',
+        nextStep:
+            'продолжить черновик в ChatGPT или превратить результат в промпт',
+        icon: Icons.edit_note_rounded,
+        blocks: [
+          _WorkspaceBoardBlockSpec(
+            Icons.article_outlined,
+            'Draft',
+            'основной текст',
+          ),
+          _WorkspaceBoardBlockSpec(
+            Icons.auto_fix_high_rounded,
+            'Rewrite',
+            'варианты тона',
+          ),
+          _WorkspaceBoardBlockSpec(
+            Icons.subject_rounded,
+            'Summarize',
+            'короткая версия',
+          ),
+          _WorkspaceBoardBlockSpec(
+            Icons.manage_search_rounded,
+            'Research',
+            'факты и тезисы',
+          ),
+          _WorkspaceBoardBlockSpec(
+            Icons.terminal_rounded,
+            'Prompt lab',
+            'инструкция для модели',
+          ),
+        ],
+        actions: [
+          _WorkspaceActionSpec('Continue', Icons.play_arrow_rounded, true),
+          _WorkspaceActionSpec('Rewrite', Icons.auto_fix_high_rounded, false),
+          _WorkspaceActionSpec('Expand', Icons.unfold_more_rounded, false),
+          _WorkspaceActionSpec(
+            'Convert to prompt',
+            Icons.terminal_rounded,
+            false,
+            copyOutput: true,
+          ),
+        ],
+      ),
+      _WorkMode.design => const _WorkspaceBoardSpec(
+        title: 'Image direction lab',
+        nextStep: 'открыть Midjourney или Leonardo и вставить собранный prompt',
+        icon: Icons.auto_awesome_mosaic_outlined,
+        blocks: [
+          _WorkspaceBoardBlockSpec(
+            Icons.image_search_outlined,
+            'Reference slots',
+            '0/4 референса',
+          ),
+          _WorkspaceBoardBlockSpec(
+            Icons.grid_on_rounded,
+            'Composition',
+            'объект, фон, баланс',
+          ),
+          _WorkspaceBoardBlockSpec(
+            Icons.camera_alt_outlined,
+            'Framing',
+            'камера и ракурс',
+          ),
+          _WorkspaceBoardBlockSpec(
+            Icons.palette_outlined,
+            'Style refs',
+            'цвет, материал, жанр',
+          ),
+        ],
+        actions: [
+          _WorkspaceActionSpec('Generate', Icons.auto_awesome_rounded, true),
+          _WorkspaceActionSpec(
+            'Open Leonardo',
+            Icons.open_in_new_rounded,
+            false,
+            toolId: 'leonardo',
+          ),
+          _WorkspaceActionSpec(
+            'Open Midjourney',
+            Icons.open_in_new_rounded,
+            false,
+            toolId: 'midjourney',
+          ),
+          _WorkspaceActionSpec(
+            'Open Flux',
+            Icons.open_in_new_rounded,
+            false,
+            toolId: 'flux-playground',
+          ),
+          _WorkspaceActionSpec(
+            'Copy prompt',
+            Icons.copy_rounded,
+            false,
+            copyOutput: true,
+          ),
+        ],
+      ),
+      _WorkMode.video => const _WorkspaceBoardSpec(
+        title: 'Cinematic production table',
+        nextStep: 'открыть Kling, Veo или Runway и запустить первую сцену',
+        icon: Icons.local_movies_outlined,
+        blocks: [
+          _WorkspaceBoardBlockSpec(
+            Icons.view_timeline_outlined,
+            'Storyboard',
+            'кадры и beat points',
+          ),
+          _WorkspaceBoardBlockSpec(
+            Icons.movie_creation_outlined,
+            'Shot cards',
+            'камера, свет, действие',
+          ),
+          _WorkspaceBoardBlockSpec(
+            Icons.linear_scale_rounded,
+            'Timeline',
+            'начало, пик, финал',
+          ),
+          _WorkspaceBoardBlockSpec(
+            Icons.center_focus_strong,
+            'Motion',
+            'движение камеры',
+          ),
+        ],
+        actions: [
+          _WorkspaceActionSpec(
+            'Generate scene',
+            Icons.play_arrow_rounded,
+            true,
+          ),
+          _WorkspaceActionSpec(
+            'Open Kling',
+            Icons.open_in_new_rounded,
+            false,
+            toolId: 'kling',
+          ),
+          _WorkspaceActionSpec(
+            'Open Veo',
+            Icons.open_in_new_rounded,
+            false,
+            toolId: 'veo',
+          ),
+          _WorkspaceActionSpec(
+            'Open Runway',
+            Icons.open_in_new_rounded,
+            false,
+            toolId: 'runway',
+          ),
+          _WorkspaceActionSpec(
+            'Export storyboard',
+            Icons.ios_share_rounded,
+            false,
+          ),
+          _WorkspaceActionSpec(
+            'Continue sequence',
+            Icons.skip_next_rounded,
+            false,
+          ),
+        ],
+      ),
+      _WorkMode.audio => const _WorkspaceBoardSpec(
+        title: 'Sound lab',
+        nextStep: 'открыть ElevenLabs или Suno и перенести voice/music prompt',
+        icon: Icons.graphic_eq_rounded,
+        blocks: [
+          _WorkspaceBoardBlockSpec(
+            Icons.record_voice_over_outlined,
+            'Voice chain',
+            'голос, тембр, эмоция',
+          ),
+          _WorkspaceBoardBlockSpec(
+            Icons.library_music_outlined,
+            'Soundtrack refs',
+            'жанр и темп',
+          ),
+          _WorkspaceBoardBlockSpec(
+            Icons.subtitles_outlined,
+            'Dubbing flow',
+            'текст, паузы, синк',
+          ),
+          _WorkspaceBoardBlockSpec(
+            Icons.tune_rounded,
+            'Voice presets',
+            'warm, clean, trailer',
+          ),
+        ],
+        actions: [
+          _WorkspaceActionSpec(
+            'Open ElevenLabs',
+            Icons.open_in_new_rounded,
+            true,
+            toolId: 'elevenlabs',
+          ),
+          _WorkspaceActionSpec(
+            'Open Suno',
+            Icons.open_in_new_rounded,
+            false,
+            toolId: 'suno',
+          ),
+          _WorkspaceActionSpec(
+            'Copy voice prompt',
+            Icons.copy_rounded,
+            false,
+            copyOutput: true,
+          ),
+          _WorkspaceActionSpec(
+            'Create dubbing chain',
+            Icons.account_tree_outlined,
+            false,
+          ),
+        ],
+      ),
+      _ => const _WorkspaceBoardSpec(
+        title: 'Workspace',
+        nextStep: 'продолжить работу в выбранном режиме',
+        icon: Icons.dashboard_customize_outlined,
+        blocks: [],
+        actions: [],
+      ),
+    };
+  }
+}
+
+class _WorkspaceBoardBlockSpec {
+  const _WorkspaceBoardBlockSpec(this.icon, this.title, this.value);
+
+  final IconData icon;
+  final String title;
+  final String value;
+}
+
+class _WorkspaceActionSpec {
+  const _WorkspaceActionSpec(
+    this.label,
+    this.icon,
+    this.primary, {
+    this.toolId,
+    this.copyOutput = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool primary;
+  final String? toolId;
+  final bool copyOutput;
+}
+
+void _runWorkspaceAction(
+  BuildContext context,
+  _WorkspaceActionSpec action,
+  String output,
+  ValueChanged<String?> onOpenTool,
+) {
+  if (action.copyOutput) {
+    _copyText(context, output);
+    return;
+  }
+  if (action.toolId != null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Подготовка prompt bundle для ${action.label}...'),
+      ),
+    );
+    onOpenTool(action.toolId);
+    return;
+  }
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text('${action.label}: готово к ручному шагу')),
+  );
 }
 
 class _WorkspaceMiniBlock extends StatelessWidget {
@@ -2691,6 +3206,7 @@ class _EntityStage extends StatelessWidget {
     required this.onOpenTool,
     required this.onOpenUseCase,
     required this.onBack,
+    required this.onClose,
   });
 
   final _ActiveViewType activeViewType;
@@ -2706,6 +3222,7 @@ class _EntityStage extends StatelessWidget {
   final ValueChanged<String?> onOpenTool;
   final ValueChanged<String?> onOpenUseCase;
   final VoidCallback onBack;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -2722,6 +3239,7 @@ class _EntityStage extends StatelessWidget {
         onOpenAgent: onOpenAgent,
         onOpenTool: onOpenTool,
         onBack: onBack,
+        onClose: onClose,
       ),
       _ActiveViewType.agent => _AgentStage(
         agent: _firstOrNull(
@@ -2734,6 +3252,7 @@ class _EntityStage extends StatelessWidget {
         onOpenWorkflow: onOpenWorkflow,
         onOpenTool: onOpenTool,
         onBack: onBack,
+        onClose: onClose,
       ),
       _ActiveViewType.tool => _ToolStage(
         tool: _firstOrNull(
@@ -2746,6 +3265,7 @@ class _EntityStage extends StatelessWidget {
         onOpenAgent: onOpenAgent,
         onOpenWorkflow: onOpenWorkflow,
         onBack: onBack,
+        onClose: onClose,
       ),
       _ActiveViewType.useCase => _UseCaseStage(
         useCase: _firstOrNull(
@@ -2759,6 +3279,7 @@ class _EntityStage extends StatelessWidget {
         onOpenAgent: onOpenAgent,
         onOpenTool: onOpenTool,
         onBack: onBack,
+        onClose: onClose,
       ),
       _ActiveViewType.session || _ActiveViewType.project => _SummaryStage(
         title: activeSummaryTitle ?? 'Рабочая область',
@@ -2769,6 +3290,7 @@ class _EntityStage extends StatelessWidget {
         onOpenWorkflow: onOpenWorkflow,
         onOpenUseCase: onOpenUseCase,
         onBack: onBack,
+        onClose: onClose,
       ),
       _ActiveViewType.empty ||
       _ActiveViewType.creativeSession ||
@@ -2783,12 +3305,14 @@ class _WorkflowStage extends StatelessWidget {
     required this.onOpenAgent,
     required this.onOpenTool,
     required this.onBack,
+    required this.onClose,
   });
 
   final WorkflowTemplate? workflow;
   final ValueChanged<String?> onOpenAgent;
   final ValueChanged<String?> onOpenTool;
   final VoidCallback onBack;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -2824,6 +3348,7 @@ class _WorkflowStage extends StatelessWidget {
               _InlineBackHeader(
                 breadcrumb: 'Рабочая станция / План работы',
                 onBack: onBack,
+                onClose: onClose,
               ),
               const SizedBox(height: 14),
               const _PanelLabel('ПЛАН РАБОТЫ'),
@@ -2937,12 +3462,14 @@ class _AgentStage extends StatelessWidget {
     required this.onOpenWorkflow,
     required this.onOpenTool,
     required this.onBack,
+    required this.onClose,
   });
 
   final AiAgent? agent;
   final ValueChanged<String?> onOpenWorkflow;
   final ValueChanged<String?> onOpenTool;
   final VoidCallback onBack;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -2968,6 +3495,7 @@ class _AgentStage extends StatelessWidget {
             _InlineBackHeader(
               breadcrumb: 'Рабочая станция / AI-помощник',
               onBack: onBack,
+              onClose: onClose,
             ),
             const SizedBox(height: 14),
             const _PanelLabel('AI-ПОМОЩНИК'),
@@ -3075,12 +3603,14 @@ class _ToolStage extends StatelessWidget {
     required this.onOpenAgent,
     required this.onOpenWorkflow,
     required this.onBack,
+    required this.onClose,
   });
 
   final AiTool? tool;
   final ValueChanged<String?> onOpenAgent;
   final ValueChanged<String?> onOpenWorkflow;
   final VoidCallback onBack;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -3105,6 +3635,7 @@ class _ToolStage extends StatelessWidget {
             _InlineBackHeader(
               breadcrumb: 'Рабочая станция / Инструмент',
               onBack: onBack,
+              onClose: onClose,
             ),
             const SizedBox(height: 14),
             const _PanelLabel('НЕЙРОСЕТЬ / ИНСТРУМЕНТ'),
@@ -3171,7 +3702,7 @@ class _ToolStage extends StatelessWidget {
               runSpacing: 8,
               children: [
                 FilledButton.icon(
-                  onPressed: () => const UrlService().open(tool!.url),
+                  onPressed: () => _launchToolWebsite(context, tool!),
                   icon: const Icon(Icons.open_in_new_rounded),
                   label: const Text('Открыть инструмент / сайт'),
                 ),
@@ -3210,6 +3741,7 @@ class _UseCaseStage extends StatelessWidget {
     required this.onOpenAgent,
     required this.onOpenTool,
     required this.onBack,
+    required this.onClose,
   });
 
   final UseCase? useCase;
@@ -3217,6 +3749,7 @@ class _UseCaseStage extends StatelessWidget {
   final ValueChanged<String?> onOpenAgent;
   final ValueChanged<String?> onOpenTool;
   final VoidCallback onBack;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -3238,6 +3771,7 @@ class _UseCaseStage extends StatelessWidget {
             _InlineBackHeader(
               breadcrumb: 'Рабочая станция / Задача',
               onBack: onBack,
+              onClose: onClose,
             ),
             const SizedBox(height: 14),
             const _PanelLabel('АКТИВНЫЙ КЕЙС'),
@@ -3333,6 +3867,7 @@ class _SummaryStage extends StatelessWidget {
     required this.onOpenWorkflow,
     required this.onOpenUseCase,
     required this.onBack,
+    required this.onClose,
   });
 
   final String title;
@@ -3341,6 +3876,7 @@ class _SummaryStage extends StatelessWidget {
   final ValueChanged<String?> onOpenWorkflow;
   final ValueChanged<String?> onOpenUseCase;
   final VoidCallback onBack;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -3356,6 +3892,7 @@ class _SummaryStage extends StatelessWidget {
               breadcrumb:
                   'Рабочая станция / ${type == 'задача' ? 'Задача' : 'Проект'}',
               onBack: onBack,
+              onClose: onClose,
             ),
             const SizedBox(height: 14),
             _PanelLabel(type.toUpperCase()),
@@ -3462,10 +3999,15 @@ class _StageStep extends StatelessWidget {
 }
 
 class _InlineBackHeader extends StatelessWidget {
-  const _InlineBackHeader({required this.breadcrumb, required this.onBack});
+  const _InlineBackHeader({
+    required this.breadcrumb,
+    required this.onBack,
+    required this.onClose,
+  });
 
   final String breadcrumb;
   final VoidCallback onBack;
+  final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -3488,6 +4030,12 @@ class _InlineBackHeader extends StatelessWidget {
               fontWeight: FontWeight.w800,
             ),
           ),
+        ),
+        const SizedBox(width: 8),
+        IconButton(
+          onPressed: onClose,
+          tooltip: 'Закрыть',
+          icon: const Icon(Icons.close_rounded, size: 16),
         ),
       ],
     );
@@ -4391,6 +4939,7 @@ class _HistoryItem extends StatelessWidget {
     required this.type,
     required this.icon,
     required this.onTap,
+    this.active = false,
   });
 
   final String title;
@@ -4398,17 +4947,31 @@ class _HistoryItem extends StatelessWidget {
   final String type;
   final IconData icon;
   final VoidCallback onTap;
+  final bool active;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
-      child: Padding(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 160),
+        margin: const EdgeInsets.only(bottom: 2),
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 6),
+        decoration: BoxDecoration(
+          color: active ? const Color(0x12FF7A4D) : Colors.transparent,
+          border: Border.all(
+            color: active ? const Color(0x22FF7A4D) : Colors.transparent,
+          ),
+          borderRadius: BorderRadius.circular(8),
+        ),
         child: Row(
           children: [
-            Icon(icon, size: 15, color: const Color(0xFF8B8F9A)),
+            Icon(
+              icon,
+              size: 15,
+              color: active ? const Color(0xFFFF9A78) : const Color(0xFF8B8F9A),
+            ),
             const SizedBox(width: 8),
             Expanded(
               child: Column(
@@ -4418,9 +4981,10 @@ class _HistoryItem extends StatelessWidget {
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
+                      color: active ? const Color(0xFFF2F3F5) : null,
                     ),
                   ),
                   Text(
