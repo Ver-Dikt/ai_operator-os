@@ -54,7 +54,7 @@ class FavoritesScreen extends StatelessWidget {
                 if (agents.isNotEmpty) ...[
                   const SectionHeader(
                     title: 'Агенты',
-                    subtitle: 'Сохранённые mock-исполнители.',
+                    subtitle: 'Сохранённые демо AI-помощники.',
                   ),
                   _ChipPanel(items: agents.map((agent) => agent.name).toList()),
                   const SizedBox(height: 18),

@@ -12,7 +12,7 @@ class ProjectsScreen extends StatelessWidget {
     return ResponsivePage(
       title: 'Проекты',
       subtitle:
-          'Здесь будут жить сохранённые планы: кейс, агенты, инструменты, промпты и прогресс сценария.',
+          'Здесь будут храниться сохранённые планы: кейсы, AI-помощники, инструменты, промпты и прогресс.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: const [
@@ -21,7 +21,7 @@ class ProjectsScreen extends StatelessWidget {
               icon: Icons.folder_open_rounded,
               title: 'Хранилище проектов подготовлено',
               message:
-                  'В Phase 1 выполнение остаётся mock-only. В следующем этапе можно сохранять планы и прогресс локально.',
+                  'В Phase 1 выполнение остаётся в демо-режиме. На следующем этапе можно будет сохранять планы и прогресс локально.',
             ),
           ),
         ],

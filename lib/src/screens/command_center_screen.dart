@@ -173,7 +173,7 @@ extension _WorkModeUi on _WorkMode {
           ]),
         ],
         quickActions: [
-          (label: 'Research brief', task: 'Собрать research brief по теме'),
+          (label: 'Research-бриф', task: 'Собрать research brief по теме'),
           (label: 'Посты', task: 'Написать серию постов для соцсетей'),
           (label: 'Промпт', task: 'Улучшить промпт под конкретную модель'),
         ],
@@ -261,20 +261,17 @@ extension _WorkModeUi on _WorkMode {
           _ModeSettingConfig('Режим', [
             'Text-to-video',
             'Image-to-video',
-            'Scene plan',
-            'Batch shorts',
+            'Scene plan — план сцены',
+            'Batch shorts — серия коротких видео',
           ]),
-          _ModeSettingConfig('Качество', ['Draft', 'Balanced', 'Pro']),
+          _ModeSettingConfig('Качество', ['Черновик', 'Сбалансировано', 'Pro']),
         ],
         quickActions: [
           (label: 'AI Reels', task: 'Сделать 10 Reels для трека'),
-          (label: 'Storyboard', task: 'Собрать storyboard и shot plan'),
-          (label: 'Trailer', task: 'Собрать AI trailer plan'),
-          (label: 'Scene Builder', task: 'Собрать cinematic AI scene builder'),
-          (
-            label: 'Cinematic Shot',
-            task: 'Собрать cinematic shot с camera motion',
-          ),
+          (label: 'Раскадровка', task: 'Собрать storyboard и shot plan'),
+          (label: 'Трейлер', task: 'Собрать AI trailer plan'),
+          (label: 'Сборка сцены', task: 'Собрать cinematic AI scene builder'),
+          (label: 'Кино-кадр', task: 'Собрать cinematic shot с camera motion'),
           (
             label: 'Локализация',
             task: 'Локализовать видео: перевод, голос, субтитры',
@@ -295,7 +292,7 @@ extension _WorkModeUi on _WorkMode {
         label: 'Аудио',
         icon: Icons.graphic_eq_rounded,
         title: 'Аудио-студия',
-        description: 'Voiceover, музыка, озвучка, дубляж, транскрибация.',
+        description: 'Озвучка, музыка, голос, дубляж и транскрибация.',
         promptPlaceholder: 'Опиши голос, музыку, озвучку или аудио-задачу...',
         modelTitle: 'Аудио-модель',
         modelHelper:
@@ -303,11 +300,11 @@ extension _WorkModeUi on _WorkMode {
         models: ['ElevenLabs', 'Suno', 'Udio', 'Stable Audio', 'Whisper'],
         settings: [
           _ModeSettingConfig('Тип', [
-            'Voiceover',
-            'Song idea',
-            'Music promo',
-            'Dubbing',
-            'Transcription',
+            'Озвучка',
+            'Идея песни',
+            'Промо музыки',
+            'Дубляж',
+            'Транскрибация',
           ]),
           _ModeSettingConfig('Голос', [
             'Авто',
@@ -320,11 +317,11 @@ extension _WorkModeUi on _WorkMode {
         ],
         quickActions: [
           (
-            label: 'Voiceover',
+            label: 'Озвучка',
             task: 'Подготовить voiceover и инструменты озвучки',
           ),
-          (label: 'Music promo', task: 'Продвинуть музыкальный релиз'),
-          (label: 'Dubbing', task: 'Собрать сценарий дубляжа видео'),
+          (label: 'Промо музыки', task: 'Продвинуть музыкальный релиз'),
+          (label: 'Дубляж', task: 'Собрать сценарий дубляжа видео'),
         ],
         recommendedToolIds: [
           'elevenlabs',
@@ -362,16 +359,19 @@ extension _WorkModeUi on _WorkMode {
             'Has API',
             'Local',
             'No card',
-            'Best quality',
+            'Лучшее качество',
           ]),
         ],
         quickActions: [
-          (label: 'Free stack', task: 'Найти бесплатный AI stack под задачу'),
+          (
+            label: 'Бесплатный стек',
+            task: 'Найти бесплатный AI stack под задачу',
+          ),
           (
             label: 'Сравнить',
             task: 'Сравнить платные и бесплатные AI инструменты',
           ),
-          (label: 'Local', task: 'Подобрать локальные AI инструменты'),
+          (label: 'Local-вариант', task: 'Подобрать локальные AI инструменты'),
         ],
         recommendedToolIds: [
           'chatgpt',
@@ -421,7 +421,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
   String _historyTab = 'Задачи';
   String _model = _WorkMode.design.config.models.first;
   String _aspect = '9:16';
-  String _quality = 'Balanced';
+  String _quality = 'Сбалансировано';
 
   @override
   void dispose() {
@@ -654,7 +654,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     setState(() {
       _model = _mode.config.models.isEmpty ? '' : _mode.config.models.first;
       _aspect = '9:16';
-      _quality = 'Balanced';
+      _quality = 'Сбалансировано';
     });
   }
 }
@@ -2348,7 +2348,7 @@ class _ToolStage extends StatelessWidget {
                 _SoftBadge(tool!.category.label),
                 _SoftBadge(tool!.pricingType.label),
                 _SoftBadge(tool!.integrationType.label),
-                if (tool!.isLocal) const _SoftBadge('local'),
+                if (tool!.isLocal) const _SoftBadge('Local'),
               ],
             ),
             const SizedBox(height: 16),

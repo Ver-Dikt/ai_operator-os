@@ -328,7 +328,7 @@ class _StatusCard extends StatelessWidget {
           SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Локальный mock-режим',
+              'Локальный демо-режим',
               style: TextStyle(
                 color: Color(0xFFC8D2E1),
                 fontWeight: FontWeight.w800,

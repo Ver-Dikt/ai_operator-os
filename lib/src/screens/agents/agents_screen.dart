@@ -15,9 +15,9 @@ class AgentsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ResponsivePage(
-      title: 'Агенты',
+      title: 'AI-помощники',
       subtitle:
-          'Специализированные mock-агенты для планирования, роутинга, промптов, автоматизации и QA. Backend пока не подключён.',
+          'Специализированные демо AI-помощники для планирования, маршрутизации, промптов, автоматизации и QA. Backend пока не подключён.',
       child: LayoutBuilder(
         builder: (context, constraints) {
           final columns = constraints.maxWidth >= 1100
@@ -103,7 +103,7 @@ class _AgentCard extends StatelessWidget {
             runSpacing: 6,
             children: [
               StatusBadge(label: agent.status.name),
-              if (agent.canUseApi) const StatusBadge(label: 'API-ready'),
+              if (agent.canUseApi) const StatusBadge(label: 'API позже'),
               if (agent.isLocalCapable) const StatusBadge(label: 'Local'),
             ],
           ),
@@ -199,7 +199,7 @@ class _AgentDialogState extends State<_AgentDialog> {
             });
           },
           icon: const Icon(Icons.smart_toy_outlined),
-          label: const Text('Запустить mock'),
+          label: const Text('Запустить демо'),
         ),
       ],
     );

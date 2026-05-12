@@ -13,9 +13,9 @@ class FreeCreditsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ResponsivePage(
-      title: 'Free Tools / Credits',
+      title: 'Бесплатные инструменты / кредиты',
       subtitle:
-          'A local, easy-to-update tracker for free plans, local options, watermarks and card requirements.',
+          'Локальный список бесплатных планов, Local-вариантов, водяных знаков и требований карты.',
       child: LayoutBuilder(
         builder: (context, constraints) {
           final columns = constraints.maxWidth >= 1100
@@ -68,9 +68,15 @@ class _CreditCard extends StatelessWidget {
             children: [
               StatusBadge(label: offer.freeType),
               if (offer.needsCard)
-                const StatusBadge(label: 'card', color: Color(0xFFFFB86B)),
+                const StatusBadge(
+                  label: 'нужна карта',
+                  color: Color(0xFFFFB86B),
+                ),
               if (offer.watermark)
-                const StatusBadge(label: 'watermark', color: Color(0xFFFF6B6B)),
+                const StatusBadge(
+                  label: 'водяной знак',
+                  color: Color(0xFFFF6B6B),
+                ),
             ],
           ),
           const SizedBox(height: 10),
@@ -86,7 +92,7 @@ class _CreditCard extends StatelessWidget {
           FilledButton.icon(
             onPressed: () => const UrlService().open(offer.signupUrl),
             icon: const Icon(Icons.open_in_new_rounded),
-            label: const Text('Open'),
+            label: const Text('Открыть'),
           ),
         ],
       ),

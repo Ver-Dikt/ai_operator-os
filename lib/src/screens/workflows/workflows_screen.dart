@@ -29,7 +29,7 @@ class _WorkflowsScreenState extends State<WorkflowsScreen> {
     return ResponsivePage(
       title: 'Сценарии',
       subtitle:
-          'Готовые цепочки действий: шаги, промпты, инструменты и mock-режим выполнения.',
+          'Готовые цепочки действий: шаги, промпты, инструменты и демо-режим выполнения.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

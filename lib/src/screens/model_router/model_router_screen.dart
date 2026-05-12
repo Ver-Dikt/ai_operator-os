@@ -13,7 +13,7 @@ class ModelRouterScreen extends StatefulWidget {
 
 class _ModelRouterScreenState extends State<ModelRouterScreen> {
   final TextEditingController _task = TextEditingController(
-    text: 'Make a cinematic AI video for a music release',
+    text: 'Сделать кинематографичное AI-видео для музыкального релиза',
   );
   late var _recommendation = const RouterService().recommend(_task.text);
 
@@ -26,9 +26,9 @@ class _ModelRouterScreenState extends State<ModelRouterScreen> {
   @override
   Widget build(BuildContext context) {
     return ResponsivePage(
-      title: 'Model Router',
+      title: 'Маршрутизатор моделей',
       subtitle:
-          'Rule-based routing for Phase 1: best paid, best free, local, fast and workflow path.',
+          'Демо-маршрутизация без API: лучший платный путь, бесплатный путь, Local-вариант и план работы.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -38,7 +38,7 @@ class _ModelRouterScreenState extends State<ModelRouterScreen> {
             maxLines: 4,
             decoration: const InputDecoration(
               prefixIcon: Icon(Icons.route_rounded),
-              hintText: 'Describe your task...',
+              hintText: 'Опиши задачу...',
             ),
           ),
           const SizedBox(height: 12),
@@ -47,7 +47,7 @@ class _ModelRouterScreenState extends State<ModelRouterScreen> {
               _recommendation = const RouterService().recommend(_task.text);
             }),
             icon: const Icon(Icons.auto_awesome_rounded),
-            label: const Text('Recommend stack'),
+            label: const Text('Подобрать стек'),
           ),
           const SizedBox(height: 18),
           OsCard(
@@ -61,11 +61,11 @@ class _ModelRouterScreenState extends State<ModelRouterScreen> {
                   ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
                 ),
                 const SizedBox(height: 12),
-                _Line('Best quality', _recommendation.bestPaidTools),
-                _Line('Free test', _recommendation.bestFreeTools),
+                _Line('Лучшее качество', _recommendation.bestPaidTools),
+                _Line('Бесплатный тест', _recommendation.bestFreeTools),
                 _Line('Local', _recommendation.localOptions),
-                _TextLine('Workflow', _recommendation.recommendedWorkflow),
-                _TextLine('Cost', _recommendation.estimatedCost),
+                _TextLine('План работы', _recommendation.recommendedWorkflow),
+                _TextLine('Стоимость', _recommendation.estimatedCost),
                 const SizedBox(height: 8),
                 for (final note in _recommendation.notes)
                   ListTile(

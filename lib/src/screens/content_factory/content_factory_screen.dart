@@ -30,7 +30,7 @@ class _ContentFactoryScreenState extends State<ContentFactoryScreen> {
     return ResponsivePage(
       title: 'Контент-фабрика',
       subtitle:
-          'От идеи к production-плану. Phase 1 использует mock-планирование сцен и копируемые промпты.',
+          'От идеи к production-плану. Phase 1 использует демо-планирование сцен и копируемые промпты.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

@@ -54,8 +54,8 @@ extension AppDestinationRoute on AppDestination {
     return switch (this) {
       AppDestination.commandCenter => 'Главная',
       AppDestination.tools => 'Инструменты',
-      AppDestination.agents => 'Агенты',
-      AppDestination.workflows => 'Сценарии',
+      AppDestination.agents => 'AI-помощники',
+      AppDestination.workflows => 'Планы работы',
       AppDestination.contentFactory => 'Фабрика',
       AppDestination.useCases => 'Кейсы',
       AppDestination.projects => 'Проекты',
