@@ -13,7 +13,7 @@ enum ToolIntegrationType {
 extension ToolIntegrationTypeLabel on ToolIntegrationType {
   String get label {
     return switch (this) {
-      ToolIntegrationType.externalManual => 'Открывается вручную',
+      ToolIntegrationType.externalManual => 'Ручной запуск',
       ToolIntegrationType.apiLater => 'API позже',
       ToolIntegrationType.localLater => 'Локально позже',
       ToolIntegrationType.connected => 'Подключено',
