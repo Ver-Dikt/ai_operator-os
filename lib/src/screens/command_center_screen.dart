@@ -28,6 +28,26 @@ enum _ActiveViewType {
 
 T? _firstOrNull<T>(List<T> items) => items.isEmpty ? null : items.first;
 
+class _ActiveStateSnapshot {
+  const _ActiveStateSnapshot({
+    required this.viewType,
+    this.workflowId,
+    this.agentId,
+    this.toolId,
+    this.useCaseId,
+    this.summaryTitle,
+    this.summarySubtitle,
+  });
+
+  final _ActiveViewType viewType;
+  final String? workflowId;
+  final String? agentId;
+  final String? toolId;
+  final String? useCaseId;
+  final String? summaryTitle;
+  final String? summarySubtitle;
+}
+
 Future<void> _copyText(BuildContext context, String text) async {
   await Clipboard.setData(ClipboardData(text: text));
   if (!context.mounted) return;
@@ -79,7 +99,7 @@ extension _WorkModeUi on _WorkMode {
   _WorkModeConfig get config {
     return switch (this) {
       _WorkMode.agents => const _WorkModeConfig(
-        label: 'GPT Агенты',
+        label: 'AI-помощники',
         icon: Icons.smart_toy_outlined,
         title: 'Команда агентов',
         description:
@@ -167,10 +187,11 @@ extension _WorkModeUi on _WorkMode {
         emptyStateHints: ['анализ', 'текст', 'промпт'],
       ),
       _WorkMode.design => const _WorkModeConfig(
-        label: 'Дизайн',
+        label: 'Изображения',
         icon: Icons.auto_awesome_mosaic_outlined,
-        title: 'Дизайн-студия',
-        description: 'Изображения, обложки, постеры, брендинг, AI-инфлюенсеры.',
+        title: 'Студия изображений',
+        description:
+            'Генерация изображений, обложки, постеры, брендинг, AI-инфлюенсеры.',
         promptPlaceholder: 'Опиши изображение, стиль, постер или обложку...',
         modelTitle: 'Дизайн-модель',
         modelHelper:
@@ -178,8 +199,11 @@ extension _WorkModeUi on _WorkMode {
         models: [
           'Midjourney',
           'ChatGPT Images',
+          'Nano Banana',
+          'Gemini image tools',
           'Leonardo',
           'Ideogram',
+          'PicLumen',
           'Freepik AI',
           'ComfyUI Local',
         ],
@@ -209,10 +233,14 @@ extension _WorkModeUi on _WorkMode {
         recommendedToolIds: [
           'midjourney',
           'chatgpt-images',
+          'nano-banana',
+          'gemini-image-tools',
           'leonardo',
           'ideogram',
+          'piclumen',
           'freepik-ai',
           'comfyui',
+          'stable-diffusion',
         ],
         emptyStateHints: ['постер', 'обложка', 'референс'],
       ),
@@ -308,10 +336,11 @@ extension _WorkModeUi on _WorkMode {
         emptyStateHints: ['voiceover', 'музыка', 'дубляж'],
       ),
       _WorkMode.toolkit => const _WorkModeConfig(
-        label: 'Тул-кит',
+        label: 'База AI',
         icon: Icons.grid_view_rounded,
         title: 'База нейросетей',
-        description: 'Поиск, сравнение и подбор AI-инструментов под задачу.',
+        description:
+            'Поиск нейросетей, сервисов и сравнение free/pro/local/API вариантов.',
         promptPlaceholder: 'Какую нейросеть или инструмент ищем?',
         modelTitle: 'Поиск инструментов',
         modelHelper: 'Фильтры и категории вместо выбора генеративной модели.',
@@ -347,7 +376,10 @@ extension _WorkModeUi on _WorkMode {
         recommendedToolIds: [
           'chatgpt',
           'kling',
+          'nano-banana',
           'midjourney',
+          'gemini-image-tools',
+          'piclumen',
           'elevenlabs',
           'n8n',
           'ollama',
@@ -385,6 +417,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
   String? _activeUseCaseId;
   String? _activeSummaryTitle;
   String? _activeSummarySubtitle;
+  final List<_ActiveStateSnapshot> _activeViewHistory = [];
   String _historyTab = 'Задачи';
   String _model = _WorkMode.design.config.models.first;
   String _aspect = '9:16';
@@ -439,6 +472,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                   onOpenSession: _openSessionSummary,
                   onOpenProject: _openProjectSummary,
                   onNewSession: _newSession,
+                  onBack: _goBackInline,
                   onModel: (value) => setState(() => _model = value),
                   onAspect: (value) => setState(() => _aspect = value),
                   onQuality: (value) => setState(() => _quality = value),
@@ -467,6 +501,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                   onOpenAgent: _openAgent,
                   onOpenTool: _openTool,
                   onOpenUseCase: _openUseCase,
+                  onBack: _goBackInline,
                   onModel: (value) => setState(() => _model = value),
                   onAspect: (value) => setState(() => _aspect = value),
                   onQuality: (value) => setState(() => _quality = value),
@@ -487,6 +522,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
       _mode = mode;
       _model = mode.config.models.isEmpty ? '' : mode.config.models.first;
       _activeViewType = _ActiveViewType.empty;
+      _activeViewHistory.clear();
       _clearActiveIds();
     });
   }
@@ -498,12 +534,14 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     setState(() {
       _recommendation = const RouterService().recommend(task);
       _activeViewType = _ActiveViewType.routePlan;
+      _activeViewHistory.clear();
       _clearActiveIds();
     });
   }
 
   void _openWorkflow(String? id) {
     setState(() {
+      _rememberActiveState();
       _activeViewType = _ActiveViewType.workflow;
       _clearActiveIds();
       _activeWorkflowId = id;
@@ -512,6 +550,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
 
   void _openAgent(String? id) {
     setState(() {
+      _rememberActiveState();
       _activeViewType = _ActiveViewType.agent;
       _clearActiveIds();
       _activeAgentId = id;
@@ -520,6 +559,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
 
   void _openTool(String? id) {
     setState(() {
+      _rememberActiveState();
       _activeViewType = _ActiveViewType.tool;
       _clearActiveIds();
       _activeToolId = id;
@@ -528,6 +568,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
 
   void _openUseCase(String? id) {
     setState(() {
+      _rememberActiveState();
       _activeViewType = _ActiveViewType.useCase;
       _clearActiveIds();
       _activeUseCaseId = id;
@@ -536,6 +577,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
 
   void _openSessionSummary(String title, String subtitle) {
     setState(() {
+      _rememberActiveState();
       _activeViewType = _ActiveViewType.session;
       _clearActiveIds();
       _activeSummaryTitle = title;
@@ -545,6 +587,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
 
   void _openProjectSummary(String title, String subtitle) {
     setState(() {
+      _rememberActiveState();
       _activeViewType = _ActiveViewType.project;
       _clearActiveIds();
       _activeSummaryTitle = title;
@@ -557,7 +600,44 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
       _taskController.clear();
       _recommendation = null;
       _activeViewType = _ActiveViewType.empty;
+      _activeViewHistory.clear();
       _clearActiveIds();
+    });
+  }
+
+  void _rememberActiveState() {
+    if (_activeViewType == _ActiveViewType.empty) return;
+    _activeViewHistory.add(
+      _ActiveStateSnapshot(
+        viewType: _activeViewType,
+        workflowId: _activeWorkflowId,
+        agentId: _activeAgentId,
+        toolId: _activeToolId,
+        useCaseId: _activeUseCaseId,
+        summaryTitle: _activeSummaryTitle,
+        summarySubtitle: _activeSummarySubtitle,
+      ),
+    );
+    if (_activeViewHistory.length > 12) {
+      _activeViewHistory.removeAt(0);
+    }
+  }
+
+  void _goBackInline() {
+    setState(() {
+      if (_activeViewHistory.isEmpty) {
+        _activeViewType = _ActiveViewType.empty;
+        _clearActiveIds();
+        return;
+      }
+      final previous = _activeViewHistory.removeLast();
+      _activeViewType = previous.viewType;
+      _activeWorkflowId = previous.workflowId;
+      _activeAgentId = previous.agentId;
+      _activeToolId = previous.toolId;
+      _activeUseCaseId = previous.useCaseId;
+      _activeSummaryTitle = previous.summaryTitle;
+      _activeSummarySubtitle = previous.summarySubtitle;
     });
   }
 
@@ -607,6 +687,7 @@ class _DesktopStation extends StatelessWidget {
     required this.onOpenSession,
     required this.onOpenProject,
     required this.onNewSession,
+    required this.onBack,
     required this.onModel,
     required this.onAspect,
     required this.onQuality,
@@ -640,6 +721,7 @@ class _DesktopStation extends StatelessWidget {
   final void Function(String title, String subtitle) onOpenSession;
   final void Function(String title, String subtitle) onOpenProject;
   final VoidCallback onNewSession;
+  final VoidCallback onBack;
   final ValueChanged<String> onModel;
   final ValueChanged<String> onAspect;
   final ValueChanged<String> onQuality;
@@ -670,6 +752,7 @@ class _DesktopStation extends StatelessWidget {
                   onOpenAgent: onOpenAgent,
                   onOpenTool: onOpenTool,
                   onOpenUseCase: onOpenUseCase,
+                  onBack: onBack,
                 ),
               ),
             ),
@@ -756,6 +839,7 @@ class _MobileStation extends StatelessWidget {
     required this.onOpenAgent,
     required this.onOpenTool,
     required this.onOpenUseCase,
+    required this.onBack,
     required this.onModel,
     required this.onAspect,
     required this.onQuality,
@@ -783,6 +867,7 @@ class _MobileStation extends StatelessWidget {
   final ValueChanged<String?> onOpenAgent;
   final ValueChanged<String?> onOpenTool;
   final ValueChanged<String?> onOpenUseCase;
+  final VoidCallback onBack;
   final ValueChanged<String> onModel;
   final ValueChanged<String> onAspect;
   final ValueChanged<String> onQuality;
@@ -796,7 +881,7 @@ class _MobileStation extends StatelessWidget {
         _TopBar(mode: mode, onMode: onMode, compact: true),
         const SizedBox(height: 18),
         SizedBox(
-          height: 460,
+          height: 520,
           child: _CenterStage(
             mode: mode,
             recommendation: recommendation,
@@ -811,6 +896,7 @@ class _MobileStation extends StatelessWidget {
             onOpenAgent: onOpenAgent,
             onOpenTool: onOpenTool,
             onOpenUseCase: onOpenUseCase,
+            onBack: onBack,
           ),
         ),
         const SizedBox(height: 14),
@@ -866,7 +952,7 @@ class _TopBar extends StatelessWidget {
                 children: [
                   _TopIdentity(compact: compact),
                   const SizedBox(height: 10),
-                  _ModeTabs(mode: mode, onMode: onMode),
+                  _ModeTabs(mode: mode, onMode: onMode, compact: compact),
                 ],
               )
             : Row(
@@ -934,10 +1020,15 @@ class _TopActions extends StatelessWidget {
 }
 
 class _ModeTabs extends StatelessWidget {
-  const _ModeTabs({required this.mode, required this.onMode});
+  const _ModeTabs({
+    required this.mode,
+    required this.onMode,
+    this.compact = false,
+  });
 
   final _WorkMode mode;
   final ValueChanged<_WorkMode> onMode;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
@@ -956,7 +1047,7 @@ class _ModeTabs extends StatelessWidget {
                   duration: const Duration(milliseconds: 160),
                   curve: Curves.easeOutCubic,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 13,
+                    horizontal: 10,
                     vertical: 8,
                   ),
                   decoration: BoxDecoration(
@@ -971,7 +1062,7 @@ class _ModeTabs extends StatelessWidget {
                       color: mode == item
                           ? const Color(0xFFFF9A78)
                           : const Color(0xFFB0B4BE),
-                      fontSize: 12,
+                      fontSize: compact ? 11 : 12,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -1027,6 +1118,15 @@ class _HistoryPanel extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Здесь хранятся текущие задачи, проекты, быстрые сценарии и избранные инструменты.',
+              style: TextStyle(
+                color: Color(0xFF7D828D),
+                fontSize: 10,
+                height: 1.25,
+              ),
             ),
             const SizedBox(height: 10),
             Row(
@@ -1087,6 +1187,7 @@ class _HistoryPanel extends StatelessWidget {
             const SizedBox(height: 16),
             if (tab == 'Задачи') ...[
               const _PanelLabel('АКТИВНАЯ ЗАДАЧА'),
+              const _SectionHint('то, над чем работаешь сейчас'),
               _HistoryItem(
                 title: '10 Reels для трека',
                 subtitle: 'активная задача',
@@ -1099,6 +1200,7 @@ class _HistoryPanel extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               const _PanelLabel('НЕДАВНИЕ ЗАДАЧИ'),
+              const _SectionHint('быстрый возврат к прошлым рабочим сессиям'),
               _HistoryItem(
                 title: 'AI-фриланс разведка',
                 subtitle: 'задача',
@@ -1122,6 +1224,7 @@ class _HistoryPanel extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               const _PanelLabel('БЫСТРЫЕ СЦЕНАРИИ'),
+              const _SectionHint('готовые планы работы'),
               _HistoryItem(
                 title: 'AI Short Video Factory',
                 subtitle: 'сценарий',
@@ -1152,6 +1255,7 @@ class _HistoryPanel extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               const _PanelLabel('ПРОЕКТЫ'),
+              const _SectionHint('долгие направления работы'),
               _HistoryItem(
                 title: 'Музыкальный релиз',
                 subtitle: 'проект',
@@ -1174,6 +1278,7 @@ class _HistoryPanel extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               const _PanelLabel('ИЗБРАННЫЕ ИНСТРУМЕНТЫ'),
+              const _SectionHint('нейросети, которые часто используешь'),
               _HistoryItem(
                 title: 'Kling',
                 subtitle: 'видео-инструмент',
@@ -1307,6 +1412,7 @@ class _CenterStage extends StatelessWidget {
     required this.onOpenAgent,
     required this.onOpenTool,
     required this.onOpenUseCase,
+    required this.onBack,
   });
 
   final _WorkMode mode;
@@ -1322,6 +1428,7 @@ class _CenterStage extends StatelessWidget {
   final ValueChanged<String?> onOpenAgent;
   final ValueChanged<String?> onOpenTool;
   final ValueChanged<String?> onOpenUseCase;
+  final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -1364,6 +1471,7 @@ class _CenterStage extends StatelessWidget {
         onOpenAgent: onOpenAgent,
         onOpenTool: onOpenTool,
         onOpenUseCase: onOpenUseCase,
+        onBack: onBack,
         key: ValueKey(
           '${activeViewType.name}-${activeWorkflowId ?? activeAgentId ?? activeToolId ?? activeUseCaseId ?? activeSummaryTitle ?? 'default'}',
         ),
@@ -1574,9 +1682,9 @@ class _ToolkitSearchStage extends StatelessWidget {
           children: [
             const _PanelLabel('БАЗА НЕЙРОСЕТЕЙ'),
             const SizedBox(height: 10),
-            Text(
-              mode.title,
-              style: const TextStyle(
+            const Text(
+              'Найди нейросеть или сервис под задачу',
+              style: TextStyle(
                 color: Color(0xFFF2F3F5),
                 fontSize: 20,
                 fontWeight: FontWeight.w900,
@@ -1592,7 +1700,8 @@ class _ToolkitSearchStage extends StatelessWidget {
               decoration: InputDecoration(
                 isDense: true,
                 prefixIcon: const Icon(Icons.search_rounded, size: 18),
-                hintText: 'Найти нейросеть...',
+                hintText:
+                    'Например: Kling, Nano Banana, Veo, ChatGPT, ComfyUI...',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: const BorderSide(color: Color(0x12FFFFFF)),
@@ -1604,11 +1713,15 @@ class _ToolkitSearchStage extends StatelessWidget {
               spacing: 7,
               runSpacing: 7,
               children: const [
+                _SoftBadge('Все'),
+                _SoftBadge('Бесплатные'),
+                _SoftBadge('Видео'),
+                _SoftBadge('Изображения'),
+                _SoftBadge('Аудио'),
+                _SoftBadge('Текст'),
+                _SoftBadge('Локальные'),
+                _SoftBadge('API'),
                 _SoftBadge('Free'),
-                _SoftBadge('Has API'),
-                _SoftBadge('Local'),
-                _SoftBadge('No card'),
-                _SoftBadge('Best quality'),
               ],
             ),
             const SizedBox(height: 16),
@@ -1743,9 +1856,7 @@ class _RouteStage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 18),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
+            _ResponsiveActionBar(
               children: [
                 FilledButton.icon(
                   onPressed: () => onOpenWorkflow(recommendation.workflowId),
@@ -1786,6 +1897,7 @@ class _EntityStage extends StatelessWidget {
     required this.onOpenAgent,
     required this.onOpenTool,
     required this.onOpenUseCase,
+    required this.onBack,
   });
 
   final _ActiveViewType activeViewType;
@@ -1800,6 +1912,7 @@ class _EntityStage extends StatelessWidget {
   final ValueChanged<String?> onOpenAgent;
   final ValueChanged<String?> onOpenTool;
   final ValueChanged<String?> onOpenUseCase;
+  final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -1815,6 +1928,7 @@ class _EntityStage extends StatelessWidget {
         ),
         onOpenAgent: onOpenAgent,
         onOpenTool: onOpenTool,
+        onBack: onBack,
       ),
       _ActiveViewType.agent => _AgentStage(
         agent: _firstOrNull(
@@ -1826,6 +1940,7 @@ class _EntityStage extends StatelessWidget {
         ),
         onOpenWorkflow: onOpenWorkflow,
         onOpenTool: onOpenTool,
+        onBack: onBack,
       ),
       _ActiveViewType.tool => _ToolStage(
         tool: _firstOrNull(
@@ -1837,6 +1952,7 @@ class _EntityStage extends StatelessWidget {
         ),
         onOpenAgent: onOpenAgent,
         onOpenWorkflow: onOpenWorkflow,
+        onBack: onBack,
       ),
       _ActiveViewType.useCase => _UseCaseStage(
         useCase: _firstOrNull(
@@ -1849,6 +1965,7 @@ class _EntityStage extends StatelessWidget {
         onOpenWorkflow: onOpenWorkflow,
         onOpenAgent: onOpenAgent,
         onOpenTool: onOpenTool,
+        onBack: onBack,
       ),
       _ActiveViewType.session || _ActiveViewType.project => _SummaryStage(
         title: activeSummaryTitle ?? 'Рабочая область',
@@ -1858,6 +1975,7 @@ class _EntityStage extends StatelessWidget {
         type: activeViewType == _ActiveViewType.session ? 'задача' : 'проект',
         onOpenWorkflow: onOpenWorkflow,
         onOpenUseCase: onOpenUseCase,
+        onBack: onBack,
       ),
       _ActiveViewType.empty ||
       _ActiveViewType.routePlan => const SizedBox.shrink(),
@@ -1870,11 +1988,13 @@ class _WorkflowStage extends StatelessWidget {
     required this.workflow,
     required this.onOpenAgent,
     required this.onOpenTool,
+    required this.onBack,
   });
 
   final WorkflowTemplate? workflow;
   final ValueChanged<String?> onOpenAgent;
   final ValueChanged<String?> onOpenTool;
+  final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -1907,6 +2027,11 @@ class _WorkflowStage extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
+              _InlineBackHeader(
+                breadcrumb: 'Рабочая станция / План работы',
+                onBack: onBack,
+              ),
+              const SizedBox(height: 14),
               const _PanelLabel('ПЛАН РАБОТЫ'),
               const SizedBox(height: 10),
               Text(
@@ -1945,14 +2070,20 @@ class _WorkflowStage extends StatelessWidget {
               _LinkedNames(
                 title: 'AI-помощники',
                 names: agents.map((item) => item.name).toList(),
+                ids: agents.map((item) => item.id).toList(),
+                onOpen: onOpenAgent,
                 helper: 'AI-помощники для отдельных этапов работы.',
               ),
               _LinkedNames(
                 title: 'Нейросети / Инструменты',
                 names: tools.map((item) => item.name).toList(),
+                ids: tools.map((item) => item.id).toList(),
+                onOpen: onOpenTool,
                 helper: 'Нейросети и сервисы, используемые в этом плане.',
               ),
               const SizedBox(height: 18),
+              const _DemoModeNotice(),
+              const SizedBox(height: 12),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -1966,26 +2097,26 @@ class _WorkflowStage extends StatelessWidget {
                       );
                     },
                     icon: const Icon(Icons.play_arrow_rounded),
-                    label: const Text('Начать вручную'),
+                    label: const Text('Начать план вручную'),
                   ),
                   OutlinedButton.icon(
                     onPressed: () => _copyText(context, firstPrompt),
                     icon: const Icon(Icons.copy_rounded),
-                    label: const Text('Скопировать промпт'),
+                    label: const Text('Скопировать стартовый промпт'),
                   ),
                   OutlinedButton.icon(
                     onPressed: tools.isEmpty
                         ? null
                         : () => onOpenTool(tools.first.id),
                     icon: const Icon(Icons.open_in_new_rounded),
-                    label: const Text('Открыть инструменты'),
+                    label: const Text('Открыть инструмент / сайт'),
                   ),
                   OutlinedButton.icon(
                     onPressed: agents.isEmpty
                         ? null
                         : () => onOpenAgent(agents.first.id),
                     icon: const Icon(Icons.smart_toy_outlined),
-                    label: const Text('Подключить AI-помощника'),
+                    label: const Text('Подключить AI-помощника к задаче'),
                   ),
                   OutlinedButton.icon(
                     onPressed: () {
@@ -2011,11 +2142,13 @@ class _AgentStage extends StatelessWidget {
     required this.agent,
     required this.onOpenWorkflow,
     required this.onOpenTool,
+    required this.onBack,
   });
 
   final AiAgent? agent;
   final ValueChanged<String?> onOpenWorkflow;
   final ValueChanged<String?> onOpenTool;
+  final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -2038,6 +2171,11 @@ class _AgentStage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
+            _InlineBackHeader(
+              breadcrumb: 'Рабочая станция / AI-помощник',
+              onBack: onBack,
+            ),
+            const SizedBox(height: 14),
             const _PanelLabel('AI-ПОМОЩНИК'),
             const SizedBox(height: 10),
             Row(
@@ -2080,12 +2218,18 @@ class _AgentStage extends StatelessWidget {
             _LinkedNames(
               title: 'Нейросети / Инструменты',
               names: tools.map((item) => item.name).toList(),
+              ids: tools.map((item) => item.id).toList(),
+              onOpen: onOpenTool,
             ),
             _LinkedNames(
               title: 'Планы работы',
               names: workflows.map((item) => item.title).toList(),
+              ids: workflows.map((item) => item.id).toList(),
+              onOpen: onOpenWorkflow,
             ),
             const SizedBox(height: 14),
+            const _DemoModeNotice(),
+            const SizedBox(height: 12),
             const _ManualModeBox(),
             const SizedBox(height: 16),
             Wrap(
@@ -2101,19 +2245,19 @@ class _AgentStage extends StatelessWidget {
                     );
                   },
                   icon: const Icon(Icons.send_rounded),
-                  label: const Text('Назначить задачу'),
+                  label: const Text('Подключить AI-помощника к задаче'),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => _copyText(context, agent!.systemPrompt),
                   icon: const Icon(Icons.copy_rounded),
-                  label: const Text('Промпт агента'),
+                  label: const Text('Скопировать стартовый промпт'),
                 ),
                 OutlinedButton.icon(
                   onPressed: tools.isEmpty
                       ? null
                       : () => onOpenTool(tools.first.id),
                   icon: const Icon(Icons.grid_view_rounded),
-                  label: const Text('Открыть инструменты'),
+                  label: const Text('Открыть инструмент / сайт'),
                 ),
                 OutlinedButton.icon(
                   onPressed: workflows.isEmpty
@@ -2136,11 +2280,13 @@ class _ToolStage extends StatelessWidget {
     required this.tool,
     required this.onOpenAgent,
     required this.onOpenWorkflow,
+    required this.onBack,
   });
 
   final AiTool? tool;
   final ValueChanged<String?> onOpenAgent;
   final ValueChanged<String?> onOpenWorkflow;
+  final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -2162,6 +2308,11 @@ class _ToolStage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
+            _InlineBackHeader(
+              breadcrumb: 'Рабочая станция / Инструмент',
+              onBack: onBack,
+            ),
+            const SizedBox(height: 14),
             const _PanelLabel('НЕЙРОСЕТЬ / ИНСТРУМЕНТ'),
             const SizedBox(height: 10),
             Row(
@@ -2207,12 +2358,18 @@ class _ToolStage extends StatelessWidget {
             _LinkedNames(
               title: 'AI-помощники',
               names: agents.map((item) => item.name).toList(),
+              ids: agents.map((item) => item.id).toList(),
+              onOpen: onOpenAgent,
             ),
             _LinkedNames(
               title: 'Планы работы',
               names: workflows.map((item) => item.title).toList(),
+              ids: workflows.map((item) => item.id).toList(),
+              onOpen: onOpenWorkflow,
             ),
             const SizedBox(height: 14),
+            const _DemoModeNotice(),
+            const SizedBox(height: 12),
             const _ManualModeBox(),
             const SizedBox(height: 16),
             Wrap(
@@ -2222,19 +2379,19 @@ class _ToolStage extends StatelessWidget {
                 FilledButton.icon(
                   onPressed: () => const UrlService().open(tool!.url),
                   icon: const Icon(Icons.open_in_new_rounded),
-                  label: const Text('Открыть сайт'),
+                  label: const Text('Открыть инструмент / сайт'),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => _copyText(context, prompt),
                   icon: const Icon(Icons.copy_rounded),
-                  label: const Text('Скопировать промпт'),
+                  label: const Text('Скопировать стартовый промпт'),
                 ),
                 OutlinedButton.icon(
                   onPressed: agents.isEmpty
                       ? null
                       : () => onOpenAgent(agents.first.id),
                   icon: const Icon(Icons.smart_toy_outlined),
-                  label: const Text('Подключить AI-помощника'),
+                  label: const Text('Подключить AI-помощника к задаче'),
                 ),
                 OutlinedButton.icon(
                   onPressed: workflows.isEmpty
@@ -2258,12 +2415,14 @@ class _UseCaseStage extends StatelessWidget {
     required this.onOpenWorkflow,
     required this.onOpenAgent,
     required this.onOpenTool,
+    required this.onBack,
   });
 
   final UseCase? useCase;
   final ValueChanged<String?> onOpenWorkflow;
   final ValueChanged<String?> onOpenAgent;
   final ValueChanged<String?> onOpenTool;
+  final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -2282,6 +2441,11 @@ class _UseCaseStage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
+            _InlineBackHeader(
+              breadcrumb: 'Рабочая станция / Задача',
+              onBack: onBack,
+            ),
+            const SizedBox(height: 14),
             const _PanelLabel('АКТИВНЫЙ КЕЙС'),
             const SizedBox(height: 10),
             Text(
@@ -2315,15 +2479,23 @@ class _UseCaseStage extends StatelessWidget {
             _LinkedNames(
               title: 'Планы работы',
               names: workflows.map((item) => item.title).toList(),
+              ids: workflows.map((item) => item.id).toList(),
+              onOpen: onOpenWorkflow,
             ),
             _LinkedNames(
               title: 'AI-помощники',
               names: agents.map((item) => item.name).toList(),
+              ids: agents.map((item) => item.id).toList(),
+              onOpen: onOpenAgent,
             ),
             _LinkedNames(
               title: 'Нейросети / Инструменты',
               names: tools.map((item) => item.name).toList(),
+              ids: tools.map((item) => item.id).toList(),
+              onOpen: onOpenTool,
             ),
+            const SizedBox(height: 8),
+            const _DemoModeNotice(),
             const SizedBox(height: 16),
             Wrap(
               spacing: 8,
@@ -2341,14 +2513,14 @@ class _UseCaseStage extends StatelessWidget {
                       ? null
                       : () => onOpenAgent(agents.first.id),
                   icon: const Icon(Icons.smart_toy_outlined),
-                  label: const Text('Подключить AI-помощника'),
+                  label: const Text('Подключить AI-помощника к задаче'),
                 ),
                 OutlinedButton.icon(
                   onPressed: tools.isEmpty
                       ? null
                       : () => onOpenTool(tools.first.id),
                   icon: const Icon(Icons.grid_view_rounded),
-                  label: const Text('Открыть инструменты'),
+                  label: const Text('Открыть инструмент / сайт'),
                 ),
               ],
             ),
@@ -2366,6 +2538,7 @@ class _SummaryStage extends StatelessWidget {
     required this.type,
     required this.onOpenWorkflow,
     required this.onOpenUseCase,
+    required this.onBack,
   });
 
   final String title;
@@ -2373,6 +2546,7 @@ class _SummaryStage extends StatelessWidget {
   final String type;
   final ValueChanged<String?> onOpenWorkflow;
   final ValueChanged<String?> onOpenUseCase;
+  final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
@@ -2384,6 +2558,12 @@ class _SummaryStage extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            _InlineBackHeader(
+              breadcrumb:
+                  'Рабочая станция / ${type == 'задача' ? 'Задача' : 'Проект'}',
+              onBack: onBack,
+            ),
+            const SizedBox(height: 14),
             _PanelLabel(type.toUpperCase()),
             const SizedBox(height: 10),
             Text(
@@ -2487,11 +2667,90 @@ class _StageStep extends StatelessWidget {
   }
 }
 
+class _InlineBackHeader extends StatelessWidget {
+  const _InlineBackHeader({required this.breadcrumb, required this.onBack});
+
+  final String breadcrumb;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        TextButton.icon(
+          onPressed: onBack,
+          icon: const Icon(Icons.arrow_back_rounded, size: 16),
+          label: const Text('Назад'),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            breadcrumb,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Color(0xFF8B8F9A),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ResponsiveActionBar extends StatelessWidget {
+  const _ResponsiveActionBar({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 420) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (final child in children) ...[
+                child,
+                const SizedBox(height: 8),
+              ],
+            ],
+          );
+        }
+        return Wrap(spacing: 8, runSpacing: 8, children: children);
+      },
+    );
+  }
+}
+
+class _DemoModeNotice extends StatelessWidget {
+  const _DemoModeNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Text(
+      'Демо-режим: сейчас действия готовят план и промпты. Реальный запуск через API/локальные модели будет позже.',
+      style: TextStyle(color: Color(0xFF7D828D), fontSize: 12, height: 1.35),
+    );
+  }
+}
+
 class _LinkedNames extends StatelessWidget {
-  const _LinkedNames({required this.title, required this.names, this.helper});
+  const _LinkedNames({
+    required this.title,
+    required this.names,
+    this.ids = const [],
+    this.onOpen,
+    this.helper,
+  });
 
   final String title;
   final List<String> names;
+  final List<String> ids;
+  final ValueChanged<String?>? onOpen;
   final String? helper;
 
   @override
@@ -2503,9 +2762,31 @@ class _LinkedNames extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _RouteLine(title, names.take(4).join(' / ')),
-          if (helper != null)
+          if (onOpen != null && ids.isNotEmpty) ...[
+            const SizedBox(height: 6),
             Padding(
               padding: const EdgeInsets.only(left: 118),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (
+                    var index = 0;
+                    index < names.length && index < ids.length && index < 4;
+                    index++
+                  )
+                    ActionChip(
+                      label: Text(names[index]),
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => onOpen!(ids[index]),
+                    ),
+                ],
+              ),
+            ),
+          ],
+          if (helper != null)
+            Padding(
+              padding: const EdgeInsets.only(left: 118, top: 4),
               child: Text(
                 helper!,
                 style: const TextStyle(
@@ -2624,6 +2905,8 @@ class _PromptComposer extends StatelessWidget {
                       ),
                     ],
                   ),
+                  prefixIconConstraints: const BoxConstraints(minWidth: 86),
+                  suffixIconConstraints: const BoxConstraints(minWidth: 112),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
@@ -2834,7 +3117,8 @@ class _GlassPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: width,
+      width: width == null ? null : double.infinity,
+      constraints: width == null ? null : BoxConstraints(maxWidth: width!),
       padding: padding ?? const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xB814161C),
@@ -2901,12 +3185,16 @@ class _SelectLine extends StatelessWidget {
     return DropdownButtonFormField<String>(
       initialValue: values.contains(value) ? value : values.first,
       isDense: true,
+      isExpanded: true,
       decoration: const InputDecoration(
         contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       ),
       items: [
         for (final item in values)
-          DropdownMenuItem(value: item, child: Text(item)),
+          DropdownMenuItem(
+            value: item,
+            child: Text(item, maxLines: 1, overflow: TextOverflow.ellipsis),
+          ),
       ],
       onChanged: (value) {
         if (value != null) onChanged(value);
@@ -3457,6 +3745,27 @@ class _PanelLabel extends StatelessWidget {
         color: Color(0xFF8B8F9A),
         fontSize: 11,
         fontWeight: FontWeight.w900,
+      ),
+    );
+  }
+}
+
+class _SectionHint extends StatelessWidget {
+  const _SectionHint(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 3, bottom: 4),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Color(0xFF6F7480),
+          fontSize: 10,
+          height: 1.2,
+        ),
       ),
     );
   }
