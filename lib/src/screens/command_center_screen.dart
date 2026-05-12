@@ -1,13 +1,30 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../ai_operator_app.dart';
 import '../data/seed_free_credits.dart';
+import '../models/ai_agent.dart';
+import '../models/ai_tool.dart';
 import '../models/routing_recommendation.dart';
+import '../models/workflow_template.dart';
 import '../services/graph_repository.dart';
 import '../services/router_service.dart';
+import '../services/url_service.dart';
 import '../state/app_settings.dart';
 
 enum _WorkMode { agents, text, design, video, audio, toolkit }
+
+enum _ActiveEntity { none, workflow, agent, tool }
+
+T? _firstOrNull<T>(List<T> items) => items.isEmpty ? null : items.first;
+
+Future<void> _copyText(BuildContext context, String text) async {
+  await Clipboard.setData(ClipboardData(text: text));
+  if (!context.mounted) return;
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(const SnackBar(content: Text('Скопировано в буфер')));
+}
 
 extension _WorkModeUi on _WorkMode {
   String get label {
@@ -74,6 +91,8 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
   final TextEditingController _taskController = TextEditingController();
   _WorkMode _mode = _WorkMode.design;
   RoutingRecommendation? _recommendation;
+  _ActiveEntity _activeEntity = _ActiveEntity.none;
+  String? _activeEntityId;
   String _historyTab = 'все';
   String _model = 'Auto Router';
   String _aspect = '9:16';
@@ -127,6 +146,8 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                   historyTab: _historyTab,
                   taskController: _taskController,
                   recommendation: _recommendation,
+                  activeEntity: _activeEntity,
+                  activeEntityId: _activeEntityId,
                   model: _model,
                   aspect: _aspect,
                   quality: _quality,
@@ -135,6 +156,9 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                   onHistoryTab: (tab) => setState(() => _historyTab = tab),
                   onSubmit: _buildPlan,
                   onQuickGoal: _quickGoal,
+                  onOpenWorkflow: _openWorkflow,
+                  onOpenAgent: _openAgent,
+                  onOpenTool: _openTool,
                   onModel: (value) => setState(() => _model = value),
                   onAspect: (value) => setState(() => _aspect = value),
                   onQuality: (value) => setState(() => _quality = value),
@@ -145,6 +169,8 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                   mode: _mode,
                   taskController: _taskController,
                   recommendation: _recommendation,
+                  activeEntity: _activeEntity,
+                  activeEntityId: _activeEntityId,
                   model: _model,
                   aspect: _aspect,
                   quality: _quality,
@@ -152,11 +178,13 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                   onMode: (mode) => setState(() => _mode = mode),
                   onSubmit: _buildPlan,
                   onQuickGoal: _quickGoal,
+                  onOpenWorkflow: _openWorkflow,
+                  onOpenAgent: _openAgent,
+                  onOpenTool: _openTool,
                   onModel: (value) => setState(() => _model = value),
                   onAspect: (value) => setState(() => _aspect = value),
                   onQuality: (value) => setState(() => _quality = value),
                   onReset: _resetParameters,
-                  onNavigate: widget.onNavigate,
                 ),
         ),
       ),
@@ -174,6 +202,29 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
         : _taskController.text.trim();
     setState(() {
       _recommendation = const RouterService().recommend(task);
+      _activeEntity = _ActiveEntity.none;
+      _activeEntityId = null;
+    });
+  }
+
+  void _openWorkflow(String? id) {
+    setState(() {
+      _activeEntity = _ActiveEntity.workflow;
+      _activeEntityId = id;
+    });
+  }
+
+  void _openAgent(String? id) {
+    setState(() {
+      _activeEntity = _ActiveEntity.agent;
+      _activeEntityId = id;
+    });
+  }
+
+  void _openTool(String? id) {
+    setState(() {
+      _activeEntity = _ActiveEntity.tool;
+      _activeEntityId = id;
     });
   }
 
@@ -192,6 +243,8 @@ class _DesktopStation extends StatelessWidget {
     required this.historyTab,
     required this.taskController,
     required this.recommendation,
+    required this.activeEntity,
+    required this.activeEntityId,
     required this.model,
     required this.aspect,
     required this.quality,
@@ -200,6 +253,9 @@ class _DesktopStation extends StatelessWidget {
     required this.onHistoryTab,
     required this.onSubmit,
     required this.onQuickGoal,
+    required this.onOpenWorkflow,
+    required this.onOpenAgent,
+    required this.onOpenTool,
     required this.onModel,
     required this.onAspect,
     required this.onQuality,
@@ -211,6 +267,8 @@ class _DesktopStation extends StatelessWidget {
   final String historyTab;
   final TextEditingController taskController;
   final RoutingRecommendation? recommendation;
+  final _ActiveEntity activeEntity;
+  final String? activeEntityId;
   final String model;
   final String aspect;
   final String quality;
@@ -219,6 +277,9 @@ class _DesktopStation extends StatelessWidget {
   final ValueChanged<String> onHistoryTab;
   final VoidCallback onSubmit;
   final ValueChanged<String> onQuickGoal;
+  final ValueChanged<String?> onOpenWorkflow;
+  final ValueChanged<String?> onOpenAgent;
+  final ValueChanged<String?> onOpenTool;
   final ValueChanged<String> onModel;
   final ValueChanged<String> onAspect;
   final ValueChanged<String> onQuality;
@@ -238,7 +299,11 @@ class _DesktopStation extends StatelessWidget {
                 child: _CenterStage(
                   mode: mode,
                   recommendation: recommendation,
-                  onNavigate: onNavigate,
+                  activeEntity: activeEntity,
+                  activeEntityId: activeEntityId,
+                  onOpenWorkflow: onOpenWorkflow,
+                  onOpenAgent: onOpenAgent,
+                  onOpenTool: onOpenTool,
                 ),
               ),
             ),
@@ -253,6 +318,9 @@ class _DesktopStation extends StatelessWidget {
             tab: historyTab,
             onTab: onHistoryTab,
             onNavigate: onNavigate,
+            onOpenWorkflow: onOpenWorkflow,
+            onOpenAgent: onOpenAgent,
+            onOpenTool: onOpenTool,
           ),
         ),
         Positioned(
@@ -270,7 +338,7 @@ class _DesktopStation extends StatelessWidget {
             onAspect: onAspect,
             onQuality: onQuality,
             onReset: onReset,
-            onNavigate: onNavigate,
+            onOpenWorkflow: onOpenWorkflow,
           ),
         ),
         Positioned(
@@ -293,6 +361,8 @@ class _MobileStation extends StatelessWidget {
     required this.mode,
     required this.taskController,
     required this.recommendation,
+    required this.activeEntity,
+    required this.activeEntityId,
     required this.model,
     required this.aspect,
     required this.quality,
@@ -300,16 +370,20 @@ class _MobileStation extends StatelessWidget {
     required this.onMode,
     required this.onSubmit,
     required this.onQuickGoal,
+    required this.onOpenWorkflow,
+    required this.onOpenAgent,
+    required this.onOpenTool,
     required this.onModel,
     required this.onAspect,
     required this.onQuality,
     required this.onReset,
-    required this.onNavigate,
   });
 
   final _WorkMode mode;
   final TextEditingController taskController;
   final RoutingRecommendation? recommendation;
+  final _ActiveEntity activeEntity;
+  final String? activeEntityId;
   final String model;
   final String aspect;
   final String quality;
@@ -317,11 +391,13 @@ class _MobileStation extends StatelessWidget {
   final ValueChanged<_WorkMode> onMode;
   final VoidCallback onSubmit;
   final ValueChanged<String> onQuickGoal;
+  final ValueChanged<String?> onOpenWorkflow;
+  final ValueChanged<String?> onOpenAgent;
+  final ValueChanged<String?> onOpenTool;
   final ValueChanged<String> onModel;
   final ValueChanged<String> onAspect;
   final ValueChanged<String> onQuality;
   final VoidCallback onReset;
-  final ValueChanged<AppDestination> onNavigate;
 
   @override
   Widget build(BuildContext context) {
@@ -335,7 +411,11 @@ class _MobileStation extends StatelessWidget {
           child: _CenterStage(
             mode: mode,
             recommendation: recommendation,
-            onNavigate: onNavigate,
+            activeEntity: activeEntity,
+            activeEntityId: activeEntityId,
+            onOpenWorkflow: onOpenWorkflow,
+            onOpenAgent: onOpenAgent,
+            onOpenTool: onOpenTool,
           ),
         ),
         const SizedBox(height: 14),
@@ -355,7 +435,7 @@ class _MobileStation extends StatelessWidget {
           onAspect: onAspect,
           onQuality: onQuality,
           onReset: onReset,
-          onNavigate: onNavigate,
+          onOpenWorkflow: onOpenWorkflow,
         ),
       ],
     );
@@ -507,11 +587,17 @@ class _HistoryPanel extends StatelessWidget {
     required this.tab,
     required this.onTab,
     required this.onNavigate,
+    required this.onOpenWorkflow,
+    required this.onOpenAgent,
+    required this.onOpenTool,
   });
 
   final String tab;
   final ValueChanged<String> onTab;
   final ValueChanged<AppDestination> onNavigate;
+  final ValueChanged<String?> onOpenWorkflow;
+  final ValueChanged<String?> onOpenAgent;
+  final ValueChanged<String?> onOpenTool;
 
   @override
   Widget build(BuildContext context) {
@@ -565,25 +651,42 @@ class _HistoryPanel extends StatelessWidget {
           _HistoryItem(
             'AI Short Video Factory',
             'workflow',
-            () => onNavigate(AppDestination.workflows),
+            () => onOpenWorkflow('ai-short-video-factory'),
           ),
           _HistoryItem(
             'Music Promo Pack',
             'workflow',
-            () => onNavigate(AppDestination.workflows),
+            () => onOpenWorkflow('music-release-promo-pack'),
           ),
           _HistoryItem(
             'AI Freelance Scout',
             'use case',
-            () => onNavigate(AppDestination.useCases),
+            () => onOpenAgent('research-agent'),
           ),
           const SizedBox(height: 14),
           const _PanelLabel('Ранее'),
-          _HistoryItem('Photo Restoration Service', 'client work', () {}),
-          _HistoryItem('Video Localization', 'pipeline', () {}),
-          _HistoryItem('Automation Builder', 'n8n idea', () {}),
+          _HistoryItem(
+            'Photo Restoration Service',
+            'client work',
+            () => onOpenWorkflow('ai-tool-finder'),
+          ),
+          _HistoryItem(
+            'Video Localization',
+            'pipeline',
+            () => onOpenTool('heygen'),
+          ),
+          _HistoryItem(
+            'Automation Builder',
+            'n8n idea',
+            () => onOpenAgent('automation-architect-agent'),
+          ),
           const SizedBox(height: 4),
-          _HistoryFooter(onNavigate: onNavigate),
+          _HistoryFooter(
+            onNavigate: onNavigate,
+            onOpenWorkflow: onOpenWorkflow,
+            onOpenAgent: onOpenAgent,
+            onOpenTool: onOpenTool,
+          ),
         ],
       ),
     );
@@ -594,24 +697,49 @@ class _CenterStage extends StatelessWidget {
   const _CenterStage({
     required this.mode,
     required this.recommendation,
-    required this.onNavigate,
+    required this.activeEntity,
+    required this.activeEntityId,
+    required this.onOpenWorkflow,
+    required this.onOpenAgent,
+    required this.onOpenTool,
   });
 
   final _WorkMode mode;
   final RoutingRecommendation? recommendation;
-  final ValueChanged<AppDestination> onNavigate;
+  final _ActiveEntity activeEntity;
+  final String? activeEntityId;
+  final ValueChanged<String?> onOpenWorkflow;
+  final ValueChanged<String?> onOpenAgent;
+  final ValueChanged<String?> onOpenTool;
 
   @override
   Widget build(BuildContext context) {
+    final Widget stage;
+    if (activeEntity != _ActiveEntity.none) {
+      stage = _EntityStage(
+        entity: activeEntity,
+        entityId: activeEntityId,
+        recommendation: recommendation,
+        onOpenWorkflow: onOpenWorkflow,
+        onOpenAgent: onOpenAgent,
+        onOpenTool: onOpenTool,
+        key: ValueKey('${activeEntity.name}-${activeEntityId ?? 'default'}'),
+      );
+    } else if (recommendation == null) {
+      stage = _EmptyModeStage(mode: mode, key: ValueKey(mode));
+    } else {
+      stage = _RouteStage(
+        recommendation: recommendation!,
+        onOpenWorkflow: onOpenWorkflow,
+        onOpenAgent: onOpenAgent,
+        onOpenTool: onOpenTool,
+        key: const ValueKey('route-stage'),
+      );
+    }
+
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 220),
-      child: recommendation == null
-          ? _EmptyModeStage(mode: mode, key: ValueKey(mode))
-          : _RouteStage(
-              recommendation: recommendation!,
-              onNavigate: onNavigate,
-              key: const ValueKey('route-stage'),
-            ),
+      child: stage,
     );
   }
 }
@@ -672,17 +800,27 @@ class _RouteStage extends StatelessWidget {
   const _RouteStage({
     super.key,
     required this.recommendation,
-    required this.onNavigate,
+    required this.onOpenWorkflow,
+    required this.onOpenAgent,
+    required this.onOpenTool,
   });
 
   final RoutingRecommendation recommendation;
-  final ValueChanged<AppDestination> onNavigate;
+  final ValueChanged<String?> onOpenWorkflow;
+  final ValueChanged<String?> onOpenAgent;
+  final ValueChanged<String?> onOpenTool;
 
   @override
   Widget build(BuildContext context) {
     final graph = const GraphRepository();
     final agents = graph.agentsByIds(recommendation.agentIds);
     final tools = graph.toolsByIds(recommendation.toolIds);
+    final firstAgentId = recommendation.agentIds.isEmpty
+        ? null
+        : recommendation.agentIds.first;
+    final firstToolId = recommendation.toolIds.isEmpty
+        ? null
+        : recommendation.toolIds.first;
     return Center(
       child: _GlassPanel(
         key: const ValueKey('recommended-plan'),
@@ -714,18 +852,32 @@ class _RouteStage extends StatelessWidget {
               'Следующие шаги',
               recommendation.manualSteps.take(3).join(' → '),
             ),
+            const SizedBox(height: 8),
+            const Text(
+              'Сейчас OS работает в ручном режиме: она собирает маршрут, промпты и инструменты. На следующих этапах мы подключим OpenAI API, Ollama и автоматические агенты.',
+              style: TextStyle(
+                color: Color(0xFF8B8F9A),
+                fontSize: 12,
+                height: 1.35,
+              ),
+            ),
             const SizedBox(height: 18),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
                 FilledButton.icon(
-                  onPressed: () => onNavigate(AppDestination.workflows),
+                  onPressed: () => onOpenWorkflow(recommendation.workflowId),
                   icon: const Icon(Icons.play_arrow_rounded),
                   label: const Text('Открыть сценарий'),
                 ),
                 OutlinedButton.icon(
-                  onPressed: () => onNavigate(AppDestination.tools),
+                  onPressed: () => onOpenAgent(firstAgentId),
+                  icon: const Icon(Icons.smart_toy_outlined),
+                  label: const Text('Агент'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => onOpenTool(firstToolId),
                   icon: const Icon(Icons.grid_view_rounded),
                   label: const Text('Тул-кит'),
                 ),
@@ -733,6 +885,544 @@ class _RouteStage extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _EntityStage extends StatelessWidget {
+  const _EntityStage({
+    super.key,
+    required this.entity,
+    required this.entityId,
+    required this.recommendation,
+    required this.onOpenWorkflow,
+    required this.onOpenAgent,
+    required this.onOpenTool,
+  });
+
+  final _ActiveEntity entity;
+  final String? entityId;
+  final RoutingRecommendation? recommendation;
+  final ValueChanged<String?> onOpenWorkflow;
+  final ValueChanged<String?> onOpenAgent;
+  final ValueChanged<String?> onOpenTool;
+
+  @override
+  Widget build(BuildContext context) {
+    final graph = const GraphRepository();
+    return switch (entity) {
+      _ActiveEntity.workflow => _WorkflowStage(
+        workflow: _firstOrNull(
+          graph.workflowsByIds([
+            entityId ?? recommendation?.workflowId ?? 'ai-short-video-factory',
+          ]),
+        ),
+        onOpenAgent: onOpenAgent,
+        onOpenTool: onOpenTool,
+      ),
+      _ActiveEntity.agent => _AgentStage(
+        agent: _firstOrNull(
+          graph.agentsByIds([
+            entityId ??
+                _firstOrNull(recommendation?.agentIds ?? const []) ??
+                'tool-router-agent',
+          ]),
+        ),
+        onOpenWorkflow: onOpenWorkflow,
+        onOpenTool: onOpenTool,
+      ),
+      _ActiveEntity.tool => _ToolStage(
+        tool: _firstOrNull(
+          graph.toolsByIds([
+            entityId ??
+                _firstOrNull(recommendation?.toolIds ?? const []) ??
+                'chatgpt',
+          ]),
+        ),
+        onOpenAgent: onOpenAgent,
+        onOpenWorkflow: onOpenWorkflow,
+      ),
+      _ActiveEntity.none => const SizedBox.shrink(),
+    };
+  }
+}
+
+class _WorkflowStage extends StatelessWidget {
+  const _WorkflowStage({
+    required this.workflow,
+    required this.onOpenAgent,
+    required this.onOpenTool,
+  });
+
+  final WorkflowTemplate? workflow;
+  final ValueChanged<String?> onOpenAgent;
+  final ValueChanged<String?> onOpenTool;
+
+  @override
+  Widget build(BuildContext context) {
+    if (workflow == null) {
+      return const _MissingEntityStage('Сценарий не найден');
+    }
+
+    final graph = const GraphRepository();
+    final agents = graph.agentsByIds([
+      ...workflow!.agentIds,
+      for (final step in workflow!.steps)
+        if (step.agentId != null) step.agentId!,
+    ]);
+    final tools = graph.toolsByIds([
+      ...workflow!.requiredTools,
+      ...workflow!.optionalTools,
+      ...workflow!.toolIds,
+      for (final step in workflow!.steps) ...step.toolIds,
+    ]);
+    final firstPrompt = workflow!.steps.isEmpty
+        ? workflow!.description
+        : workflow!.steps.first.promptTemplate;
+
+    return Center(
+      child: _GlassPanel(
+        width: 680,
+        padding: const EdgeInsets.all(22),
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const _PanelLabel('АКТИВНЫЙ СЦЕНАРИЙ'),
+              const SizedBox(height: 10),
+              Text(
+                workflow!.title,
+                style: const TextStyle(
+                  color: Color(0xFFF2F3F5),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                workflow!.description,
+                style: const TextStyle(color: Color(0xFF9AA0AA), height: 1.35),
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 7,
+                runSpacing: 7,
+                children: [
+                  _SoftBadge(workflow!.category),
+                  _SoftBadge(workflow!.estimatedTime),
+                  _SoftBadge(workflow!.automationLevel.name),
+                  _SoftBadge(workflow!.monetizationPotential.name),
+                ],
+              ),
+              const SizedBox(height: 18),
+              for (final step in workflow!.steps.take(5))
+                _StageStep(step: step, onOpenTool: onOpenTool),
+              const SizedBox(height: 12),
+              _LinkedNames(
+                title: 'Агенты',
+                names: agents.map((item) => item.name).toList(),
+              ),
+              _LinkedNames(
+                title: 'Инструменты',
+                names: tools.map((item) => item.name).toList(),
+              ),
+              const SizedBox(height: 18),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  FilledButton.icon(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Сценарий запущен в ручном режиме'),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.play_arrow_rounded),
+                    label: const Text('Начать'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => _copyText(context, firstPrompt),
+                    icon: const Icon(Icons.copy_rounded),
+                    label: const Text('Скопировать промпт'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: tools.isEmpty
+                        ? null
+                        : () => onOpenTool(tools.first.id),
+                    icon: const Icon(Icons.open_in_new_rounded),
+                    label: const Text('Открыть инструмент'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: agents.isEmpty
+                        ? null
+                        : () => onOpenAgent(agents.first.id),
+                    icon: const Icon(Icons.smart_toy_outlined),
+                    label: const Text('Агент'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Сохранено в проект')),
+                      );
+                    },
+                    icon: const Icon(Icons.bookmark_add_outlined),
+                    label: const Text('Сохранить'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AgentStage extends StatelessWidget {
+  const _AgentStage({
+    required this.agent,
+    required this.onOpenWorkflow,
+    required this.onOpenTool,
+  });
+
+  final AiAgent? agent;
+  final ValueChanged<String?> onOpenWorkflow;
+  final ValueChanged<String?> onOpenTool;
+
+  @override
+  Widget build(BuildContext context) {
+    if (agent == null) return const _MissingEntityStage('Агент не найден');
+
+    final graph = const GraphRepository();
+    final tools = graph.toolsByIds([
+      ...agent!.toolIds,
+      ...agent!.recommendedTools,
+    ]);
+    final workflows = graph.workflowsByIds(agent!.workflowIds);
+
+    return Center(
+      child: _GlassPanel(
+        width: 620,
+        padding: const EdgeInsets.all(22),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const _PanelLabel('АКТИВНЫЙ АГЕНТ'),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Text(agent!.avatarEmoji, style: const TextStyle(fontSize: 34)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        agent!.name,
+                        style: const TextStyle(
+                          color: Color(0xFFF2F3F5),
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        agent!.role,
+                        style: const TextStyle(color: Color(0xFF9AA0AA)),
+                      ),
+                    ],
+                  ),
+                ),
+                _SoftBadge(agent!.status.name),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Text(
+              agent!.description,
+              style: const TextStyle(color: Color(0xFFE5E7EC), height: 1.35),
+            ),
+            const SizedBox(height: 16),
+            _LinkedNames(
+              title: 'Инструменты агента',
+              names: tools.map((item) => item.name).toList(),
+            ),
+            _LinkedNames(
+              title: 'Сценарии',
+              names: workflows.map((item) => item.title).toList(),
+            ),
+            const SizedBox(height: 14),
+            const _ManualModeBox(),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('${agent!.name}: mock output готов'),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.send_rounded),
+                  label: const Text('Назначить задачу'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => _copyText(context, agent!.systemPrompt),
+                  icon: const Icon(Icons.copy_rounded),
+                  label: const Text('Промпт агента'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: tools.isEmpty
+                      ? null
+                      : () => onOpenTool(tools.first.id),
+                  icon: const Icon(Icons.grid_view_rounded),
+                  label: const Text('Инструмент'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: workflows.isEmpty
+                      ? null
+                      : () => onOpenWorkflow(workflows.first.id),
+                  icon: const Icon(Icons.schema_outlined),
+                  label: const Text('Сценарий'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ToolStage extends StatelessWidget {
+  const _ToolStage({
+    required this.tool,
+    required this.onOpenAgent,
+    required this.onOpenWorkflow,
+  });
+
+  final AiTool? tool;
+  final ValueChanged<String?> onOpenAgent;
+  final ValueChanged<String?> onOpenWorkflow;
+
+  @override
+  Widget build(BuildContext context) {
+    if (tool == null) return const _MissingEntityStage('Инструмент не найден');
+
+    final graph = const GraphRepository();
+    final agents = graph.agentsByIds(tool!.agentIds);
+    final workflows = graph.workflowsByIds(tool!.workflowIds);
+    final prompt =
+        'Задача: {{task}}\nИнструмент: ${tool!.name}\nРежим: manual\nНужно: подготовь точный промпт и шаги запуска.';
+
+    return Center(
+      child: _GlassPanel(
+        width: 620,
+        padding: const EdgeInsets.all(22),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const _PanelLabel('АКТИВНЫЙ ИНСТРУМЕНТ'),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    tool!.name,
+                    style: const TextStyle(
+                      color: Color(0xFFF2F3F5),
+                      fontSize: 20,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                _SoftBadge(tool!.integrationType.label),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              tool!.description,
+              style: const TextStyle(color: Color(0xFFE5E7EC), height: 1.35),
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              children: [
+                _SoftBadge(tool!.category.label),
+                _SoftBadge(tool!.pricingType.label),
+                _SoftBadge(tool!.hasApi ? 'API позже' : 'manual'),
+                if (tool!.isLocal) const _SoftBadge('local'),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _RouteLine('Лучше для', tool!.bestFor),
+            _RouteLine('Бесплатно', tool!.freeCreditsInfo),
+            _RouteLine('Ограничения', tool!.limitations),
+            _LinkedNames(
+              title: 'Агенты',
+              names: agents.map((item) => item.name).toList(),
+            ),
+            _LinkedNames(
+              title: 'Сценарии',
+              names: workflows.map((item) => item.title).toList(),
+            ),
+            const SizedBox(height: 14),
+            const _ManualModeBox(),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(
+                  onPressed: () => const UrlService().open(tool!.url),
+                  icon: const Icon(Icons.open_in_new_rounded),
+                  label: const Text('Открыть сайт'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => _copyText(context, prompt),
+                  icon: const Icon(Icons.copy_rounded),
+                  label: const Text('Скопировать промпт'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: agents.isEmpty
+                      ? null
+                      : () => onOpenAgent(agents.first.id),
+                  icon: const Icon(Icons.smart_toy_outlined),
+                  label: const Text('Агент'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: workflows.isEmpty
+                      ? null
+                      : () => onOpenWorkflow(workflows.first.id),
+                  icon: const Icon(Icons.schema_outlined),
+                  label: const Text('Сценарий'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StageStep extends StatelessWidget {
+  const _StageStep({required this.step, required this.onOpenTool});
+
+  final WorkflowStep step;
+  final ValueChanged<String?> onOpenTool;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0x0AFFFFFF),
+        border: Border.all(color: const Color(0x10FFFFFF)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            step.isAutomatable
+                ? Icons.auto_awesome_rounded
+                : Icons.touch_app_outlined,
+            color: const Color(0xFF8B8F9A),
+            size: 17,
+          ),
+          const SizedBox(width: 9),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  step.title,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  step.instruction,
+                  style: const TextStyle(
+                    color: Color(0xFF9AA0AA),
+                    fontSize: 11,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (step.toolIds.isNotEmpty)
+            IconButton(
+              onPressed: () => onOpenTool(step.toolIds.first),
+              icon: const Icon(Icons.open_in_new_rounded, size: 16),
+              tooltip: 'Открыть инструмент',
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LinkedNames extends StatelessWidget {
+  const _LinkedNames({required this.title, required this.names});
+
+  final String title;
+  final List<String> names;
+
+  @override
+  Widget build(BuildContext context) {
+    if (names.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: _RouteLine(title, names.take(4).join(' / ')),
+    );
+  }
+}
+
+class _ManualModeBox extends StatelessWidget {
+  const _ManualModeBox();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(11),
+      decoration: BoxDecoration(
+        color: const Color(0x0DFFFFFF),
+        border: Border.all(color: const Color(0x12FFFFFF)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Text(
+        'Manual Mode: OS готовит маршрут, ссылки и промпты. API Mode и Local Mode подключим позже без перестройки рабочего экрана.',
+        style: TextStyle(color: Color(0xFF9AA0AA), fontSize: 12, height: 1.35),
+      ),
+    );
+  }
+}
+
+class _MissingEntityStage extends StatelessWidget {
+  const _MissingEntityStage(this.message);
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: _GlassPanel(
+        width: 420,
+        child: Text(message, textAlign: TextAlign.center),
       ),
     );
   }
@@ -829,7 +1519,7 @@ class _SettingsPanel extends StatelessWidget {
     required this.onAspect,
     required this.onQuality,
     required this.onReset,
-    required this.onNavigate,
+    required this.onOpenWorkflow,
   });
 
   final String model;
@@ -841,7 +1531,7 @@ class _SettingsPanel extends StatelessWidget {
   final ValueChanged<String> onAspect;
   final ValueChanged<String> onQuality;
   final VoidCallback onReset;
-  final ValueChanged<AppDestination> onNavigate;
+  final ValueChanged<String?> onOpenWorkflow;
 
   @override
   Widget build(BuildContext context) {
@@ -909,11 +1599,21 @@ class _SettingsPanel extends StatelessWidget {
           ),
           _SettingsGroup(
             title: 'Выполнение',
-            child: Column(
-              children: const [
-                _PathRow('Бесплатный путь', Icons.savings_outlined),
-                _PathRow('Pro-путь', Icons.auto_awesome_rounded),
-                _PathRow('Local-путь', Icons.dns_outlined),
+            child: const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _PathRow('Manual Mode', Icons.open_in_new_rounded),
+                _PathRow('API Mode позже', Icons.api_rounded),
+                _PathRow('Local Mode позже', Icons.dns_outlined),
+                SizedBox(height: 6),
+                Text(
+                  'Сейчас OS работает в ручном режиме: она собирает маршрут, промпты и инструменты. На следующих этапах мы подключим OpenAI API, Ollama и автоматические агенты.',
+                  style: TextStyle(
+                    color: Color(0xFF8B8F9A),
+                    fontSize: 11,
+                    height: 1.3,
+                  ),
+                ),
               ],
             ),
           ),
@@ -940,7 +1640,7 @@ class _SettingsPanel extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: FilledButton(
-                  onPressed: () => onNavigate(AppDestination.workflows),
+                  onPressed: () => onOpenWorkflow(null),
                   child: const Text('Сценарий'),
                 ),
               ),
@@ -1153,25 +1853,30 @@ class _HistoryItem extends StatelessWidget {
 }
 
 class _HistoryFooter extends StatelessWidget {
-  const _HistoryFooter({required this.onNavigate});
+  const _HistoryFooter({
+    required this.onNavigate,
+    required this.onOpenWorkflow,
+    required this.onOpenAgent,
+    required this.onOpenTool,
+  });
 
   final ValueChanged<AppDestination> onNavigate;
+  final ValueChanged<String?> onOpenWorkflow;
+  final ValueChanged<String?> onOpenAgent;
+  final ValueChanged<String?> onOpenTool;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _MiniIconButton(
-          Icons.grid_view_rounded,
-          () => onNavigate(AppDestination.tools),
-        ),
+        _MiniIconButton(Icons.grid_view_rounded, () => onOpenTool('chatgpt')),
         _MiniIconButton(
           Icons.smart_toy_outlined,
-          () => onNavigate(AppDestination.agents),
+          () => onOpenAgent('tool-router-agent'),
         ),
         _MiniIconButton(
           Icons.schema_outlined,
-          () => onNavigate(AppDestination.workflows),
+          () => onOpenWorkflow('ai-short-video-factory'),
         ),
         _MiniIconButton(
           Icons.tune_rounded,

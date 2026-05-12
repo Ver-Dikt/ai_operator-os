@@ -2,6 +2,24 @@ enum PricingType { free, freemium, paid, credits, local }
 
 enum ToolPlatform { web, desktop, mobile, api, local }
 
+enum ToolIntegrationType {
+  externalManual,
+  apiConnected,
+  localConnected,
+  planned,
+}
+
+extension ToolIntegrationTypeLabel on ToolIntegrationType {
+  String get label {
+    return switch (this) {
+      ToolIntegrationType.externalManual => 'Открывается вручную',
+      ToolIntegrationType.apiConnected => 'Подключено',
+      ToolIntegrationType.localConnected => 'Локально подключено',
+      ToolIntegrationType.planned => 'Скоро',
+    };
+  }
+}
+
 enum ToolCategory {
   text,
   image,
@@ -75,6 +93,7 @@ class AiTool {
     this.agentIds = const [],
     this.workflowIds = const [],
     this.alternativeToolIds = const [],
+    this.integrationType = ToolIntegrationType.externalManual,
   });
 
   final String id;
@@ -98,6 +117,7 @@ class AiTool {
   final List<String> agentIds;
   final List<String> workflowIds;
   final List<String> alternativeToolIds;
+  final ToolIntegrationType integrationType;
 
   bool get isFreePath =>
       pricingType == PricingType.free ||

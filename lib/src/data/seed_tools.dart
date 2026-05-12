@@ -18,6 +18,7 @@ AiTool _tool({
   List<String> agents = const [],
   List<String> workflows = const [],
   List<String> alternatives = const [],
+  ToolIntegrationType? integration,
 }) {
   return AiTool(
     id: id,
@@ -42,6 +43,13 @@ AiTool _tool({
     agentIds: agents,
     workflowIds: workflows,
     alternativeToolIds: alternatives,
+    integrationType:
+        integration ??
+        (platforms.contains(ToolPlatform.local)
+            ? ToolIntegrationType.planned
+            : hasApi
+            ? ToolIntegrationType.planned
+            : ToolIntegrationType.externalManual),
   );
 }
 
