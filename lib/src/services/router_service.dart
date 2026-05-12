@@ -7,8 +7,49 @@ class RouterService {
   RoutePlan buildRoutePlan(String task) {
     final q = task.toLowerCase();
     if (_hasAny(q, const [
+      'cover art',
+      'cover',
+      'artwork',
+      'logo',
+      'poster',
+      'thumbnail',
+      'облож',
+      'артворк',
+      'постер',
+      'лого',
+      'превью',
+      'баннер',
+    ])) {
+      return _imageRoute(task);
+    }
+    if (_hasAny(q, const [
+      'план на неделю',
+      'weekly plan',
+      'schedule',
+      'routine',
+      'задачи',
+      'расписание',
+      'чеклист',
+      'приоритет',
+    ])) {
+      return _planningRoute(task);
+    }
+    if (_hasAny(q, const [
+      'локализация',
+      'перевод',
+      'субтитры',
+      'дубляж',
+      'localization',
+      'translate',
+      'subtitles',
+      'dubbing',
+    ])) {
+      return _localizationRoute(task);
+    }
+    if (_hasAny(q, const [
       'reels',
       'shorts',
+      'tiktok',
       'cinematic',
       'trailer',
       'video',
@@ -16,6 +57,7 @@ class RouterService {
       'рилс',
       'шорт',
       'клип',
+      'ролик',
       'трейлер',
       'сцена',
     ])) {
@@ -32,19 +74,6 @@ class RouterService {
       'промо',
     ])) {
       return _musicRoute(task);
-    }
-    if (_hasAny(q, const [
-      'logo',
-      'poster',
-      'thumbnail',
-      'cover',
-      'облож',
-      'постер',
-      'лого',
-      'превью',
-      'баннер',
-    ])) {
-      return _imageRoute(task);
     }
     if (_hasAny(q, const [
       'outreach',
@@ -364,6 +393,7 @@ class RouterService {
         'Midjourney',
         'ChatGPT Images',
         'Leonardo AI',
+        'Flux Playground',
         'Canva',
         'ComfyUI',
       ],
@@ -371,16 +401,19 @@ class RouterService {
         'midjourney',
         'chatgpt-images',
         'leonardo',
+        'flux-playground',
         'canva',
         'comfyui',
       ],
       agents: const [
         'AI-помощник по промптам',
+        'Режиссерский AI-помощник',
         'AI-помощник QA',
         'AI-помощник по выбору инструментов',
       ],
       agentIds: const [
         'prompt-engineer-agent',
+        'director-agent',
         'qa-critic-agent',
         'tool-router-agent',
       ],
@@ -541,6 +574,134 @@ class RouterService {
       ],
       estimatedComplexity: 'Средняя',
       estimatedCost: 'Можно начать бесплатно',
+      localPossible: true,
+      freePossible: true,
+    );
+  }
+
+  RoutePlan _planningRoute(String task) {
+    return RoutePlan(
+      title: 'AI Route Plan: Weekly Planning',
+      detectedGoal: 'Обнаружена задача: планирование недели и приоритетов',
+      recommendedMode: 'Текст / planning workspace',
+      routeType: 'Planning route',
+      workflows: const ['Подбор AI-инструментов'],
+      workflowIds: const ['ai-tool-finder'],
+      tools: const ['ChatGPT', 'Gemini', 'Claude', 'Notion later'],
+      toolIds: const ['chatgpt', 'gemini', 'claude', 'notebooklm'],
+      agents: const [
+        'AI-помощник исследования',
+        'AI-помощник QA',
+        'AI-помощник по выбору инструментов',
+      ],
+      agentIds: const [
+        'research-agent',
+        'qa-critic-agent',
+        'tool-router-agent',
+      ],
+      promptSuggestions: _promptPack(task, const [
+        'Weekly goals',
+        'Daily schedule',
+        'Priority matrix',
+        'Checklist',
+        'Review ritual',
+      ]),
+      steps: const [
+        RouteStep(
+          title: 'Цели недели',
+          explanation: 'Определить 3-5 главных результатов недели.',
+          badges: ['MANUAL', 'FREE'],
+          state: RouteExecutionState.manualStep,
+          iconKey: 'script',
+        ),
+        RouteStep(
+          title: 'Дни',
+          explanation: 'Разложить задачи по дням с учетом энергии и дедлайнов.',
+          badges: ['MANUAL'],
+          state: RouteExecutionState.ready,
+          iconKey: 'route',
+        ),
+        RouteStep(
+          title: 'Приоритеты',
+          explanation: 'Отделить must-do от nice-to-have и убрать шум.',
+          badges: ['READY'],
+          state: RouteExecutionState.ready,
+          iconKey: 'qa',
+        ),
+        RouteStep(
+          title: 'Checklist',
+          explanation:
+              'Собрать простой список действий и обзор в конце недели.',
+          badges: ['MANUAL', 'FREE'],
+          state: RouteExecutionState.manualStep,
+          iconKey: 'export',
+        ),
+      ],
+      executionOptions: const [
+        RouteExecutionOption(
+          title: 'Бесплатный маршрут',
+          description: 'Собрать план вручную через текстовую модель.',
+          badges: ['FREE', 'MANUAL'],
+          items: ['ChatGPT Free', 'Gemini', 'Notion later'],
+        ),
+        RouteExecutionOption(
+          title: 'Быстрый маршрут',
+          description: 'Сразу получить расписание и checklist.',
+          badges: ['FAST', 'API'],
+          items: ['ChatGPT', 'Gemini'],
+        ),
+        RouteExecutionOption(
+          title: 'Локальный маршрут',
+          description: 'Приватный weekly planning без cloud.',
+          badges: ['LOCAL', 'OLLAMA'],
+          items: ['Ollama', 'LM Studio'],
+        ),
+        RouteExecutionOption(
+          title: 'Лучшее качество',
+          description: 'План + критика реалистичности и рисков.',
+          badges: ['PREMIUM', 'API'],
+          items: ['Claude', 'ChatGPT', 'Gemini'],
+        ),
+      ],
+      estimatedComplexity: 'Низкая',
+      estimatedCost: 'Можно начать бесплатно',
+      localPossible: true,
+      freePossible: true,
+    );
+  }
+
+  RoutePlan _localizationRoute(String task) {
+    final base = _videoRoute(task);
+    return RoutePlan(
+      title: 'AI Route Plan: Video Localization',
+      detectedGoal: 'Обнаружена задача: перевод, субтитры или дубляж видео',
+      recommendedMode: 'Видео / аудио локализация',
+      routeType: 'Localization route',
+      workflows: base.workflows,
+      workflowIds: base.workflowIds,
+      tools: const ['Whisper', 'ElevenLabs', 'HeyGen', 'Kling', 'Runway'],
+      toolIds: const ['whisper', 'elevenlabs', 'heygen', 'kling', 'runway'],
+      agents: const [
+        'AI-помощник исследования',
+        'AI-помощник музыкального промо',
+        'AI-помощник QA',
+      ],
+      agentIds: const [
+        'research-agent',
+        'music-promo-agent',
+        'qa-critic-agent',
+      ],
+      promptSuggestions: _promptPack(task, const [
+        'Translation brief',
+        'Subtitle timing',
+        'Dubbing voice style',
+        'Lip sync notes',
+        'QA checklist',
+      ]),
+      steps: base.steps,
+      executionOptions: base.executionOptions,
+      estimatedComplexity: 'Средняя',
+      estimatedCost: 'Можно начать вручную, дубляж зависит от credits',
       localPossible: true,
       freePossible: true,
     );

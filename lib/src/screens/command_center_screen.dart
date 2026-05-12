@@ -113,6 +113,7 @@ class _CreativeSession {
     required this.sections,
     required this.promptBlocks,
     required this.timestamp,
+    required this.sourceTask,
   });
 
   final _WorkMode mode;
@@ -123,6 +124,7 @@ class _CreativeSession {
   final List<({String title, String value})> sections;
   final List<String> promptBlocks;
   final DateTime timestamp;
+  final String sourceTask;
 }
 
 Future<void> _copyText(BuildContext context, String text) async {
@@ -137,7 +139,12 @@ Future<void> _launchToolWebsite(BuildContext context, AiTool tool) async {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(content: Text('Подготовка prompt bundle для ${tool.name}...')),
   );
-  await const ToolLauncherService().openExternalTool(tool);
+  final opened = await const ToolLauncherService().openExternalTool(tool);
+  if (!opened && context.mounted) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('URL инструмента не задан')));
+  }
 }
 
 class _ModeSettingConfig {
@@ -753,6 +760,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
           'Prompt lab: преврати "$task" в точный production prompt.',
         ],
         timestamp: now,
+        sourceTask: task,
       ),
       _WorkMode.design => _CreativeSession(
         mode: mode,
@@ -775,6 +783,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
           'Thumbnail: $task, bold readable subject, high contrast, simple layout',
         ],
         timestamp: now,
+        sourceTask: task,
       ),
       _WorkMode.video => _CreativeSession(
         mode: mode,
@@ -797,6 +806,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
           'Music sync: подгони движение сцены "$task" под музыкальный акцент.',
         ],
         timestamp: now,
+        sourceTask: task,
       ),
       _WorkMode.audio => _CreativeSession(
         mode: mode,
@@ -819,6 +829,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
           'Dubbing: адаптируй "$task" под EN/RU voiceover с естественным темпом.',
         ],
         timestamp: now,
+        sourceTask: task,
       ),
       _ => _CreativeSession(
         mode: mode,
@@ -829,6 +840,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
         sections: const [],
         promptBlocks: const [],
         timestamp: now,
+        sourceTask: task,
       ),
     };
   }
@@ -1143,6 +1155,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
       ],
       promptBlocks: session.promptBlocks,
       timestamp: session.updatedAt,
+      sourceTask: session.routeSeed ?? session.title,
     );
   }
 
@@ -1209,11 +1222,12 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
 
     if (action.copyOutput) {
       await _toolLauncher.copyPrompt(prompt);
-      _recordExecutionHistory(copiedPrompt: prompt);
+      final copyLabel = _copyEventLabel(action);
+      _recordExecutionHistory(copiedPrompt: prompt, launchedFlow: copyLabel);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Final production prompt скопирован')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(copyLabel)));
       return;
     }
 
@@ -1224,14 +1238,18 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
       if (tool != null) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Открытие ${tool.name}... prompt уже в буфере'),
-          ),
+          SnackBar(content: Text('Открыт ${tool.name}. Prompt уже в буфере')),
         );
-        await _toolLauncher.continueInTool(tool, prompt);
+        final opened = await _toolLauncher.continueInTool(tool, prompt);
+        if (!opened && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('URL инструмента не задан')),
+          );
+          return;
+        }
         _recordExecutionHistory(
           openedToolId: tool.id,
-          launchedFlow: '${action.label} → ${tool.name}',
+          launchedFlow: 'Открыт ${tool.name}',
           generatedPrompt: prompt,
         );
       } else {
@@ -1242,8 +1260,26 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
 
     _recordExecutionHistory(
       generatedPrompt: prompt,
-      launchedFlow: action.flowEvent ?? action.label,
+      launchedFlow: _flowEventLabel(action),
     );
+  }
+
+  String _copyEventLabel(_WorkspaceActionSpec action) {
+    return switch (action.copyTarget) {
+      _PromptCopyTarget.en => 'Скопирован EN-промпт',
+      _PromptCopyTarget.ru => 'Скопировано RU-описание',
+      _PromptCopyTarget.all => 'Скопирован полный production prompt',
+      null => 'Скопирован production prompt',
+    };
+  }
+
+  String _flowEventLabel(_WorkspaceActionSpec action) {
+    return switch (action.flowEvent) {
+      'generate_prompt' => action.label,
+      'refine_prompt' => 'Улучшен production prompt',
+      'continue_flow' => 'Продолжен execution flow',
+      _ => action.label,
+    };
   }
 
   void _recordExecutionHistory({
@@ -1324,6 +1360,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     _upsertMemorySession(
       session.copyWith(projectId: preferred.id, updatedAt: DateTime.now()),
     );
+    _recordExecutionHistory(launchedFlow: _saveEventLabel(session));
   }
 
   void _createProjectFromActiveSession() {
@@ -1352,7 +1389,19 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
       _upsertMemorySession(
         session.copyWith(projectId: project.id, updatedAt: now),
       );
+      _recordExecutionHistory(launchedFlow: _saveEventLabel(session));
     }
+  }
+
+  String _saveEventLabel(WorkspaceSession session) {
+    return switch (session.type) {
+      WorkspaceSessionType.image => 'Сохранён image prompt',
+      WorkspaceSessionType.video => 'Сохранён video scene prompt',
+      WorkspaceSessionType.audio => 'Сохранён audio prompt',
+      WorkspaceSessionType.text => 'Сохранён text prompt',
+      WorkspaceSessionType.helper => 'Сохранён helper context',
+      WorkspaceSessionType.workflow => 'Сохранён workflow route',
+    };
   }
 
   MemoryProject? _projectForSession(WorkspaceSession session) {
@@ -3038,15 +3087,25 @@ class _CreativeWorkspaceStage extends StatelessWidget {
                   OutlinedButton.icon(
                     onPressed: () => onWorkspaceExecution(
                       const _WorkspaceActionSpec(
-                        'Copy final prompt',
+                        'Скопировать всё',
                         Icons.copy_rounded,
                         false,
                         copyOutput: true,
+                        copyTarget: _PromptCopyTarget.all,
                       ),
-                      _productionPromptForSession(session),
+                      _promptForAction(
+                        session,
+                        const _WorkspaceActionSpec(
+                          'Скопировать всё',
+                          Icons.copy_rounded,
+                          false,
+                          copyOutput: true,
+                          copyTarget: _PromptCopyTarget.all,
+                        ),
+                      ),
                     ),
                     icon: const Icon(Icons.copy_rounded),
-                    label: const Text('Copy final prompt'),
+                    label: const Text('Скопировать всё'),
                   ),
                   OutlinedButton.icon(
                     onPressed: () => _copyText(context, session.output),
@@ -3113,18 +3172,49 @@ class _WorkspaceOutputBlock extends StatelessWidget {
   }
 }
 
-String _productionPromptForSession(_CreativeSession session) {
-  final blocks = session.promptBlocks.isEmpty
-      ? session.output
-      : session.promptBlocks.join('\n\n');
-  final modeNote = switch (session.mode) {
-    _WorkMode.text => 'Production mode: AI Writer IDE',
-    _WorkMode.design => 'Production mode: Image Direction Lab',
-    _WorkMode.video => 'Production mode: Cinematic Production Table',
-    _WorkMode.audio => 'Production mode: Sound Lab',
-    _ => 'Production mode: AI Operator OS',
+({String ru, String en, String full}) _productionPromptParts(
+  _CreativeSession session,
+) {
+  final task = session.sourceTask.trim().isEmpty
+      ? session.title
+      : session.sourceTask.trim();
+  final ru = switch (session.mode) {
+    _WorkMode.text =>
+      'Описание: текстовый рабочий промпт.\nЗадача: $task.\nЗаполни формат ответа, стиль, ограничения и ожидаемый результат. Использовать для ChatGPT, Claude или Gemini.',
+    _WorkMode.design =>
+      'Описание: промпт для изображения. Пользователь понимает задачу по-русски, production prompt лучше копировать на английском в Leonardo / Midjourney / Flux.\nЗаполнено: объект, композиция, свет, стиль, камера, палитра, negative prompt.',
+    _WorkMode.video =>
+      'Описание: промпт для кинематографичной видео-сцены. Лучше работает на английском в Kling / Veo / Runway.\nЗаполнено: сцена, камера, blocking, свет, mood, timing, финальный жест, negative prompt.',
+    _WorkMode.audio =>
+      'Описание: промпт для музыки, voiceover или дубляжа. Можно использовать RU для понимания и EN для Suno / ElevenLabs / Udio.\nЗаполнено: цель, mood, tempo, genre, voice style, структура, negative notes.',
+    _ => 'Описание: рабочий production prompt для AI Operator OS.',
   };
-  return '$modeNote\n\n${session.output}\n\nExecution prompt:\n$blocks';
+  final en = switch (session.mode) {
+    _WorkMode.text =>
+      'Write a structured response about: $task.\nStyle: clear, practical, direct, no filler.\nFormat: title, key points, final version, and next action.\nConstraints: keep the answer useful for production work, avoid vague generic advice.\nExpected output: a polished text the user can edit or publish.',
+    _WorkMode.design =>
+      'Create a high-quality image for: $task.\nSubject: clear main subject, readable silhouette, intentional details.\nComposition: strong focal point, balanced negative space, cover-art safe zones.\nLighting: cinematic key light, soft contrast, subtle rim highlights.\nStyle: premium editorial / music cover art, polished but not generic.\nCamera/Lens: 50mm editorial framing, sharp subject, controlled depth of field.\nColor palette: cohesive, memorable, matching the mood of the track or brand.\nNegative prompt: clutter, unreadable text, warped typography, extra limbs, bad hands, low-res, noisy artifacts, generic stock look.',
+    _WorkMode.video =>
+      'Create a cinematic video scene for: $task.\nScene: establish the environment and emotional stakes in one clear visual idea.\nCamera movement: motivated slow push-in or lateral tracking, stable framing, no random zooms.\nBlocking: subject moves with purpose, background action supports the main beat.\nLighting: cinematic practical light, atmospheric depth, controlled highlights.\nMood: focused, immersive, premium, not stock footage.\nTiming: 5-8 seconds, clear beginning, visual turn, final gesture.\nFinal gesture: end on a readable action or striking final frame.\nNegative prompt: shaky camera, incoherent motion, overcutting, flicker, morphing faces, glossy stock look, random objects.',
+    _WorkMode.audio =>
+      'Create audio for: $task.\nGoal: produce a usable voice/music/sound design direction.\nMood: focused, emotional, controlled.\nTempo: medium, steady, with natural dynamic movement.\nGenre: choose a style that supports the content without overpowering it.\nVoice style: clear, warm, confident, natural pacing, no exaggerated acting.\nStructure: intro cue, main phrase/theme, short pause, final resolve.\nNegative notes: avoid harsh noise, overcompression, muddy mix, robotic pronunciation, generic trailer sound.',
+    _ => session.output,
+  };
+  return (ru: ru, en: en, full: '$ru\n\nEN production prompt:\n$en');
+}
+
+String _productionPromptForSession(_CreativeSession session) {
+  return _productionPromptParts(session).full;
+}
+
+String _promptForAction(_CreativeSession session, _WorkspaceActionSpec action) {
+  final parts = _productionPromptParts(session);
+  return switch (action.copyTarget) {
+    _PromptCopyTarget.ru => parts.ru,
+    _PromptCopyTarget.en => parts.en,
+    _PromptCopyTarget.all => parts.full,
+    null => parts.full,
+  };
 }
 
 class _WorkspaceModeBoard extends StatelessWidget {
@@ -3188,7 +3278,7 @@ class _WorkspaceModeBoard extends StatelessWidget {
                         onPressed: () => _runWorkspaceAction(
                           context,
                           action,
-                          _productionPromptForSession(session),
+                          _promptForAction(session, action),
                           onExecute,
                         ),
                         icon: Icon(action.icon),
@@ -3198,7 +3288,7 @@ class _WorkspaceModeBoard extends StatelessWidget {
                         onPressed: () => _runWorkspaceAction(
                           context,
                           action,
-                          _productionPromptForSession(session),
+                          _promptForAction(session, action),
                           onExecute,
                         ),
                         icon: Icon(action.icon),
@@ -3351,28 +3441,29 @@ class _WorkspaceBoardSpec {
         ],
         actions: [
           _WorkspaceActionSpec(
-            'Continue in ChatGPT',
+            'Открыть ChatGPT',
             Icons.open_in_new_rounded,
             true,
             toolId: 'chatgpt',
           ),
           _WorkspaceActionSpec(
-            'Open Claude',
+            'Открыть Claude',
             Icons.open_in_new_rounded,
             false,
             toolId: 'claude',
           ),
           _WorkspaceActionSpec(
-            'Open Gemini',
+            'Открыть Gemini',
             Icons.open_in_new_rounded,
             false,
             toolId: 'gemini',
           ),
           _WorkspaceActionSpec(
-            'Copy production prompt',
+            'Скопировать промпт',
             Icons.copy_rounded,
             false,
             copyOutput: true,
+            copyTarget: _PromptCopyTarget.all,
           ),
         ],
       ),
@@ -3404,46 +3495,61 @@ class _WorkspaceBoardSpec {
         ],
         actions: [
           _WorkspaceActionSpec(
-            'Generate prompt',
+            'Создать image prompt',
             Icons.auto_awesome_rounded,
             true,
             flowEvent: 'generate_prompt',
           ),
           _WorkspaceActionSpec(
-            'Refine prompt',
+            'Улучшить prompt',
             Icons.auto_fix_high_rounded,
             false,
             flowEvent: 'refine_prompt',
           ),
           _WorkspaceActionSpec(
-            'Open Leonardo',
+            'Открыть Leonardo',
             Icons.open_in_new_rounded,
             false,
             toolId: 'leonardo',
           ),
           _WorkspaceActionSpec(
-            'Open Midjourney',
+            'Открыть Midjourney',
             Icons.open_in_new_rounded,
             false,
             toolId: 'midjourney',
           ),
           _WorkspaceActionSpec(
-            'Open Flux',
+            'Открыть Flux',
             Icons.open_in_new_rounded,
             false,
             toolId: 'flux-playground',
           ),
           _WorkspaceActionSpec(
-            'Open Playground',
+            'Открыть Playground',
             Icons.open_in_new_rounded,
             false,
             toolId: 'flux-playground',
           ),
           _WorkspaceActionSpec(
-            'Copy final prompt',
+            'Скопировать рабочий EN-промпт',
             Icons.copy_rounded,
             false,
             copyOutput: true,
+            copyTarget: _PromptCopyTarget.en,
+          ),
+          _WorkspaceActionSpec(
+            'Скопировать RU-описание',
+            Icons.description_outlined,
+            false,
+            copyOutput: true,
+            copyTarget: _PromptCopyTarget.ru,
+          ),
+          _WorkspaceActionSpec(
+            'Скопировать всё',
+            Icons.copy_all_rounded,
+            false,
+            copyOutput: true,
+            copyTarget: _PromptCopyTarget.all,
           ),
         ],
       ),
@@ -3476,40 +3582,55 @@ class _WorkspaceBoardSpec {
         ],
         actions: [
           _WorkspaceActionSpec(
-            'Generate prompt',
+            'Создать video scene prompt',
             Icons.play_arrow_rounded,
             true,
             flowEvent: 'generate_prompt',
           ),
           _WorkspaceActionSpec(
-            'Refine prompt',
+            'Улучшить prompt',
             Icons.auto_fix_high_rounded,
             false,
             flowEvent: 'refine_prompt',
           ),
           _WorkspaceActionSpec(
-            'Open Kling',
+            'Открыть Kling',
             Icons.open_in_new_rounded,
             false,
             toolId: 'kling',
           ),
           _WorkspaceActionSpec(
-            'Open Veo',
+            'Открыть Veo',
             Icons.open_in_new_rounded,
             false,
             toolId: 'veo',
           ),
           _WorkspaceActionSpec(
-            'Open Runway',
+            'Открыть Runway',
             Icons.open_in_new_rounded,
             false,
             toolId: 'runway',
           ),
           _WorkspaceActionSpec(
-            'Copy final prompt',
+            'Скопировать рабочий EN-промпт',
             Icons.copy_rounded,
             false,
             copyOutput: true,
+            copyTarget: _PromptCopyTarget.en,
+          ),
+          _WorkspaceActionSpec(
+            'Скопировать RU-описание',
+            Icons.description_outlined,
+            false,
+            copyOutput: true,
+            copyTarget: _PromptCopyTarget.ru,
+          ),
+          _WorkspaceActionSpec(
+            'Скопировать всё',
+            Icons.copy_all_rounded,
+            false,
+            copyOutput: true,
+            copyTarget: _PromptCopyTarget.all,
           ),
           _WorkspaceActionSpec(
             'Continue flow',
@@ -3548,28 +3669,43 @@ class _WorkspaceBoardSpec {
         ],
         actions: [
           _WorkspaceActionSpec(
-            'Open ElevenLabs',
+            'Открыть ElevenLabs',
             Icons.open_in_new_rounded,
             true,
             toolId: 'elevenlabs',
           ),
           _WorkspaceActionSpec(
-            'Open Suno',
+            'Открыть Suno',
             Icons.open_in_new_rounded,
             false,
             toolId: 'suno',
           ),
           _WorkspaceActionSpec(
-            'Generate prompt',
+            'Создать audio prompt',
             Icons.auto_awesome_rounded,
             false,
             flowEvent: 'generate_prompt',
           ),
           _WorkspaceActionSpec(
-            'Copy final prompt',
+            'Скопировать рабочий EN-промпт',
             Icons.copy_rounded,
             false,
             copyOutput: true,
+            copyTarget: _PromptCopyTarget.en,
+          ),
+          _WorkspaceActionSpec(
+            'Скопировать RU-описание',
+            Icons.description_outlined,
+            false,
+            copyOutput: true,
+            copyTarget: _PromptCopyTarget.ru,
+          ),
+          _WorkspaceActionSpec(
+            'Скопировать всё',
+            Icons.copy_all_rounded,
+            false,
+            copyOutput: true,
+            copyTarget: _PromptCopyTarget.all,
           ),
           _WorkspaceActionSpec(
             'Create dubbing chain',
@@ -3597,6 +3733,8 @@ class _WorkspaceBoardBlockSpec {
   final String value;
 }
 
+enum _PromptCopyTarget { ru, en, all }
+
 class _WorkspaceActionSpec {
   const _WorkspaceActionSpec(
     this.label,
@@ -3605,6 +3743,7 @@ class _WorkspaceActionSpec {
     this.toolId,
     this.copyOutput = false,
     this.flowEvent,
+    this.copyTarget,
   });
 
   final String label;
@@ -3613,6 +3752,7 @@ class _WorkspaceActionSpec {
   final String? toolId;
   final bool copyOutput;
   final String? flowEvent;
+  final _PromptCopyTarget? copyTarget;
 }
 
 void _runWorkspaceAction(
