@@ -5,6 +5,7 @@ import '../ai_operator_app.dart';
 import '../data/seed_free_credits.dart';
 import '../models/ai_agent.dart';
 import '../models/ai_tool.dart';
+import '../models/monetization.dart';
 import '../models/routing_recommendation.dart';
 import '../models/use_case.dart';
 import '../models/workflow_template.dart';
@@ -1226,28 +1227,28 @@ class _HistoryPanel extends StatelessWidget {
               const _PanelLabel('БЫСТРЫЕ СЦЕНАРИИ'),
               const _SectionHint('готовые планы работы'),
               _HistoryItem(
-                title: 'AI Short Video Factory',
+                title: 'Фабрика коротких AI-видео',
                 subtitle: 'сценарий',
                 type: 'сценарий',
                 icon: Icons.schema_outlined,
                 onTap: () => onOpenWorkflow('ai-short-video-factory'),
               ),
               _HistoryItem(
-                title: 'Music Promo Pack',
+                title: 'Промо-пак музыкального релиза',
                 subtitle: 'сценарий',
                 type: 'сценарий',
                 icon: Icons.queue_music_outlined,
                 onTap: () => onOpenWorkflow('music-release-promo-pack'),
               ),
               _HistoryItem(
-                title: 'Storyboard Builder',
+                title: 'Конструктор сториборда',
                 subtitle: 'сценарий',
                 type: 'сценарий',
                 icon: Icons.view_timeline_outlined,
                 onTap: () => onOpenWorkflow('cinematic-scene-builder'),
               ),
               _HistoryItem(
-                title: 'Trailer Builder',
+                title: 'Конструктор трейлера',
                 subtitle: 'сценарий',
                 type: 'сценарий',
                 icon: Icons.local_movies_outlined,
@@ -1353,7 +1354,7 @@ class _HistoryPanel extends StatelessWidget {
               const SizedBox(height: 10),
               const _PanelLabel('ПЛАНЫ РАБОТЫ'),
               _HistoryItem(
-                title: 'AI Short Video Factory',
+                title: 'Фабрика коротких AI-видео',
                 subtitle: 'сценарий',
                 type: 'сценарий',
                 icon: Icons.schema_outlined,
@@ -2059,8 +2060,8 @@ class _WorkflowStage extends StatelessWidget {
                 children: [
                   _SoftBadge(workflow!.category),
                   _SoftBadge(workflow!.estimatedTime),
-                  _SoftBadge(workflow!.automationLevel.name),
-                  _SoftBadge(workflow!.monetizationPotential.name),
+                  _SoftBadge(workflow!.automationLevel.label),
+                  _SoftBadge(workflow!.monetizationPotential.label),
                 ],
               ),
               const SizedBox(height: 18),
@@ -2201,7 +2202,7 @@ class _AgentStage extends StatelessWidget {
                     ],
                   ),
                 ),
-                _SoftBadge(agent!.status.name),
+                _SoftBadge(agent!.status.label),
               ],
             ),
             const SizedBox(height: 14),
@@ -2467,7 +2468,7 @@ class _UseCaseStage extends StatelessWidget {
               runSpacing: 7,
               children: [
                 _SoftBadge(useCase!.category),
-                _SoftBadge(useCase!.monetizationPotential.name),
+                _SoftBadge(useCase!.monetizationPotential.label),
                 _SoftBadge(
                   useCase!.requiresHumanReview
                       ? 'проверка человеком'
@@ -3077,7 +3078,7 @@ class _SettingsPanel extends StatelessWidget {
               children: [
                 _NextActionHint(mode: mode, activeViewType: activeViewType),
                 const SizedBox(height: 8),
-                _MetaLine('Режим OS', settings.operatorMode.name),
+                _MetaLine('Режим OS', settings.operatorMode.label),
                 _MetaLine('Ollama', settings.ollamaBaseUrl),
                 if (seedFreeCredits.isNotEmpty)
                   _MetaLine('Бесплатно', seedFreeCredits.first.service),

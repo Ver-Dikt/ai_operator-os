@@ -6,6 +6,16 @@ import '../models/ai_tool.dart';
 
 enum OperatorMode { local, cloud, hybrid }
 
+extension OperatorModeLabel on OperatorMode {
+  String get label {
+    return switch (this) {
+      OperatorMode.local => 'Local — локально',
+      OperatorMode.cloud => 'Cloud — облачные сервисы',
+      OperatorMode.hybrid => 'Hybrid — смешанный режим',
+    };
+  }
+}
+
 enum AppDestination {
   commandCenter,
   tools,

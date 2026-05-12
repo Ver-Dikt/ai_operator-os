@@ -102,11 +102,15 @@ class SettingsScreen extends StatelessWidget {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    for (final accent in ['cyan', 'amber', 'rose'])
+                    for (final accent in [
+                      ('cyan', 'Голубой'),
+                      ('amber', 'Янтарный'),
+                      ('rose', 'Розовый'),
+                    ])
                       ChoiceChip(
-                        label: Text(accent),
-                        selected: settings.themeAccent == accent,
-                        onSelected: (_) => settings.setThemeAccent(accent),
+                        label: Text(accent.$2),
+                        selected: settings.themeAccent == accent.$1,
+                        onSelected: (_) => settings.setThemeAccent(accent.$1),
                       ),
                   ],
                 ),
@@ -183,7 +187,7 @@ class _ModeTile extends StatelessWidget {
         },
         items: [
           for (final mode in OperatorMode.values)
-            DropdownMenuItem(value: mode, child: Text(mode.name)),
+            DropdownMenuItem(value: mode, child: Text(mode.label)),
         ],
       ),
     );

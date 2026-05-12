@@ -6,6 +6,39 @@ enum CostLevel { free, low, medium, high, mixed }
 
 enum AutomationLevel { manual, assisted, semiAutomated, automated }
 
+extension WorkflowDifficultyLabel on WorkflowDifficulty {
+  String get label {
+    return switch (this) {
+      WorkflowDifficulty.easy => 'Легко',
+      WorkflowDifficulty.medium => 'Средне',
+      WorkflowDifficulty.advanced => 'Сложно',
+    };
+  }
+}
+
+extension CostLevelLabel on CostLevel {
+  String get label {
+    return switch (this) {
+      CostLevel.free => 'Бесплатно',
+      CostLevel.low => 'Недорого',
+      CostLevel.medium => 'Средний бюджет',
+      CostLevel.high => 'Высокий бюджет',
+      CostLevel.mixed => 'Бесплатно / Pro / Local',
+    };
+  }
+}
+
+extension AutomationLevelLabel on AutomationLevel {
+  String get label {
+    return switch (this) {
+      AutomationLevel.manual => 'Ручной режим',
+      AutomationLevel.assisted => 'С подсказками AI',
+      AutomationLevel.semiAutomated => 'Полуавтоматически',
+      AutomationLevel.automated => 'Автоматически',
+    };
+  }
+}
+
 class WorkflowStep {
   const WorkflowStep({
     required this.id,

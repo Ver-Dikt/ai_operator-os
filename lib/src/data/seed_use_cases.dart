@@ -4,10 +4,10 @@ import '../models/use_case.dart';
 const seedUseCases = <UseCase>[
   UseCase(
     id: 'make-10-reels-for-track',
-    title: 'Make 10 Reels for a music track',
+    title: 'Сделать 10 Reels для трека',
     description:
-        'Turn one song into a repeatable short-video batch: hooks, scenes, prompts, captions and publishing plan.',
-    category: 'Music Promo',
+        'Превратить одну песню в повторяемую партию коротких видео: хуки, сцены, промпты, подписи и план публикации.',
+    category: 'Музыкальное промо',
     recommendedAgentIds: [
       'music-promo-agent',
       'content-factory-agent',
@@ -25,10 +25,10 @@ const seedUseCases = <UseCase>[
   ),
   UseCase(
     id: 'find-ai-freelance-jobs',
-    title: 'Find AI freelance tasks',
+    title: 'Найти AI-задачи для фриланса',
     description:
-        'Use research and scout agents to find demand, package offers and validate what clients already pay for.',
-    category: 'Freelance',
+        'Использовать исследование и AI-помощников, чтобы найти спрос, упаковать офферы и проверить, за что клиенты уже платят.',
+    category: 'Фриланс',
     recommendedAgentIds: [
       'research-agent',
       'free-stack-agent',
@@ -43,10 +43,10 @@ const seedUseCases = <UseCase>[
   ),
   UseCase(
     id: 'restore-old-photos-service',
-    title: 'Restore and animate old photos as a service',
+    title: 'Восстановить и оживить старые фото как услугу',
     description:
-        'Create a local service offer around restoration, upscaling, subtle animation and client delivery.',
-    category: 'Photo Restoration',
+        'Собрать локальную услугу вокруг реставрации, upscale, аккуратной анимации и доставки клиенту.',
+    category: 'Реставрация фото',
     recommendedAgentIds: [
       'tool-router-agent',
       'prompt-engineer-agent',
@@ -61,10 +61,10 @@ const seedUseCases = <UseCase>[
   ),
   UseCase(
     id: 'video-localization',
-    title: 'Localize video content',
+    title: 'Локализовать видео-контент',
     description:
-        'Transcribe, translate, voice, caption and QA a video for another market.',
-    category: 'Localization',
+        'Транскрибировать, перевести, озвучить, добавить субтитры и проверить видео для другого рынка.',
+    category: 'Локализация',
     recommendedAgentIds: [
       'research-agent',
       'qa-critic-agent',
@@ -79,10 +79,10 @@ const seedUseCases = <UseCase>[
   ),
   UseCase(
     id: 'find-ai-automation-clients',
-    title: 'Find clients for AI automation',
+    title: 'Найти клиентов для AI-автоматизации',
     description:
-        'Research niches, define automation offers and build an n8n/Make/Zapier demo workflow.',
-    category: 'Sales',
+        'Исследовать ниши, сформулировать офферы автоматизации и собрать демо-план n8n/Make/Zapier.',
+    category: 'Продажи',
     recommendedAgentIds: [
       'research-agent',
       'automation-architect-agent',
@@ -97,9 +97,9 @@ const seedUseCases = <UseCase>[
   ),
   UseCase(
     id: 'build-ai-influencer',
-    title: 'Build an AI influencer',
+    title: 'Собрать AI-инфлюенсера',
     description:
-        'Design persona, visual identity, content pillars, generation stack and publishing cadence.',
+        'Спроектировать персонажа, визуальную айдентику, контент-рубрики, стек генерации и ритм публикаций.',
     category: 'AI Influencer',
     recommendedAgentIds: [
       'content-factory-agent',
@@ -124,10 +124,10 @@ const seedUseCases = <UseCase>[
   ),
   UseCase(
     id: 'translate-and-voice-content',
-    title: 'Translate and voice content',
+    title: 'Перевести и озвучить контент',
     description:
-        'Turn source material into localized scripts, voiceover, captions and publishing assets.',
-    category: 'Localization',
+        'Превратить исходный материал в локализованные сценарии, voiceover, подписи и материалы для публикации.',
+    category: 'Локализация',
     recommendedAgentIds: ['prompt-engineer-agent', 'qa-critic-agent'],
     recommendedToolIds: ['whisper', 'elevenlabs', 'cartesia', 'canva'],
     recommendedWorkflowIds: ['ai-tool-finder'],
@@ -138,10 +138,10 @@ const seedUseCases = <UseCase>[
   ),
   UseCase(
     id: 'competitor-analysis',
-    title: 'Make competitor analysis',
+    title: 'Сделать анализ конкурентов',
     description:
-        'Research competitors, summarize positioning, compare offers and produce a decision matrix.',
-    category: 'Business Analysis',
+        'Исследовать конкурентов, собрать позиционирование, сравнить офферы и подготовить матрицу решения.',
+    category: 'Бизнес-анализ',
     recommendedAgentIds: ['research-agent', 'qa-critic-agent'],
     recommendedToolIds: ['perplexity', 'notebooklm', 'chatgpt', 'claude'],
     recommendedWorkflowIds: ['ai-tool-finder'],
@@ -152,10 +152,10 @@ const seedUseCases = <UseCase>[
   ),
   UseCase(
     id: 'build-n8n-workflow',
-    title: 'Build an n8n workflow',
+    title: 'Собрать план работы n8n',
     description:
-        'Map a business process into triggers, actions, human checks and failure handling.',
-    category: 'Automation',
+        'Разложить бизнес-процесс на триггеры, действия, проверки человеком и обработку сбоев.',
+    category: 'Автоматизация',
     recommendedAgentIds: ['automation-architect-agent', 'qa-critic-agent'],
     recommendedToolIds: ['n8n', 'make', 'zapier', 'flowise'],
     recommendedWorkflowIds: ['local-ai-setup'],
@@ -166,10 +166,10 @@ const seedUseCases = <UseCase>[
   ),
   UseCase(
     id: 'build-prompt-pack-for-sale',
-    title: 'Build a prompt pack for sale',
+    title: 'Собрать пак промптов для продажи',
     description:
-        'Package prompts, examples, QA criteria and delivery format for a validated niche.',
-    category: 'Client Work',
+        'Упаковать промпты, примеры, критерии QA и формат доставки для проверенной ниши.',
+    category: 'Клиентская работа',
     recommendedAgentIds: [
       'prompt-engineer-agent',
       'research-agent',

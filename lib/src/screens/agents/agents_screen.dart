@@ -102,7 +102,7 @@ class _AgentCard extends StatelessWidget {
             spacing: 6,
             runSpacing: 6,
             children: [
-              StatusBadge(label: agent.status.name),
+              StatusBadge(label: agent.status.label),
               if (agent.canUseApi) const StatusBadge(label: 'API позже'),
               if (agent.isLocalCapable) const StatusBadge(label: 'Local'),
             ],

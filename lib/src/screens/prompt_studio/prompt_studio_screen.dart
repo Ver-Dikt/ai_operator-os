@@ -95,9 +95,17 @@ class _PromptCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
+          const Text('Описание', style: TextStyle(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 4),
           Text(prompt.descriptionRu),
           const SizedBox(height: 8),
           _PromptInfo(label: 'Когда использовать', value: prompt.whenToUseRu),
+          _PromptInfo(
+            label: 'Какие переменные заполнить',
+            value: prompt.variables
+                .map((variable) => '{{$variable}}')
+                .join(', '),
+          ),
           _PromptInfo(label: 'RU объяснение', value: prompt.ruExplanation),
           const SizedBox(height: 10),
           const Text(
@@ -107,6 +115,11 @@ class _PromptCard extends StatelessWidget {
           const SizedBox(height: 6),
           SelectableText(prompt.template),
           const SizedBox(height: 10),
+          const Text(
+            'Переменные',
+            style: TextStyle(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 6),
           Wrap(
             spacing: 6,
             runSpacing: 6,
@@ -127,7 +140,7 @@ class _PromptCard extends StatelessWidget {
                   label: const Text('Скопировать EN-промпт'),
                 ),
                 OutlinedButton.icon(
-                  onPressed: () => _copy(context, prompt.ruExplanation),
+                  onPressed: () => _copy(context, prompt.copyRuDescriptionText),
                   icon: const Icon(Icons.translate_rounded),
                   label: const Text('Скопировать RU-описание'),
                 ),

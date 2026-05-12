@@ -19,7 +19,7 @@ class RouterService {
         bestPaidTools: ['Veo', 'Runway', 'Sora'],
         bestFreeTools: ['Kling', 'Pika', 'Kensa'],
         localOptions: ['ComfyUI', 'Stable Diffusion video workflows'],
-        recommendedWorkflow: 'AI Short Video Factory',
+        recommendedWorkflow: 'Фабрика коротких AI-видео',
         estimatedCost: 'Бесплатный тестовый путь, Pro-качество через кредиты',
         workflowId: 'ai-short-video-factory',
         agentIds: [
@@ -49,7 +49,7 @@ class RouterService {
         monetizationIdea:
             'Потенциал для контента или клиентской услуги. Сначала проверь спрос аудитории или клиента.',
         notes: [
-          'Начни с Director Agent перед генерацией.',
+          'Начни с режиссерского AI-помощника перед генерацией.',
           'Используй стабильные кадры и финальный жест для управления вниманием.',
         ],
       );
@@ -65,7 +65,7 @@ class RouterService {
         bestPaidTools: ['Suno Pro', 'Udio paid', 'ElevenLabs'],
         bestFreeTools: ['BandLab', 'Suno free tests', 'Udio free tests'],
         localOptions: ['Локальная DAW + open audio tools'],
-        recommendedWorkflow: 'Music Release Promo Pack',
+        recommendedWorkflow: 'Промо-пак музыкального релиза',
         estimatedCost:
             'План бесплатно, платная генерация только для финального качества',
         workflowId: 'music-release-promo-pack',
@@ -102,7 +102,7 @@ class RouterService {
         bestPaidTools: ['Cursor', 'GitHub Copilot'],
         bestFreeTools: ['ChatGPT free', 'Replit free tier'],
         localOptions: ['Ollama + local coding model'],
-        recommendedWorkflow: 'Flutter Feature Builder',
+        recommendedWorkflow: 'Планировщик Flutter-фичи',
         estimatedCost:
             'Планирование бесплатно, платный IDE-помощник опционально',
         workflowId: 'ai-tool-finder',
@@ -119,7 +119,9 @@ class RouterService {
         automationPotential: 'Помощь в кодинге, ревью человеком обязательно',
         monetizationIdea:
             'Потенциал SaaS или клиентской разработки только после валидации задачи.',
-        notes: ['Используй Code Builder Agent и добавь тесты до UI-полировки.'],
+        notes: [
+          'Используй AI-помощника разработки и добавь тесты до UI-полировки.',
+        ],
       );
     }
     return const RoutingRecommendation(
@@ -127,7 +129,7 @@ class RouterService {
       bestPaidTools: ['ChatGPT', 'Claude', 'Perplexity Pro'],
       bestFreeTools: ['ChatGPT Free', 'Gemini', 'NotebookLM'],
       localOptions: ['Ollama', 'LM Studio', 'Open WebUI'],
-      recommendedWorkflow: 'AI Tool Finder',
+      recommendedWorkflow: 'Подбор AI-инструментов',
       estimatedCost:
           'Начни бесплатно, платный апгрейд только после понятного узкого места',
       workflowId: 'ai-tool-finder',

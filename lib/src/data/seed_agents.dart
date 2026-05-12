@@ -3,15 +3,15 @@ import '../models/ai_agent.dart';
 const seedAgents = <AiAgent>[
   AiAgent(
     id: 'director-agent',
-    name: 'Director Agent',
-    role: 'Cinematic scene planner',
+    name: 'Режиссерский AI-помощник',
+    role: 'Планировщик кинематографичных сцен',
     description:
-        'Turns an idea into dramatic beats, blocking, camera logic and prompt-ready scene plans.',
+        'Превращает идею в драматические биты, блокинг, логику камеры и готовые планы сцен для промптов.',
     avatarEmoji: '🎬',
     systemPrompt:
         'Act as an AI film director. Use restraint, blocking and attention control before visual effects.',
-    inputSchema: 'idea, format, mood, duration, constraints',
-    outputType: 'Scene plan + prompt pack',
+    inputSchema: 'идея, формат, настроение, длительность, ограничения',
+    outputType: 'План сцены + пак промптов',
     recommendedTools: ['google-flow', 'veo', 'kling', 'runway', 'midjourney'],
     canUseInternet: false,
     canUseApi: false,
@@ -20,15 +20,15 @@ const seedAgents = <AiAgent>[
   ),
   AiAgent(
     id: 'tool-router-agent',
-    name: 'Tool Router Agent',
-    role: 'AI stack selector',
+    name: 'AI-помощник по выбору инструментов',
+    role: 'Подбор AI-стека',
     description:
-        'Chooses the best paid, free, fast and local tools for a user task.',
+        'Выбирает лучшие платные, бесплатные, быстрые и локальные инструменты под задачу.',
     avatarEmoji: '🧭',
     systemPrompt:
         'Route tasks to tools by quality, speed, cost and platform constraints.',
-    inputSchema: 'task, budget, platform, quality target',
-    outputType: 'Tool stack recommendation',
+    inputSchema: 'задача, бюджет, платформа, целевое качество',
+    outputType: 'Рекомендация стека инструментов',
     recommendedTools: ['chatgpt', 'perplexity', 'openrouter', 'ollama'],
     canUseInternet: false,
     canUseApi: false,
@@ -37,15 +37,15 @@ const seedAgents = <AiAgent>[
   ),
   AiAgent(
     id: 'free-stack-agent',
-    name: 'Free Stack Agent',
-    role: 'Budget optimizer',
+    name: 'AI-помощник бесплатного стека',
+    role: 'Оптимизация бюджета',
     description:
-        'Finds the cheapest or free path with local alternatives and free credit checks.',
+        'Находит самый дешевый или бесплатный путь с локальными альтернативами и проверкой free credits.',
     avatarEmoji: '💸',
     systemPrompt:
         'Prefer no-card, local and freemium options. Warn about watermarks and limits.',
-    inputSchema: 'task, budget, deadline',
-    outputType: 'Free/cheap production plan',
+    inputSchema: 'задача, бюджет, срок',
+    outputType: 'Бесплатный или недорогой production-план',
     recommendedTools: ['ollama', 'lm-studio', 'pika', 'kling', 'notebooklm'],
     canUseInternet: false,
     canUseApi: false,
@@ -54,15 +54,15 @@ const seedAgents = <AiAgent>[
   ),
   AiAgent(
     id: 'content-factory-agent',
-    name: 'Content Factory Agent',
-    role: 'Batch content producer',
+    name: 'AI-помощник фабрики контента',
+    role: 'Пакетное производство контента',
     description:
-        'Creates repeatable Reels/TikTok/Shorts pipelines from one idea.',
+        'Создает повторяемые пайплайны Reels/TikTok/Shorts из одной идеи.',
     avatarEmoji: '🏭',
     systemPrompt:
         'Turn one idea into hooks, scripts, shots, prompts, captions and publishing plan.',
-    inputSchema: 'idea, audience, format, batch size',
-    outputType: 'Batch content pipeline',
+    inputSchema: 'идея, аудитория, формат, размер партии',
+    outputType: 'Пайплайн пакетного контента',
     recommendedTools: ['chatgpt', 'kling', 'canva', 'elevenlabs', 'suno'],
     canUseInternet: false,
     canUseApi: false,
@@ -71,15 +71,15 @@ const seedAgents = <AiAgent>[
   ),
   AiAgent(
     id: 'prompt-engineer-agent',
-    name: 'Prompt Engineer Agent',
-    role: 'Prompt optimizer',
+    name: 'AI-помощник по промптам',
+    role: 'Оптимизация промптов',
     description:
-        'Improves prompts for video, image, music, coding, research and agents.',
+        'Улучшает промпты для видео, изображений, музыки, кода, исследования и AI-помощников.',
     avatarEmoji: '✍️',
     systemPrompt:
         'Clarify intent, remove vague language and add constraints that improve model behavior.',
-    inputSchema: 'draft prompt, target model, desired output',
-    outputType: 'Improved prompt + variables',
+    inputSchema: 'черновой промпт, целевая модель, нужный результат',
+    outputType: 'Улучшенный промпт + переменные',
     recommendedTools: ['chatgpt', 'claude', 'midjourney', 'veo'],
     canUseInternet: false,
     canUseApi: false,
@@ -88,15 +88,15 @@ const seedAgents = <AiAgent>[
   ),
   AiAgent(
     id: 'music-promo-agent',
-    name: 'Music Promo Agent',
-    role: 'Release campaign planner',
+    name: 'AI-помощник музыкального промо',
+    role: 'Планирование релизной кампании',
     description:
-        'Builds teaser, visual and short-form content plans for tracks.',
+        'Собирает тизеры, визуальную систему и short-form план для треков.',
     avatarEmoji: '🎧',
     systemPrompt:
         'Translate song mood into visual identity, hooks, clips and publishing cadence.',
-    inputSchema: 'song mood, genre, release date, audience',
-    outputType: 'Promo pack',
+    inputSchema: 'настроение трека, жанр, дата релиза, аудитория',
+    outputType: 'Промо-пак',
     recommendedTools: ['suno', 'udio', 'bandlab', 'canva', 'kling'],
     canUseInternet: false,
     canUseApi: false,
@@ -105,15 +105,15 @@ const seedAgents = <AiAgent>[
   ),
   AiAgent(
     id: 'research-agent',
-    name: 'Research Agent',
-    role: 'Tool and idea researcher',
+    name: 'AI-помощник исследования',
+    role: 'Исследование инструментов и идей',
     description:
-        'Compares tools, collects options and turns research into decisions.',
+        'Сравнивает инструменты, собирает варианты и превращает исследование в решения.',
     avatarEmoji: '🔎',
     systemPrompt:
         'Compare options by evidence, cost, speed, reliability and fit.',
-    inputSchema: 'topic, constraints, decision criteria',
-    outputType: 'Comparison matrix',
+    inputSchema: 'тема, ограничения, критерии решения',
+    outputType: 'Матрица сравнения',
     recommendedTools: [
       'perplexity',
       'elicit',
@@ -127,14 +127,15 @@ const seedAgents = <AiAgent>[
   ),
   AiAgent(
     id: 'automation-architect-agent',
-    name: 'Automation Architect Agent',
-    role: 'n8n/Make/Zapier workflow designer',
-    description: 'Designs automations, triggers, tools and handoff points.',
+    name: 'AI-помощник автоматизации',
+    role: 'Дизайнер планов работы n8n/Make/Zapier',
+    description:
+        'Проектирует автоматизации, триггеры, инструменты и точки передачи.',
     avatarEmoji: '🔁',
     systemPrompt:
         'Map manual work into reliable automation steps with failure handling.',
-    inputSchema: 'goal, apps, trigger, outputs',
-    outputType: 'Automation blueprint',
+    inputSchema: 'цель, приложения, триггер, результаты',
+    outputType: 'Схема автоматизации',
     recommendedTools: ['n8n', 'make', 'zapier', 'flowise'],
     canUseInternet: false,
     canUseApi: true,
@@ -143,15 +144,14 @@ const seedAgents = <AiAgent>[
   ),
   AiAgent(
     id: 'code-builder-agent',
-    name: 'Code Builder Agent',
-    role: 'Feature planner',
-    description:
-        'Breaks Flutter/backend features into small implementation steps.',
+    name: 'AI-помощник разработки',
+    role: 'Планирование фич',
+    description: 'Разбивает Flutter/backend-фичи на небольшие шаги реализации.',
     avatarEmoji: '💻',
     systemPrompt:
         'Produce implementation plans with tests, risk areas and file boundaries.',
-    inputSchema: 'feature, platform, constraints',
-    outputType: 'Engineering task plan',
+    inputSchema: 'фича, платформа, ограничения',
+    outputType: 'Инженерный план задачи',
     recommendedTools: ['cursor', 'copilot', 'windsurf', 'github-copilot'],
     canUseInternet: false,
     canUseApi: false,
@@ -160,15 +160,15 @@ const seedAgents = <AiAgent>[
   ),
   AiAgent(
     id: 'qa-critic-agent',
-    name: 'QA Critic Agent',
-    role: 'Result reviewer',
+    name: 'AI-помощник QA',
+    role: 'Проверка результата',
     description:
-        'Critiques outputs and suggests concrete fixes before publishing.',
+        'Критикует результаты и предлагает конкретные исправления перед публикацией.',
     avatarEmoji: '🧪',
     systemPrompt:
         'Find failures, weak assumptions, UX gaps and missing verification.',
-    inputSchema: 'output, goal, acceptance criteria',
-    outputType: 'Review findings',
+    inputSchema: 'результат, цель, критерии приемки',
+    outputType: 'Замечания ревью',
     recommendedTools: ['chatgpt', 'claude', 'perplexity'],
     canUseInternet: false,
     canUseApi: false,

@@ -94,8 +94,8 @@ class _WorkflowCard extends StatelessWidget {
             runSpacing: 6,
             children: [
               StatusBadge(label: workflow.category),
-              StatusBadge(label: workflow.difficulty.name),
-              StatusBadge(label: workflow.costLevel.name),
+              StatusBadge(label: workflow.difficulty.label),
+              StatusBadge(label: workflow.costLevel.label),
               StatusBadge(label: workflow.estimatedTime),
             ],
           ),

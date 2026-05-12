@@ -14,9 +14,9 @@ enum RevenueModel {
 extension MonetizationPotentialLabel on MonetizationPotential {
   String get label {
     return switch (this) {
-      MonetizationPotential.low => 'Low potential',
-      MonetizationPotential.medium => 'Medium potential',
-      MonetizationPotential.high => 'High potential',
+      MonetizationPotential.low => 'Низкий потенциал',
+      MonetizationPotential.medium => 'Средний потенциал',
+      MonetizationPotential.high => 'Высокий потенциал',
     };
   }
 }
@@ -24,14 +24,14 @@ extension MonetizationPotentialLabel on MonetizationPotential {
 extension RevenueModelLabel on RevenueModel {
   String get label {
     return switch (this) {
-      RevenueModel.freelance => 'Freelance',
-      RevenueModel.agencyService => 'Agency service',
-      RevenueModel.contentMonetization => 'Content monetization',
-      RevenueModel.templateSales => 'Template sales',
-      RevenueModel.affiliate => 'Affiliate',
-      RevenueModel.jobSearch => 'Job search',
-      RevenueModel.saasIdea => 'SaaS idea',
-      RevenueModel.localService => 'Local service',
+      RevenueModel.freelance => 'Фриланс',
+      RevenueModel.agencyService => 'Услуга агентства',
+      RevenueModel.contentMonetization => 'Монетизация контента',
+      RevenueModel.templateSales => 'Продажа шаблонов',
+      RevenueModel.affiliate => 'Партнерские ссылки',
+      RevenueModel.jobSearch => 'Поиск работы',
+      RevenueModel.saasIdea => 'SaaS-идея',
+      RevenueModel.localService => 'Локальная услуга',
     };
   }
 }

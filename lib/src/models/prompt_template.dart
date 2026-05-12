@@ -54,4 +54,20 @@ class PromptTemplate {
       template,
     ].join('\n');
   }
+
+  String get copyRuDescriptionText {
+    return [
+      'Описание:',
+      descriptionRu,
+      '',
+      'Когда использовать:',
+      whenToUseRu,
+      '',
+      'Какие переменные заполнить:',
+      variables.map((variable) => '{{$variable}}').join(', '),
+      '',
+      'RU объяснение:',
+      ruExplanation,
+    ].join('\n');
+  }
 }

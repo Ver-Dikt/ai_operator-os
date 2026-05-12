@@ -81,7 +81,7 @@ class _HeroCopy extends StatelessWidget {
             border: Border.all(color: const Color(0xFF275B55)),
           ),
           child: const Text(
-            'AI tool stack manager',
+            'Менеджер AI-стека',
             style: TextStyle(
               color: Color(0xFF9CF5E2),
               fontSize: 12,
@@ -168,14 +168,14 @@ class _BentoStats extends StatelessWidget {
             _BentoTile(
               width: itemWidth,
               height: itemHeight,
-              label: 'Preview',
+              label: 'Демо-режим',
               value: 'Live',
               icon: Icons.sensors_rounded,
             ),
             _BentoTile(
               width: itemWidth,
               height: itemHeight,
-              label: 'Stack',
+              label: 'Стек',
               value: 'Web',
               icon: Icons.layers_rounded,
             ),

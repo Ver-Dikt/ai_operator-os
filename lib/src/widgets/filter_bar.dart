@@ -51,7 +51,7 @@ class FilterBar extends StatelessWidget {
             children: tags.map((tag) {
               final selected = selectedTag == tag;
               return _FilterPill(
-                label: tag == 'all' ? 'all tags' : tag,
+                label: tag == 'all' ? 'все теги' : tag,
                 selected: selected,
                 compact: true,
                 onTap: () => onTagChanged(tag),

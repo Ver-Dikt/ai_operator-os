@@ -14,7 +14,7 @@ class ContentFactoryScreen extends StatefulWidget {
 
 class _ContentFactoryScreenState extends State<ContentFactoryScreen> {
   final TextEditingController _idea = TextEditingController(
-    text: 'A lonely robot hears music from an abandoned metro station',
+    text: 'Одинокий робот слышит музыку из заброшенной станции метро',
   );
   String _format = 'shorts';
   ContentProject? _project;
@@ -52,17 +52,17 @@ class _ContentFactoryScreenState extends State<ContentFactoryScreen> {
                   runSpacing: 8,
                   children: [
                     for (final value in [
-                      'tiktok',
-                      'reels',
-                      'shorts',
-                      'youtube',
-                      'music promo',
-                      'cinematic scene',
+                      ('tiktok', 'TikTok'),
+                      ('reels', 'Reels'),
+                      ('shorts', 'Shorts'),
+                      ('youtube', 'YouTube'),
+                      ('music promo', 'Музыкальное промо'),
+                      ('cinematic scene', 'Кинематографичная сцена'),
                     ])
                       ChoiceChip(
-                        label: Text(value),
-                        selected: _format == value,
-                        onSelected: (_) => setState(() => _format = value),
+                        label: Text(value.$2),
+                        selected: _format == value.$1,
+                        onSelected: (_) => setState(() => _format = value.$1),
                       ),
                   ],
                 ),
@@ -88,56 +88,57 @@ class _ContentFactoryScreenState extends State<ContentFactoryScreen> {
 
   ContentProject _buildProject(String idea, String format) {
     final safeIdea = idea.trim().isEmpty
-        ? 'Untitled content idea'
+        ? 'Идея контента без названия'
         : idea.trim();
     return ContentProject(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       title: safeIdea,
       format: ContentFormat.shorts,
       idea: safeIdea,
-      targetAudience: 'AI-curious audience',
-      mood: 'cinematic, focused, emotionally clear',
+      targetAudience: 'аудитория, которой интересен AI-контент',
+      mood: 'кинематографично, сфокусированно, эмоционально ясно',
       duration: format == 'youtube' ? '3-6 min' : '30-45 sec',
       scenes: [
         ScenePlan(
           sceneNumber: 1,
-          dramaticPurpose: 'Establish desire and constraint.',
+          dramaticPurpose: 'Показать желание и ограничение.',
           cameraLogic:
-              'Static frame; movement is withheld to create attention.',
-          blocking: 'Subject placed deep in frame with negative space.',
+              'Статичный кадр; движение задерживается, чтобы собрать внимание.',
+          blocking:
+              'Герой расположен в глубине кадра, вокруг остается негативное пространство.',
           visualPrompt:
               'Wide cinematic shot of $safeIdea, strong depth, restrained motion, textured light.',
           negativePrompt:
               'random camera motion, glossy stock footage, incoherent hands, overcutting',
-          voiceover: 'Something small changes the whole direction.',
-          musicDirection: 'Sparse pulse, then warm lift.',
-          toolRecommendation: 'Kling for draft, Veo/Runway for quality pass.',
+          voiceover: 'Маленькое изменение меняет все направление.',
+          musicDirection: 'Редкий пульс, затем теплый подъем.',
+          toolRecommendation:
+              'Kling для черновика, Veo/Runway для качественного прохода.',
         ),
         ScenePlan(
           sceneNumber: 2,
-          dramaticPurpose: 'Reveal the obstacle through blocking.',
-          cameraLogic: 'Slow push only after the character commits.',
+          dramaticPurpose: 'Показать препятствие через блокинг.',
+          cameraLogic: 'Медленный push-in только после решения персонажа.',
           blocking:
-              'Foreground object blocks part of the subject until the turn.',
+              'Объект на переднем плане частично закрывает героя до поворота.',
           visualPrompt:
               'Medium shot, foreground occlusion, subject crosses from shadow into a narrow light path.',
           negativePrompt: 'busy background, fast zoom, random lens changes',
-          voiceover: 'The path is visible only after the choice.',
-          musicDirection: 'Low percussion with air.',
-          toolRecommendation: 'Generate variations in Runway or Pika.',
+          voiceover: 'Путь становится видимым только после выбора.',
+          musicDirection: 'Низкая перкуссия с воздухом.',
+          toolRecommendation: 'Сгенерируй варианты в Runway или Pika.',
         ),
         ScenePlan(
           sceneNumber: 3,
-          dramaticPurpose: 'Final gesture reframes the whole piece.',
-          cameraLogic: 'Hold still and let the gesture carry emotion.',
-          blocking: 'Subject stops, turns one object toward camera.',
+          dramaticPurpose: 'Финальный жест переосмысляет весь ролик.',
+          cameraLogic: 'Удержи камеру и дай жесту нести эмоцию.',
+          blocking: 'Герой останавливается и поворачивает объект к камере.',
           visualPrompt:
               'Close final gesture, stable camera, emotional restraint, cinematic contrast.',
           negativePrompt: 'melodrama, shaking camera, extra limbs',
-          voiceover:
-              'The signal was never outside. It was waiting to be answered.',
-          musicDirection: 'Resolve with a single melodic phrase.',
-          toolRecommendation: 'Upscale best take, add captions in Canva.',
+          voiceover: 'Сигнал никогда не был снаружи. Он ждал ответа.',
+          musicDirection: 'Разрешение одной мелодической фразой.',
+          toolRecommendation: 'Увеличь лучший дубль и добавь подписи в Canva.',
         ),
       ],
       prompts: const [],

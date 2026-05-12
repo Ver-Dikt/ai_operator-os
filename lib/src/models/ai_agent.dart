@@ -1,5 +1,15 @@
 enum AgentStatus { prototype, active, planned }
 
+extension AgentStatusLabel on AgentStatus {
+  String get label {
+    return switch (this) {
+      AgentStatus.prototype => 'Прототип',
+      AgentStatus.active => 'Активен',
+      AgentStatus.planned => 'Запланирован',
+    };
+  }
+}
+
 class AiAgent {
   const AiAgent({
     required this.id,

@@ -60,7 +60,7 @@ extension ToolCategoryLabel on ToolCategory {
       ToolCategory.music => 'Музыка',
       ToolCategory.voice => 'Голос',
       ToolCategory.coding => 'Кодинг',
-      ToolCategory.agents => 'Агенты',
+      ToolCategory.agents => 'AI-помощники',
       ToolCategory.automation => 'Автоматизация',
       ToolCategory.search => 'Поиск',
       ToolCategory.research => 'Исследования',

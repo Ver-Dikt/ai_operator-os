@@ -3,13 +3,13 @@ import '../models/prompt_template.dart';
 const seedPrompts = <PromptTemplate>[
   PromptTemplate(
     id: 'cinematic-video-scene',
-    title: 'Cinematic Video Scene',
+    title: 'Кинематографичная видео-сцена',
     category: 'Видео',
     style: 'сдержанный кинематографичный стиль',
     descriptionRu:
         'Промпт для кинематографичной сцены. Лучше работает на английском в Kling/Veo/Runway.',
     whenToUseRu:
-        'Используй для Reels, Shorts, cinematic scene и image-to-video подготовки.',
+        'Используй для Reels, Shorts, cinematic scene и Image-to-video — видео из изображения.',
     ruExplanation:
         'Сцена, камера, свет, движение, глубина кадра и финальный жест.',
     languageMode: PromptLanguageMode.ruEn,
@@ -27,7 +27,7 @@ const seedPrompts = <PromptTemplate>[
   ),
   PromptTemplate(
     id: 'tool-router',
-    title: 'Tool Router Brief',
+    title: 'Бриф для выбора инструмента',
     category: 'AI-помощники',
     style: 'матрица решений',
     descriptionRu:
@@ -45,7 +45,7 @@ const seedPrompts = <PromptTemplate>[
   ),
   PromptTemplate(
     id: 'music-promo',
-    title: 'Music Promo Pack',
+    title: 'Промо-пак музыкального релиза',
     category: 'Маркетинг',
     style: 'кампания релиза',
     descriptionRu:
@@ -63,7 +63,7 @@ const seedPrompts = <PromptTemplate>[
   ),
   PromptTemplate(
     id: 'flutter-feature-builder',
-    title: 'Flutter Feature Builder',
+    title: 'Планировщик Flutter-фичи',
     category: 'Код',
     style: 'инженерный план',
     descriptionRu:
@@ -80,7 +80,7 @@ const seedPrompts = <PromptTemplate>[
   ),
   PromptTemplate(
     id: 'research-comparison',
-    title: 'Research Comparison Matrix',
+    title: 'Матрица сравнения для исследования',
     category: 'Исследование',
     style: 'сравнение',
     descriptionRu:

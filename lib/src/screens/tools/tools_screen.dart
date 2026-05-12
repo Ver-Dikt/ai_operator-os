@@ -65,7 +65,7 @@ class _ToolsScreenState extends State<ToolsScreen> {
               ),
               for (final filter in defaultToolFilters)
                 ChoiceChip(
-                  label: Text(filter),
+                  label: Text(_quickFilterLabel(filter)),
                   selected: _quickFilter == filter,
                   onSelected: (_) => setState(() => _quickFilter = filter),
                 ),
@@ -128,6 +128,20 @@ class _ToolsScreenState extends State<ToolsScreen> {
         _ => true,
       };
     }).toList();
+  }
+
+  String _quickFilterLabel(String filter) {
+    return switch (filter) {
+      'free' => 'Бесплатно',
+      'api' => 'API',
+      'video' => 'Видео',
+      'music' => 'Музыка',
+      'local' => 'Local',
+      'no credit card' => 'Без карты',
+      'fast' => 'Быстро',
+      'professional' => 'Профи',
+      _ => filter,
+    };
   }
 }
 
