@@ -6,6 +6,7 @@ import '../data/seed_free_credits.dart';
 import '../models/ai_agent.dart';
 import '../models/ai_tool.dart';
 import '../models/routing_recommendation.dart';
+import '../models/use_case.dart';
 import '../models/workflow_template.dart';
 import '../services/graph_repository.dart';
 import '../services/router_service.dart';
@@ -14,7 +15,16 @@ import '../state/app_settings.dart';
 
 enum _WorkMode { agents, text, design, video, audio, toolkit }
 
-enum _ActiveEntity { none, workflow, agent, tool }
+enum _ActiveViewType {
+  empty,
+  routePlan,
+  workflow,
+  agent,
+  tool,
+  useCase,
+  session,
+  project,
+}
 
 T? _firstOrNull<T>(List<T> items) => items.isEmpty ? null : items.first;
 
@@ -155,8 +165,13 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
   final TextEditingController _taskController = TextEditingController();
   _WorkMode _mode = _WorkMode.design;
   RoutingRecommendation? _recommendation;
-  _ActiveEntity _activeEntity = _ActiveEntity.none;
-  String? _activeEntityId;
+  _ActiveViewType _activeViewType = _ActiveViewType.empty;
+  String? _activeWorkflowId;
+  String? _activeAgentId;
+  String? _activeToolId;
+  String? _activeUseCaseId;
+  String? _activeSummaryTitle;
+  String? _activeSummarySubtitle;
   String _historyTab = 'все';
   String _model = 'Auto Router';
   String _aspect = '9:16';
@@ -189,8 +204,13 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                   historyTab: _historyTab,
                   taskController: _taskController,
                   recommendation: _recommendation,
-                  activeEntity: _activeEntity,
-                  activeEntityId: _activeEntityId,
+                  activeViewType: _activeViewType,
+                  activeWorkflowId: _activeWorkflowId,
+                  activeAgentId: _activeAgentId,
+                  activeToolId: _activeToolId,
+                  activeUseCaseId: _activeUseCaseId,
+                  activeSummaryTitle: _activeSummaryTitle,
+                  activeSummarySubtitle: _activeSummarySubtitle,
                   model: _model,
                   aspect: _aspect,
                   quality: _quality,
@@ -202,6 +222,9 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                   onOpenWorkflow: _openWorkflow,
                   onOpenAgent: _openAgent,
                   onOpenTool: _openTool,
+                  onOpenUseCase: _openUseCase,
+                  onOpenSession: _openSessionSummary,
+                  onOpenProject: _openProjectSummary,
                   onNewSession: _newSession,
                   onModel: (value) => setState(() => _model = value),
                   onAspect: (value) => setState(() => _aspect = value),
@@ -213,8 +236,13 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                   mode: _mode,
                   taskController: _taskController,
                   recommendation: _recommendation,
-                  activeEntity: _activeEntity,
-                  activeEntityId: _activeEntityId,
+                  activeViewType: _activeViewType,
+                  activeWorkflowId: _activeWorkflowId,
+                  activeAgentId: _activeAgentId,
+                  activeToolId: _activeToolId,
+                  activeUseCaseId: _activeUseCaseId,
+                  activeSummaryTitle: _activeSummaryTitle,
+                  activeSummarySubtitle: _activeSummarySubtitle,
                   model: _model,
                   aspect: _aspect,
                   quality: _quality,
@@ -225,6 +253,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                   onOpenWorkflow: _openWorkflow,
                   onOpenAgent: _openAgent,
                   onOpenTool: _openTool,
+                  onOpenUseCase: _openUseCase,
                   onModel: (value) => setState(() => _model = value),
                   onAspect: (value) => setState(() => _aspect = value),
                   onQuality: (value) => setState(() => _quality = value),
@@ -246,29 +275,58 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
         : _taskController.text.trim();
     setState(() {
       _recommendation = const RouterService().recommend(task);
-      _activeEntity = _ActiveEntity.none;
-      _activeEntityId = null;
+      _activeViewType = _ActiveViewType.routePlan;
+      _clearActiveIds();
     });
   }
 
   void _openWorkflow(String? id) {
     setState(() {
-      _activeEntity = _ActiveEntity.workflow;
-      _activeEntityId = id;
+      _activeViewType = _ActiveViewType.workflow;
+      _clearActiveIds();
+      _activeWorkflowId = id;
     });
   }
 
   void _openAgent(String? id) {
     setState(() {
-      _activeEntity = _ActiveEntity.agent;
-      _activeEntityId = id;
+      _activeViewType = _ActiveViewType.agent;
+      _clearActiveIds();
+      _activeAgentId = id;
     });
   }
 
   void _openTool(String? id) {
     setState(() {
-      _activeEntity = _ActiveEntity.tool;
-      _activeEntityId = id;
+      _activeViewType = _ActiveViewType.tool;
+      _clearActiveIds();
+      _activeToolId = id;
+    });
+  }
+
+  void _openUseCase(String? id) {
+    setState(() {
+      _activeViewType = _ActiveViewType.useCase;
+      _clearActiveIds();
+      _activeUseCaseId = id;
+    });
+  }
+
+  void _openSessionSummary(String title, String subtitle) {
+    setState(() {
+      _activeViewType = _ActiveViewType.session;
+      _clearActiveIds();
+      _activeSummaryTitle = title;
+      _activeSummarySubtitle = subtitle;
+    });
+  }
+
+  void _openProjectSummary(String title, String subtitle) {
+    setState(() {
+      _activeViewType = _ActiveViewType.project;
+      _clearActiveIds();
+      _activeSummaryTitle = title;
+      _activeSummarySubtitle = subtitle;
     });
   }
 
@@ -276,9 +334,18 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     setState(() {
       _taskController.clear();
       _recommendation = null;
-      _activeEntity = _ActiveEntity.none;
-      _activeEntityId = null;
+      _activeViewType = _ActiveViewType.empty;
+      _clearActiveIds();
     });
+  }
+
+  void _clearActiveIds() {
+    _activeWorkflowId = null;
+    _activeAgentId = null;
+    _activeToolId = null;
+    _activeUseCaseId = null;
+    _activeSummaryTitle = null;
+    _activeSummarySubtitle = null;
   }
 
   void _resetParameters() {
@@ -296,8 +363,13 @@ class _DesktopStation extends StatelessWidget {
     required this.historyTab,
     required this.taskController,
     required this.recommendation,
-    required this.activeEntity,
-    required this.activeEntityId,
+    required this.activeViewType,
+    required this.activeWorkflowId,
+    required this.activeAgentId,
+    required this.activeToolId,
+    required this.activeUseCaseId,
+    required this.activeSummaryTitle,
+    required this.activeSummarySubtitle,
     required this.model,
     required this.aspect,
     required this.quality,
@@ -309,6 +381,9 @@ class _DesktopStation extends StatelessWidget {
     required this.onOpenWorkflow,
     required this.onOpenAgent,
     required this.onOpenTool,
+    required this.onOpenUseCase,
+    required this.onOpenSession,
+    required this.onOpenProject,
     required this.onNewSession,
     required this.onModel,
     required this.onAspect,
@@ -321,8 +396,13 @@ class _DesktopStation extends StatelessWidget {
   final String historyTab;
   final TextEditingController taskController;
   final RoutingRecommendation? recommendation;
-  final _ActiveEntity activeEntity;
-  final String? activeEntityId;
+  final _ActiveViewType activeViewType;
+  final String? activeWorkflowId;
+  final String? activeAgentId;
+  final String? activeToolId;
+  final String? activeUseCaseId;
+  final String? activeSummaryTitle;
+  final String? activeSummarySubtitle;
   final String model;
   final String aspect;
   final String quality;
@@ -334,6 +414,9 @@ class _DesktopStation extends StatelessWidget {
   final ValueChanged<String?> onOpenWorkflow;
   final ValueChanged<String?> onOpenAgent;
   final ValueChanged<String?> onOpenTool;
+  final ValueChanged<String?> onOpenUseCase;
+  final void Function(String title, String subtitle) onOpenSession;
+  final void Function(String title, String subtitle) onOpenProject;
   final VoidCallback onNewSession;
   final ValueChanged<String> onModel;
   final ValueChanged<String> onAspect;
@@ -354,11 +437,17 @@ class _DesktopStation extends StatelessWidget {
                 child: _CenterStage(
                   mode: mode,
                   recommendation: recommendation,
-                  activeEntity: activeEntity,
-                  activeEntityId: activeEntityId,
+                  activeViewType: activeViewType,
+                  activeWorkflowId: activeWorkflowId,
+                  activeAgentId: activeAgentId,
+                  activeToolId: activeToolId,
+                  activeUseCaseId: activeUseCaseId,
+                  activeSummaryTitle: activeSummaryTitle,
+                  activeSummarySubtitle: activeSummarySubtitle,
                   onOpenWorkflow: onOpenWorkflow,
                   onOpenAgent: onOpenAgent,
                   onOpenTool: onOpenTool,
+                  onOpenUseCase: onOpenUseCase,
                 ),
               ),
             ),
@@ -376,6 +465,9 @@ class _DesktopStation extends StatelessWidget {
             onOpenWorkflow: onOpenWorkflow,
             onOpenAgent: onOpenAgent,
             onOpenTool: onOpenTool,
+            onOpenUseCase: onOpenUseCase,
+            onOpenSession: onOpenSession,
+            onOpenProject: onOpenProject,
             onNewSession: onNewSession,
           ),
         ),
@@ -390,6 +482,11 @@ class _DesktopStation extends StatelessWidget {
             quality: quality,
             mode: mode,
             settings: settings,
+            activeViewType: activeViewType,
+            activeWorkflowId: activeWorkflowId,
+            activeAgentId: activeAgentId,
+            activeToolId: activeToolId,
+            activeUseCaseId: activeUseCaseId,
             onModel: onModel,
             onAspect: onAspect,
             onQuality: onQuality,
@@ -418,8 +515,13 @@ class _MobileStation extends StatelessWidget {
     required this.mode,
     required this.taskController,
     required this.recommendation,
-    required this.activeEntity,
-    required this.activeEntityId,
+    required this.activeViewType,
+    required this.activeWorkflowId,
+    required this.activeAgentId,
+    required this.activeToolId,
+    required this.activeUseCaseId,
+    required this.activeSummaryTitle,
+    required this.activeSummarySubtitle,
     required this.model,
     required this.aspect,
     required this.quality,
@@ -430,6 +532,7 @@ class _MobileStation extends StatelessWidget {
     required this.onOpenWorkflow,
     required this.onOpenAgent,
     required this.onOpenTool,
+    required this.onOpenUseCase,
     required this.onModel,
     required this.onAspect,
     required this.onQuality,
@@ -439,8 +542,13 @@ class _MobileStation extends StatelessWidget {
   final _WorkMode mode;
   final TextEditingController taskController;
   final RoutingRecommendation? recommendation;
-  final _ActiveEntity activeEntity;
-  final String? activeEntityId;
+  final _ActiveViewType activeViewType;
+  final String? activeWorkflowId;
+  final String? activeAgentId;
+  final String? activeToolId;
+  final String? activeUseCaseId;
+  final String? activeSummaryTitle;
+  final String? activeSummarySubtitle;
   final String model;
   final String aspect;
   final String quality;
@@ -451,6 +559,7 @@ class _MobileStation extends StatelessWidget {
   final ValueChanged<String?> onOpenWorkflow;
   final ValueChanged<String?> onOpenAgent;
   final ValueChanged<String?> onOpenTool;
+  final ValueChanged<String?> onOpenUseCase;
   final ValueChanged<String> onModel;
   final ValueChanged<String> onAspect;
   final ValueChanged<String> onQuality;
@@ -468,11 +577,17 @@ class _MobileStation extends StatelessWidget {
           child: _CenterStage(
             mode: mode,
             recommendation: recommendation,
-            activeEntity: activeEntity,
-            activeEntityId: activeEntityId,
+            activeViewType: activeViewType,
+            activeWorkflowId: activeWorkflowId,
+            activeAgentId: activeAgentId,
+            activeToolId: activeToolId,
+            activeUseCaseId: activeUseCaseId,
+            activeSummaryTitle: activeSummaryTitle,
+            activeSummarySubtitle: activeSummarySubtitle,
             onOpenWorkflow: onOpenWorkflow,
             onOpenAgent: onOpenAgent,
             onOpenTool: onOpenTool,
+            onOpenUseCase: onOpenUseCase,
           ),
         ),
         const SizedBox(height: 14),
@@ -489,6 +604,11 @@ class _MobileStation extends StatelessWidget {
           quality: quality,
           mode: mode,
           settings: settings,
+          activeViewType: activeViewType,
+          activeWorkflowId: activeWorkflowId,
+          activeAgentId: activeAgentId,
+          activeToolId: activeToolId,
+          activeUseCaseId: activeUseCaseId,
           onModel: onModel,
           onAspect: onAspect,
           onQuality: onQuality,
@@ -648,6 +768,9 @@ class _HistoryPanel extends StatelessWidget {
     required this.onOpenWorkflow,
     required this.onOpenAgent,
     required this.onOpenTool,
+    required this.onOpenUseCase,
+    required this.onOpenSession,
+    required this.onOpenProject,
     required this.onNewSession,
   });
 
@@ -657,6 +780,9 @@ class _HistoryPanel extends StatelessWidget {
   final ValueChanged<String?> onOpenWorkflow;
   final ValueChanged<String?> onOpenAgent;
   final ValueChanged<String?> onOpenTool;
+  final ValueChanged<String?> onOpenUseCase;
+  final void Function(String title, String subtitle) onOpenSession;
+  final void Function(String title, String subtitle) onOpenProject;
   final VoidCallback onNewSession;
 
   @override
@@ -680,7 +806,10 @@ class _HistoryPanel extends StatelessWidget {
                 const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => onNavigate(AppDestination.projects),
+                    onPressed: () => onOpenProject(
+                      'Новый проект',
+                      'Project summary: постоянная работа с сессиями, workflows и outputs',
+                    ),
                     icon: const Icon(
                       Icons.create_new_folder_outlined,
                       size: 16,
@@ -726,7 +855,10 @@ class _HistoryPanel extends StatelessWidget {
               subtitle: 'planning',
               type: 'session',
               icon: Icons.bolt_rounded,
-              onTap: () => onOpenWorkflow('ai-short-video-factory'),
+              onTap: () => onOpenSession(
+                '10 Reels для трека',
+                'Активная сессия: workflow, агенты и инструменты остаются внутри Workstation',
+              ),
             ),
             const SizedBox(height: 14),
             const _PanelLabel('ПОСЛЕДНИЕ СЕССИИ'),
@@ -735,7 +867,7 @@ class _HistoryPanel extends StatelessWidget {
               subtitle: 'session',
               type: 'session',
               icon: Icons.manage_search_rounded,
-              onTap: () => onOpenAgent('research-agent'),
+              onTap: () => onOpenUseCase('find-ai-freelance-jobs'),
             ),
             _HistoryItem(
               title: 'Локализация видео',
@@ -751,14 +883,20 @@ class _HistoryPanel extends StatelessWidget {
               subtitle: 'project',
               type: 'project',
               icon: Icons.folder_outlined,
-              onTap: () => onNavigate(AppDestination.projects),
+              onTap: () => onOpenProject(
+                'Музыкальный релиз',
+                'Постоянный проект: сессии, workflows и outputs',
+              ),
             ),
             _HistoryItem(
               title: 'AI Automation Agency',
               subtitle: 'project',
               type: 'project',
               icon: Icons.folder_outlined,
-              onTap: () => onNavigate(AppDestination.projects),
+              onTap: () => onOpenProject(
+                'AI Automation Agency',
+                'Постоянный проект для клиентских automation-сценариев',
+              ),
             ),
             const SizedBox(height: 14),
             const _PanelLabel('ИЗБРАННОЕ'),
@@ -817,43 +955,65 @@ class _CenterStage extends StatelessWidget {
   const _CenterStage({
     required this.mode,
     required this.recommendation,
-    required this.activeEntity,
-    required this.activeEntityId,
+    required this.activeViewType,
+    required this.activeWorkflowId,
+    required this.activeAgentId,
+    required this.activeToolId,
+    required this.activeUseCaseId,
+    required this.activeSummaryTitle,
+    required this.activeSummarySubtitle,
     required this.onOpenWorkflow,
     required this.onOpenAgent,
     required this.onOpenTool,
+    required this.onOpenUseCase,
   });
 
   final _WorkMode mode;
   final RoutingRecommendation? recommendation;
-  final _ActiveEntity activeEntity;
-  final String? activeEntityId;
+  final _ActiveViewType activeViewType;
+  final String? activeWorkflowId;
+  final String? activeAgentId;
+  final String? activeToolId;
+  final String? activeUseCaseId;
+  final String? activeSummaryTitle;
+  final String? activeSummarySubtitle;
   final ValueChanged<String?> onOpenWorkflow;
   final ValueChanged<String?> onOpenAgent;
   final ValueChanged<String?> onOpenTool;
+  final ValueChanged<String?> onOpenUseCase;
 
   @override
   Widget build(BuildContext context) {
     final Widget stage;
-    if (activeEntity != _ActiveEntity.none) {
+    if (activeViewType == _ActiveViewType.empty) {
+      stage = _EmptyModeStage(mode: mode, key: ValueKey(mode));
+    } else if (activeViewType == _ActiveViewType.routePlan) {
+      stage = recommendation == null
+          ? _EmptyModeStage(mode: mode, key: ValueKey(mode))
+          : _RouteStage(
+              recommendation: recommendation!,
+              onOpenWorkflow: onOpenWorkflow,
+              onOpenAgent: onOpenAgent,
+              onOpenTool: onOpenTool,
+              key: const ValueKey('route-stage'),
+            );
+    } else {
       stage = _EntityStage(
-        entity: activeEntity,
-        entityId: activeEntityId,
+        activeViewType: activeViewType,
+        activeWorkflowId: activeWorkflowId,
+        activeAgentId: activeAgentId,
+        activeToolId: activeToolId,
+        activeUseCaseId: activeUseCaseId,
+        activeSummaryTitle: activeSummaryTitle,
+        activeSummarySubtitle: activeSummarySubtitle,
         recommendation: recommendation,
         onOpenWorkflow: onOpenWorkflow,
         onOpenAgent: onOpenAgent,
         onOpenTool: onOpenTool,
-        key: ValueKey('${activeEntity.name}-${activeEntityId ?? 'default'}'),
-      );
-    } else if (recommendation == null) {
-      stage = _EmptyModeStage(mode: mode, key: ValueKey(mode));
-    } else {
-      stage = _RouteStage(
-        recommendation: recommendation!,
-        onOpenWorkflow: onOpenWorkflow,
-        onOpenAgent: onOpenAgent,
-        onOpenTool: onOpenTool,
-        key: const ValueKey('route-stage'),
+        onOpenUseCase: onOpenUseCase,
+        key: ValueKey(
+          '${activeViewType.name}-${activeWorkflowId ?? activeAgentId ?? activeToolId ?? activeUseCaseId ?? activeSummaryTitle ?? 'default'}',
+        ),
       );
     }
 
@@ -862,7 +1022,7 @@ class _CenterStage extends StatelessWidget {
         _SessionHeader(
           mode: mode,
           recommendation: recommendation,
-          activeEntity: activeEntity,
+          activeViewType: activeViewType,
         ),
         const SizedBox(height: 18),
         Expanded(
@@ -880,29 +1040,35 @@ class _SessionHeader extends StatelessWidget {
   const _SessionHeader({
     required this.mode,
     required this.recommendation,
-    required this.activeEntity,
+    required this.activeViewType,
   });
 
   final _WorkMode mode;
   final RoutingRecommendation? recommendation;
-  final _ActiveEntity activeEntity;
+  final _ActiveViewType activeViewType;
 
   @override
   Widget build(BuildContext context) {
     final sessionName = recommendation?.task ?? 'Новая рабочая сессия';
-    final activeWork = activeEntity == _ActiveEntity.none
-        ? 'без активного объекта'
-        : switch (activeEntity) {
-            _ActiveEntity.workflow => 'workflow открыт',
-            _ActiveEntity.agent => 'агент активен',
-            _ActiveEntity.tool => 'инструмент открыт',
-            _ActiveEntity.none => 'без активного объекта',
-          };
-    final status = activeEntity != _ActiveEntity.none
-        ? 'manual execution'
-        : recommendation == null
-        ? 'draft'
-        : 'planning';
+    final activeWork = switch (activeViewType) {
+      _ActiveViewType.empty => 'без активного объекта',
+      _ActiveViewType.routePlan => 'AI-маршрут',
+      _ActiveViewType.workflow => 'workflow открыт',
+      _ActiveViewType.agent => 'агент активен',
+      _ActiveViewType.tool => 'инструмент открыт',
+      _ActiveViewType.useCase => 'кейс открыт',
+      _ActiveViewType.session => 'сессия открыта',
+      _ActiveViewType.project => 'проект открыт',
+    };
+    final status = switch (activeViewType) {
+      _ActiveViewType.empty => 'draft',
+      _ActiveViewType.routePlan => 'planning',
+      _ActiveViewType.workflow ||
+      _ActiveViewType.agent ||
+      _ActiveViewType.tool ||
+      _ActiveViewType.useCase => 'manual execution',
+      _ActiveViewType.session || _ActiveViewType.project => 'ready',
+    };
 
     return _GlassPanel(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1110,38 +1276,52 @@ class _RouteStage extends StatelessWidget {
 class _EntityStage extends StatelessWidget {
   const _EntityStage({
     super.key,
-    required this.entity,
-    required this.entityId,
+    required this.activeViewType,
+    required this.activeWorkflowId,
+    required this.activeAgentId,
+    required this.activeToolId,
+    required this.activeUseCaseId,
+    required this.activeSummaryTitle,
+    required this.activeSummarySubtitle,
     required this.recommendation,
     required this.onOpenWorkflow,
     required this.onOpenAgent,
     required this.onOpenTool,
+    required this.onOpenUseCase,
   });
 
-  final _ActiveEntity entity;
-  final String? entityId;
+  final _ActiveViewType activeViewType;
+  final String? activeWorkflowId;
+  final String? activeAgentId;
+  final String? activeToolId;
+  final String? activeUseCaseId;
+  final String? activeSummaryTitle;
+  final String? activeSummarySubtitle;
   final RoutingRecommendation? recommendation;
   final ValueChanged<String?> onOpenWorkflow;
   final ValueChanged<String?> onOpenAgent;
   final ValueChanged<String?> onOpenTool;
+  final ValueChanged<String?> onOpenUseCase;
 
   @override
   Widget build(BuildContext context) {
     final graph = const GraphRepository();
-    return switch (entity) {
-      _ActiveEntity.workflow => _WorkflowStage(
+    return switch (activeViewType) {
+      _ActiveViewType.workflow => _WorkflowStage(
         workflow: _firstOrNull(
           graph.workflowsByIds([
-            entityId ?? recommendation?.workflowId ?? 'ai-short-video-factory',
+            activeWorkflowId ??
+                recommendation?.workflowId ??
+                'ai-short-video-factory',
           ]),
         ),
         onOpenAgent: onOpenAgent,
         onOpenTool: onOpenTool,
       ),
-      _ActiveEntity.agent => _AgentStage(
+      _ActiveViewType.agent => _AgentStage(
         agent: _firstOrNull(
           graph.agentsByIds([
-            entityId ??
+            activeAgentId ??
                 _firstOrNull(recommendation?.agentIds ?? const []) ??
                 'tool-router-agent',
           ]),
@@ -1149,10 +1329,10 @@ class _EntityStage extends StatelessWidget {
         onOpenWorkflow: onOpenWorkflow,
         onOpenTool: onOpenTool,
       ),
-      _ActiveEntity.tool => _ToolStage(
+      _ActiveViewType.tool => _ToolStage(
         tool: _firstOrNull(
           graph.toolsByIds([
-            entityId ??
+            activeToolId ??
                 _firstOrNull(recommendation?.toolIds ?? const []) ??
                 'chatgpt',
           ]),
@@ -1160,7 +1340,29 @@ class _EntityStage extends StatelessWidget {
         onOpenAgent: onOpenAgent,
         onOpenWorkflow: onOpenWorkflow,
       ),
-      _ActiveEntity.none => const SizedBox.shrink(),
+      _ActiveViewType.useCase => _UseCaseStage(
+        useCase: _firstOrNull(
+          graph.useCasesByIds([
+            activeUseCaseId ??
+                _firstOrNull(recommendation?.useCaseIds ?? const []) ??
+                'make-10-reels-for-track',
+          ]),
+        ),
+        onOpenWorkflow: onOpenWorkflow,
+        onOpenAgent: onOpenAgent,
+        onOpenTool: onOpenTool,
+      ),
+      _ActiveViewType.session || _ActiveViewType.project => _SummaryStage(
+        title: activeSummaryTitle ?? 'Рабочая область',
+        subtitle:
+            activeSummarySubtitle ??
+            'Здесь будут сессии, workflows, агенты, инструменты и outputs.',
+        type: activeViewType == _ActiveViewType.session ? 'session' : 'project',
+        onOpenWorkflow: onOpenWorkflow,
+        onOpenUseCase: onOpenUseCase,
+      ),
+      _ActiveViewType.empty ||
+      _ActiveViewType.routePlan => const SizedBox.shrink(),
     };
   }
 }
@@ -1531,6 +1733,177 @@ class _ToolStage extends StatelessWidget {
   }
 }
 
+class _UseCaseStage extends StatelessWidget {
+  const _UseCaseStage({
+    required this.useCase,
+    required this.onOpenWorkflow,
+    required this.onOpenAgent,
+    required this.onOpenTool,
+  });
+
+  final UseCase? useCase;
+  final ValueChanged<String?> onOpenWorkflow;
+  final ValueChanged<String?> onOpenAgent;
+  final ValueChanged<String?> onOpenTool;
+
+  @override
+  Widget build(BuildContext context) {
+    if (useCase == null) return const _MissingEntityStage('Кейс не найден');
+
+    final graph = const GraphRepository();
+    final agents = graph.agentsByIds(useCase!.recommendedAgentIds);
+    final tools = graph.toolsByIds(useCase!.recommendedToolIds);
+    final workflows = graph.workflowsByIds(useCase!.recommendedWorkflowIds);
+
+    return Center(
+      child: _GlassPanel(
+        width: 660,
+        padding: const EdgeInsets.all(22),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const _PanelLabel('АКТИВНЫЙ КЕЙС'),
+            const SizedBox(height: 10),
+            Text(
+              useCase!.title,
+              style: const TextStyle(
+                color: Color(0xFFF2F3F5),
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              useCase!.description,
+              style: const TextStyle(color: Color(0xFFE5E7EC), height: 1.35),
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              children: [
+                _SoftBadge(useCase!.category),
+                _SoftBadge(useCase!.monetizationPotential.name),
+                _SoftBadge(
+                  useCase!.requiresHumanReview ? 'human review' : 'assisted',
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _LinkedNames(
+              title: 'Workflows',
+              names: workflows.map((item) => item.title).toList(),
+            ),
+            _LinkedNames(
+              title: 'Агенты',
+              names: agents.map((item) => item.name).toList(),
+            ),
+            _LinkedNames(
+              title: 'Инструменты',
+              names: tools.map((item) => item.name).toList(),
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(
+                  onPressed: workflows.isEmpty
+                      ? null
+                      : () => onOpenWorkflow(workflows.first.id),
+                  icon: const Icon(Icons.play_arrow_rounded),
+                  label: const Text('Открыть workflow'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: agents.isEmpty
+                      ? null
+                      : () => onOpenAgent(agents.first.id),
+                  icon: const Icon(Icons.smart_toy_outlined),
+                  label: const Text('Агент'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: tools.isEmpty
+                      ? null
+                      : () => onOpenTool(tools.first.id),
+                  icon: const Icon(Icons.grid_view_rounded),
+                  label: const Text('Инструмент'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SummaryStage extends StatelessWidget {
+  const _SummaryStage({
+    required this.title,
+    required this.subtitle,
+    required this.type,
+    required this.onOpenWorkflow,
+    required this.onOpenUseCase,
+  });
+
+  final String title;
+  final String subtitle;
+  final String type;
+  final ValueChanged<String?> onOpenWorkflow;
+  final ValueChanged<String?> onOpenUseCase;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: _GlassPanel(
+        width: 560,
+        padding: const EdgeInsets.all(22),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _PanelLabel(type.toUpperCase()),
+            const SizedBox(height: 10),
+            Text(
+              title,
+              style: const TextStyle(
+                color: Color(0xFFF2F3F5),
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              subtitle,
+              style: const TextStyle(color: Color(0xFF9AA0AA), height: 1.35),
+            ),
+            const SizedBox(height: 16),
+            const _ManualModeBox(),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(
+                  onPressed: () => onOpenWorkflow('ai-short-video-factory'),
+                  icon: const Icon(Icons.schema_outlined),
+                  label: const Text('Открыть workflow'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => onOpenUseCase('make-10-reels-for-track'),
+                  icon: const Icon(Icons.route_outlined),
+                  label: const Text('Открыть кейс'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _StageStep extends StatelessWidget {
   const _StageStep({required this.step, required this.onOpenTool});
 
@@ -1734,6 +2107,11 @@ class _SettingsPanel extends StatelessWidget {
     required this.quality,
     required this.mode,
     required this.settings,
+    required this.activeViewType,
+    required this.activeWorkflowId,
+    required this.activeAgentId,
+    required this.activeToolId,
+    required this.activeUseCaseId,
     required this.onModel,
     required this.onAspect,
     required this.onQuality,
@@ -1746,6 +2124,11 @@ class _SettingsPanel extends StatelessWidget {
   final String quality;
   final _WorkMode mode;
   final AppSettings settings;
+  final _ActiveViewType activeViewType;
+  final String? activeWorkflowId;
+  final String? activeAgentId;
+  final String? activeToolId;
+  final String? activeUseCaseId;
   final ValueChanged<String> onModel;
   final ValueChanged<String> onAspect;
   final ValueChanged<String> onQuality;
@@ -1760,6 +2143,14 @@ class _SettingsPanel extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          _ActiveContextPanel(
+            activeViewType: activeViewType,
+            activeWorkflowId: activeWorkflowId,
+            activeAgentId: activeAgentId,
+            activeToolId: activeToolId,
+            activeUseCaseId: activeUseCaseId,
+          ),
+          const SizedBox(height: 12),
           _SettingsGroup(
             title: 'Выбор модели',
             child: Column(
@@ -1980,6 +2371,99 @@ class _SegmentedValues extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _ActiveContextPanel extends StatelessWidget {
+  const _ActiveContextPanel({
+    required this.activeViewType,
+    required this.activeWorkflowId,
+    required this.activeAgentId,
+    required this.activeToolId,
+    required this.activeUseCaseId,
+  });
+
+  final _ActiveViewType activeViewType;
+  final String? activeWorkflowId;
+  final String? activeAgentId;
+  final String? activeToolId;
+  final String? activeUseCaseId;
+
+  @override
+  Widget build(BuildContext context) {
+    final graph = const GraphRepository();
+    final title = switch (activeViewType) {
+      _ActiveViewType.workflow =>
+        _firstOrNull(
+              graph.workflowsByIds([
+                activeWorkflowId ?? 'ai-short-video-factory',
+              ]),
+            )?.title ??
+            'Workflow',
+      _ActiveViewType.agent =>
+        _firstOrNull(
+              graph.agentsByIds([activeAgentId ?? 'tool-router-agent']),
+            )?.name ??
+            'Agent',
+      _ActiveViewType.tool =>
+        _firstOrNull(graph.toolsByIds([activeToolId ?? 'chatgpt']))?.name ??
+            'Tool',
+      _ActiveViewType.useCase =>
+        _firstOrNull(
+              graph.useCasesByIds([
+                activeUseCaseId ?? 'make-10-reels-for-track',
+              ]),
+            )?.title ??
+            'Use case',
+      _ActiveViewType.routePlan => 'AI-маршрут',
+      _ActiveViewType.session => 'Сессия',
+      _ActiveViewType.project => 'Проект',
+      _ActiveViewType.empty => 'Настройки режима',
+    };
+    final rows = switch (activeViewType) {
+      _ActiveViewType.workflow => const [
+        ('Workflow settings', Icons.schema_outlined),
+        ('Manual execution', Icons.touch_app_outlined),
+        ('Save outputs', Icons.bookmark_add_outlined),
+      ],
+      _ActiveViewType.agent => const [
+        ('Agent task', Icons.smart_toy_outlined),
+        ('Mock run only', Icons.science_outlined),
+        ('API later', Icons.api_rounded),
+      ],
+      _ActiveViewType.tool => const [
+        ('Integration info', Icons.hub_outlined),
+        ('Open manually', Icons.open_in_new_rounded),
+        ('Copy prompt', Icons.copy_rounded),
+      ],
+      _ActiveViewType.useCase => const [
+        ('Recommended stack', Icons.route_outlined),
+        ('Potential only', Icons.trending_up_rounded),
+        ('Human review', Icons.verified_user_outlined),
+      ],
+      _ => const [
+        ('Mode settings', Icons.tune_rounded),
+        ('Manual Mode', Icons.open_in_new_rounded),
+        ('Local/API later', Icons.dns_outlined),
+      ],
+    };
+
+    return _SettingsGroup(
+      title: 'Активный контекст',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 8),
+          for (final row in rows) _PathRow(row.$1, row.$2),
+        ],
+      ),
     );
   }
 }
