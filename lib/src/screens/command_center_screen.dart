@@ -2979,130 +2979,133 @@ class _SettingsPanel extends StatelessWidget {
     final config = mode.config;
     return _GlassPanel(
       padding: const EdgeInsets.all(12),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _ActiveContextPanel(
-            activeViewType: activeViewType,
-            activeWorkflowId: activeWorkflowId,
-            activeAgentId: activeAgentId,
-            activeToolId: activeToolId,
-            activeUseCaseId: activeUseCaseId,
-          ),
-          const SizedBox(height: 12),
-          _SettingsGroup(
-            title: config.modelTitle,
-            trailing: TextButton(
-              onPressed: onReset,
-              child: const Text('Сброс'),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _ActiveContextPanel(
+              activeViewType: activeViewType,
+              activeWorkflowId: activeWorkflowId,
+              activeAgentId: activeAgentId,
+              activeToolId: activeToolId,
+              activeUseCaseId: activeUseCaseId,
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  config.modelHelper,
-                  style: const TextStyle(
-                    color: Color(0xFF8B8F9A),
-                    fontSize: 11,
-                    height: 1.3,
+            const SizedBox(height: 12),
+            _SettingsGroup(
+              title: config.modelTitle,
+              trailing: TextButton(
+                onPressed: onReset,
+                child: const Text('Сброс'),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    config.modelHelper,
+                    style: const TextStyle(
+                      color: Color(0xFF8B8F9A),
+                      fontSize: 11,
+                      height: 1.3,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                if (config.showModelSelector) ...[
-                  _SelectLine(
-                    value: model,
-                    values: config.models,
-                    onChanged: onModel,
-                  ),
-                  const SizedBox(height: 10),
-                ],
-                for (final section in config.settings)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 9),
-                    child: _ModeSettingLine(section: section),
-                  ),
-                if (!config.showModelSelector)
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: () =>
-                            onOpenTool(_firstOrNull(config.recommendedToolIds)),
-                        icon: const Icon(Icons.grid_view_rounded, size: 16),
-                        label: const Text('Открыть инструменты'),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: null,
-                        icon: const Icon(
-                          Icons.compare_arrows_rounded,
-                          size: 16,
+                  const SizedBox(height: 8),
+                  if (config.showModelSelector) ...[
+                    _SelectLine(
+                      value: model,
+                      values: config.models,
+                      onChanged: onModel,
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                  for (final section in config.settings)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 9),
+                      child: _ModeSettingLine(section: section),
+                    ),
+                  if (!config.showModelSelector)
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () => onOpenTool(
+                            _firstOrNull(config.recommendedToolIds),
+                          ),
+                          icon: const Icon(Icons.grid_view_rounded, size: 16),
+                          label: const Text('Открыть инструменты'),
                         ),
-                        label: const Text('Сравнить скоро'),
-                      ),
-                    ],
-                  ),
-              ],
-            ),
-          ),
-          _SettingsGroup(
-            title: 'AI-помощники и контекст',
-            child: _ModeContext(mode),
-          ),
-          _SettingsGroup(
-            title: 'Режим выполнения',
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _PathRow('Ручной запуск', Icons.open_in_new_rounded),
-                _PathRow('API позже', Icons.api_rounded),
-                _PathRow('Локально позже', Icons.dns_outlined),
-                SizedBox(height: 6),
-                Text(
-                  'Сейчас OS работает в ручном режиме: она собирает маршрут, промпты и инструменты. На следующих этапах подключим OpenAI API, Ollama и автоматические агенты.',
-                  style: TextStyle(
-                    color: Color(0xFF8B8F9A),
-                    fontSize: 11,
-                    height: 1.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 4),
-          _SettingsGroup(
-            title: 'Следующее действие',
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _NextActionHint(mode: mode, activeViewType: activeViewType),
-                const SizedBox(height: 8),
-                _MetaLine('Режим OS', settings.operatorMode.label),
-                _MetaLine('Ollama', settings.ollamaBaseUrl),
-                if (seedFreeCredits.isNotEmpty)
-                  _MetaLine('Бесплатно', seedFreeCredits.first.service),
-              ],
-            ),
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  onPressed: onReset,
-                  child: const Text('Сброс'),
-                ),
+                        OutlinedButton.icon(
+                          onPressed: null,
+                          icon: const Icon(
+                            Icons.compare_arrows_rounded,
+                            size: 16,
+                          ),
+                          label: const Text('Сравнить скоро'),
+                        ),
+                      ],
+                    ),
+                ],
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: FilledButton(
-                  onPressed: () => onOpenWorkflow(null),
-                  child: const Text('Открыть план'),
-                ),
+            ),
+            _SettingsGroup(
+              title: 'AI-помощники и контекст',
+              child: _ModeContext(mode),
+            ),
+            _SettingsGroup(
+              title: 'Режим выполнения',
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _PathRow('Ручной запуск', Icons.open_in_new_rounded),
+                  _PathRow('API позже', Icons.api_rounded),
+                  _PathRow('Локально позже', Icons.dns_outlined),
+                  SizedBox(height: 6),
+                  Text(
+                    'Сейчас OS работает в ручном режиме: она собирает маршрут, промпты и инструменты. На следующих этапах подключим OpenAI API, Ollama и автоматические агенты.',
+                    style: TextStyle(
+                      color: Color(0xFF8B8F9A),
+                      fontSize: 11,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(height: 4),
+            _SettingsGroup(
+              title: 'Следующее действие',
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _NextActionHint(mode: mode, activeViewType: activeViewType),
+                  const SizedBox(height: 8),
+                  _MetaLine('Режим OS', settings.operatorMode.label),
+                  _MetaLine('Ollama', settings.ollamaBaseUrl),
+                  if (seedFreeCredits.isNotEmpty)
+                    _MetaLine('Бесплатно', seedFreeCredits.first.service),
+                ],
+              ),
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onReset,
+                    child: const Text('Сброс'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => onOpenWorkflow(null),
+                    child: const Text('Открыть план'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
