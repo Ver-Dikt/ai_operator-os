@@ -24,6 +24,15 @@ class SettingsScreen extends StatelessWidget {
             child: Column(
               children: [
                 SwitchListTile(
+                  value: settings.darkMode,
+                  onChanged: settings.setDarkMode,
+                  title: const Text('Тёмная тема'),
+                  subtitle: const Text(
+                    'Переключает состояние UI и сохраняется локально. Тёмная тема остаётся режимом по умолчанию.',
+                  ),
+                ),
+                const Divider(height: 1),
+                SwitchListTile(
                   value: settings.compactCards,
                   onChanged: settings.setCompactCards,
                   title: const Text('Компактные карточки'),
@@ -35,6 +44,20 @@ class SettingsScreen extends StatelessWidget {
                 _DestinationTile(settings: settings),
                 const Divider(height: 1),
                 _ModeTile(settings: settings),
+                const Divider(height: 1),
+                const ListTile(
+                  title: Text('Local tools later'),
+                  subtitle: Text(
+                    'Ollama, ComfyUI и локальный runtime будут подключаться на Integration Layer.',
+                  ),
+                ),
+                const Divider(height: 1),
+                const ListTile(
+                  title: Text('API keys later'),
+                  subtitle: Text(
+                    'Ключи не сохраняются во frontend; безопасное хранение появится позже.',
+                  ),
+                ),
               ],
             ),
           ),

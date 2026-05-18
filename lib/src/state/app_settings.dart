@@ -97,6 +97,7 @@ class AppSettings extends ChangeNotifier {
     ollamaBaseUrl =
         _preferences.getString(_ollamaBaseUrlKey) ?? 'http://localhost:11434';
     themeAccent = _preferences.getString(_accentKey) ?? 'cyan';
+    darkMode = _preferences.getBool(_darkModeKey) ?? true;
 
     final savedDestination = _preferences.getString(_startupKey);
     startupDestination = AppDestination.values.firstWhere(
@@ -115,6 +116,7 @@ class AppSettings extends ChangeNotifier {
   static const _operatorModeKey = 'operator_mode';
   static const _ollamaBaseUrlKey = 'ollama_base_url';
   static const _accentKey = 'theme_accent';
+  static const _darkModeKey = 'dark_mode';
   static const allCategories = 'Все';
 
   final SharedPreferences _preferences;
@@ -130,6 +132,7 @@ class AppSettings extends ChangeNotifier {
   OperatorMode operatorMode = OperatorMode.hybrid;
   String ollamaBaseUrl = 'http://localhost:11434';
   String themeAccent = 'cyan';
+  bool darkMode = true;
   AppDestination startupDestination = AppDestination.commandCenter;
   AppDestination currentDestination = AppDestination.commandCenter;
 
@@ -265,6 +268,12 @@ class AppSettings extends ChangeNotifier {
   Future<void> setThemeAccent(String value) async {
     themeAccent = value;
     await _preferences.setString(_accentKey, value);
+    notifyListeners();
+  }
+
+  Future<void> setDarkMode(bool value) async {
+    darkMode = value;
+    await _preferences.setBool(_darkModeKey, value);
     notifyListeners();
   }
 }

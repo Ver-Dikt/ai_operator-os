@@ -34,32 +34,37 @@ class _AiOperatorAppState extends State<AiOperatorApp> {
 
         return AppSettingsScope(
           notifier: _settings!,
-          child: MaterialApp(
-            title: 'AI Operator OS',
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.dark(),
-            initialRoute: _settings!.startupDestination.routePath,
-            onGenerateRoute: (routeSettings) {
-              final destination = AppDestinationRoute.fromRoute(
-                routeSettings.name,
-              );
-              return PageRouteBuilder<void>(
-                settings: routeSettings,
-                pageBuilder: (context, animation, secondaryAnimation) =>
-                    AppShell(destination: destination),
-                transitionsBuilder:
-                    (context, animation, secondaryAnimation, child) {
-                      return FadeTransition(
-                        opacity: CurvedAnimation(
-                          parent: animation,
-                          curve: Curves.easeOutCubic,
-                        ),
-                        child: child,
-                      );
-                    },
-                transitionDuration: const Duration(milliseconds: 140),
-              );
-            },
+          child: AnimatedBuilder(
+            animation: _settings!,
+            builder: (context, _) => MaterialApp(
+              title: 'AI Operator OS',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.light(),
+              darkTheme: AppTheme.dark(),
+              themeMode: _settings!.darkMode ? ThemeMode.dark : ThemeMode.light,
+              initialRoute: _settings!.startupDestination.routePath,
+              onGenerateRoute: (routeSettings) {
+                final destination = AppDestinationRoute.fromRoute(
+                  routeSettings.name,
+                );
+                return PageRouteBuilder<void>(
+                  settings: routeSettings,
+                  pageBuilder: (context, animation, secondaryAnimation) =>
+                      AppShell(destination: destination),
+                  transitionsBuilder:
+                      (context, animation, secondaryAnimation, child) {
+                        return FadeTransition(
+                          opacity: CurvedAnimation(
+                            parent: animation,
+                            curve: Curves.easeOutCubic,
+                          ),
+                          child: child,
+                        );
+                      },
+                  transitionDuration: const Duration(milliseconds: 140),
+                );
+              },
+            ),
           ),
         );
       },

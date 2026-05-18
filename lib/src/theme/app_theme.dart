@@ -1,6 +1,55 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
+  static ThemeData light() {
+    const background = Color(0xFFF4F7FB);
+    const surface = Color(0xFFFFFFFF);
+    const surfaceHigh = Color(0xFFEAF0F7);
+    const border = Color(0xFFD6E0EC);
+    const primary = Color(0xFF136F63);
+
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.light,
+      fontFamily: 'Segoe UI',
+      scaffoldBackgroundColor: background,
+      colorScheme: const ColorScheme.light(
+        primary: primary,
+        onPrimary: Colors.white,
+        secondary: Color(0xFFB66A00),
+        tertiary: Color(0xFFB4234D),
+        surface: surface,
+        surfaceContainerHighest: surfaceHigh,
+        outline: border,
+      ),
+      textTheme: Typography.blackMountainView.apply(
+        bodyColor: const Color(0xFF16202C),
+        displayColor: const Color(0xFF101820),
+        fontFamily: 'Segoe UI',
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: const Color(0xFF16202C),
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: const Color(0xFF16202C),
+          side: const BorderSide(color: border),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        ),
+      ),
+    );
+  }
+
   static ThemeData dark() {
     const background = Color(0xFF05070B);
     const surface = Color(0xFF0B0F16);

@@ -12,6 +12,8 @@ import '../models/workflow_template.dart';
 class GraphRepository {
   const GraphRepository();
 
+  List<AiTool> get allTools => seedTools;
+
   List<AiTool> toolsByIds(List<String> ids) =>
       seedTools.where((tool) => ids.contains(tool.id)).toList();
 

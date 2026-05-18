@@ -41,6 +41,43 @@ T? _firstWhereOrNull<T>(Iterable<T> items, bool Function(T item) test) {
   return null;
 }
 
+String? _toolIdForModelLabel(String value) {
+  final normalized = value.toLowerCase();
+  if (normalized.contains('claude')) return 'claude';
+  if (normalized.contains('gemini image')) return 'gemini-image-tools';
+  if (normalized.contains('gemini')) return 'gemini';
+  if (normalized.contains('perplexity')) return 'perplexity';
+  if (normalized.contains('midjourney')) return 'midjourney';
+  if (normalized.contains('chatgpt images')) return 'chatgpt-images';
+  if (normalized.contains('chatgpt')) return 'chatgpt';
+  if (normalized.contains('nano')) return 'nano-banana';
+  if (normalized.contains('leonardo')) return 'leonardo';
+  if (normalized.contains('flux')) return 'flux-playground';
+  if (normalized.contains('ideogram')) return 'ideogram';
+  if (normalized.contains('freepik')) return 'freepik-ai';
+  if (normalized.contains('recraft')) return 'recraft';
+  if (normalized.contains('kling')) return 'kling';
+  if (normalized.contains('veo') || normalized.contains('flow')) return 'veo';
+  if (normalized.contains('runway')) return 'runway';
+  if (normalized.contains('pika')) return 'pika';
+  if (normalized.contains('luma')) return 'luma';
+  if (normalized.contains('higgsfield')) return 'higgsfield';
+  if (normalized.contains('vidu')) return 'vidu';
+  if (normalized.contains('suno')) return 'suno';
+  if (normalized.contains('eleven')) return 'elevenlabs';
+  if (normalized.contains('udio')) return 'udio';
+  if (normalized.contains('adobe podcast')) return 'adobe-podcast';
+  if (normalized.contains('ollama')) return 'ollama';
+  if (normalized.contains('comfy')) return 'comfyui';
+  return null;
+}
+
+AiTool? _toolForModel(String value) {
+  final id = _toolIdForModelLabel(value);
+  if (id == null) return null;
+  return _firstOrNull(const GraphRepository().toolsByIds([id]));
+}
+
 String _formatSessionTime(DateTime value) {
   final hour = value.hour.toString().padLeft(2, '0');
   final minute = value.minute.toString().padLeft(2, '0');
@@ -132,7 +169,7 @@ Future<void> _copyText(BuildContext context, String text) async {
   if (!context.mounted) return;
   ScaffoldMessenger.of(
     context,
-  ).showSnackBar(const SnackBar(content: Text('Скопировано в буфер')));
+  ).showSnackBar(const SnackBar(content: Text('Промпт скопирован')));
 }
 
 Future<void> _launchToolWebsite(BuildContext context, AiTool tool) async {
@@ -296,6 +333,7 @@ extension _WorkModeUi on _WorkMode {
           'Ideogram',
           'PicLumen',
           'Freepik AI',
+          'Recraft',
           'ComfyUI Local',
         ],
         settings: [
@@ -330,6 +368,7 @@ extension _WorkModeUi on _WorkMode {
           'ideogram',
           'piclumen',
           'freepik-ai',
+          'recraft',
           'comfyui',
           'stable-diffusion',
         ],
@@ -345,7 +384,16 @@ extension _WorkModeUi on _WorkMode {
         modelTitle: 'Видео-модель',
         modelHelper:
             'Основной движок генерации видео. ChatGPT здесь только помощник для промпта.',
-        models: ['Kling', 'Veo / Flow', 'Runway', 'Pika', 'Luma', 'Sora'],
+        models: [
+          'Kling',
+          'Veo / Flow',
+          'Runway',
+          'Pika',
+          'Luma',
+          'Higgsfield',
+          'Vidu',
+          'Sora',
+        ],
         settings: [
           _ModeSettingConfig('Формат', ['9:16', '16:9', '1:1']),
           _ModeSettingConfig('Длина', ['5 сек', '10 сек', '30 сек', '60 сек']),
@@ -375,6 +423,8 @@ extension _WorkModeUi on _WorkMode {
           'veo',
           'google-flow',
           'luma',
+          'higgsfield',
+          'vidu',
           'sora',
         ],
         emptyStateHints: ['сцены', 'shot plan', 'camera motion'],
@@ -388,7 +438,14 @@ extension _WorkModeUi on _WorkMode {
         modelTitle: 'Аудио-модель',
         modelHelper:
             'Основной движок для голоса, музыки, дубляжа или транскрибации.',
-        models: ['ElevenLabs', 'Suno', 'Udio', 'Stable Audio', 'Whisper'],
+        models: [
+          'ElevenLabs',
+          'Suno',
+          'Udio',
+          'Adobe Podcast',
+          'Stable Audio',
+          'Whisper',
+        ],
         settings: [
           _ModeSettingConfig('Тип', [
             'Озвучка',
@@ -418,6 +475,7 @@ extension _WorkModeUi on _WorkMode {
           'elevenlabs',
           'suno',
           'udio',
+          'adobe-podcast',
           'stable-audio',
           'whisper',
         ],
@@ -514,6 +572,8 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
   String _historyTab = 'Задачи';
   String _model = _WorkMode.design.config.models.first;
   String _aspect = '9:16';
+  String _operatorStatus = 'Prompt Ready';
+  int _referenceCount = 0;
   String _quality = 'Сбалансировано';
   _TaskSession? _currentTaskSession;
   final Map<_WorkMode, _CreativeSession> _creativeSessions = {};
@@ -597,6 +657,8 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                       activeSummaryTitle: _activeSummaryTitle,
                       activeSummarySubtitle: _activeSummarySubtitle,
                       model: _model,
+                      operatorStatus: _operatorStatus,
+                      referenceCount: _referenceCount,
                       aspect: _aspect,
                       quality: _quality,
                       settings: settings,
@@ -607,6 +669,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                       onCloseActive: _closeActiveWork,
                       onSaveToProject: _saveActiveSessionToProject,
                       onWorkspaceExecution: _handleWorkspaceExecution,
+                      onReferenceAdded: _registerReference,
                       onOpenWorkflow: _openWorkflow,
                       onOpenAgent: _openAgent,
                       onOpenTool: _openTool,
@@ -618,7 +681,10 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                       onToggleSessionFavorite: _toggleSessionFavorite,
                       onNewSession: _newSession,
                       onBack: _goBackInline,
-                      onModel: (value) => setState(() => _model = value),
+                      onModel: (value) => setState(() {
+                        _model = value;
+                        _operatorStatus = 'Prepared for $value';
+                      }),
                       onAspect: (value) => setState(() => _aspect = value),
                       onQuality: (value) => setState(() => _quality = value),
                       onReset: _resetParameters,
@@ -638,6 +704,8 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                       activeSummaryTitle: _activeSummaryTitle,
                       activeSummarySubtitle: _activeSummarySubtitle,
                       model: _model,
+                      operatorStatus: _operatorStatus,
+                      referenceCount: _referenceCount,
                       aspect: _aspect,
                       quality: _quality,
                       settings: settings,
@@ -648,12 +716,16 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                       onCloseActive: _closeActiveWork,
                       onSaveToProject: _saveActiveSessionToProject,
                       onWorkspaceExecution: _handleWorkspaceExecution,
+                      onReferenceAdded: _registerReference,
                       onOpenWorkflow: _openWorkflow,
                       onOpenAgent: _openAgent,
                       onOpenTool: _openTool,
                       onOpenUseCase: _openUseCase,
                       onBack: _goBackInline,
-                      onModel: (value) => setState(() => _model = value),
+                      onModel: (value) => setState(() {
+                        _model = value;
+                        _operatorStatus = 'Prepared for $value';
+                      }),
                       onAspect: (value) => setState(() => _aspect = value),
                       onQuality: (value) => setState(() => _quality = value),
                       onReset: _resetParameters,
@@ -668,6 +740,14 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
   void _quickGoal(String task) {
     _taskController.text = task;
     _buildPlan();
+  }
+
+  void _registerReference() {
+    setState(() {
+      _referenceCount += 1;
+      _operatorStatus = '$_referenceCount references attached';
+    });
+    _recordExecutionHistory(launchedFlow: 'Добавлен reference image');
   }
 
   void _switchMode(_WorkMode mode) {
@@ -687,6 +767,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
       };
       _activeViewHistory.clear();
       _clearActiveIds();
+      _operatorStatus = 'Prepared for $_model';
     });
   }
 
@@ -719,6 +800,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
       }
       _activeViewHistory.clear();
       _clearActiveIds();
+      _operatorStatus = 'Prompt Ready';
     });
     if (sessionToSave != null) {
       _upsertMemorySession(sessionToSave!);
@@ -988,18 +1070,36 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
   }
 
   void _openTool(String? id) {
-    final tool = _firstOrNull(
-      const GraphRepository().toolsByIds([id ?? 'chatgpt']),
-    );
+    final resolvedId =
+        id ??
+        _toolIdForModel(_model) ??
+        _firstOrNull(_mode.config.recommendedToolIds);
+    if (resolvedId == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('URL инструмента не задан')));
+      return;
+    }
+    final tool = _firstOrNull(const GraphRepository().toolsByIds([resolvedId]));
+    if (tool == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('URL инструмента не задан')));
+      return;
+    }
     setState(() {
       _rememberActiveState();
       _activeViewType = _ActiveViewType.tool;
       _clearActiveIds();
-      _activeToolId = id;
+      _activeToolId = tool.id;
     });
-    if (tool != null) {
-      _touchActiveSession(openedToolId: tool.id);
-    }
+    _touchActiveSession(openedToolId: tool.id);
+    _recordExecutionHistory(launchedFlow: 'Открыт ${tool.name}');
+    setState(() => _operatorStatus = 'Opened ${tool.name}');
+  }
+
+  String? _toolIdForModel(String value) {
+    return _toolIdForModelLabel(value);
   }
 
   void _openUseCase(String? id) {
@@ -1160,19 +1260,13 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
   }
 
   void _newSession() {
-    setState(() {
-      _taskController.clear();
-      if (_mode == _WorkMode.agents) {
-        _routePlan = null;
-        _recommendation = null;
-        _currentTaskSession = null;
-      } else if (_mode != _WorkMode.toolkit) {
-        _creativeSessions.remove(_mode);
-      }
-      _activeViewType = _ActiveViewType.empty;
-      _activeViewHistory.clear();
-      _clearActiveIds();
-    });
+    final task = _defaultTaskForMode(_mode);
+    _taskController.text = task;
+    _buildPlan();
+    setState(() => _historyTab = 'Задачи');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Новая задача добавлена в активные')),
+    );
   }
 
   void _upsertMemorySession(WorkspaceSession session) {
@@ -1223,11 +1317,12 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     if (action.copyOutput) {
       await _toolLauncher.copyPrompt(prompt);
       final copyLabel = _copyEventLabel(action);
+      setState(() => _operatorStatus = 'Prompt Copied');
       _recordExecutionHistory(copiedPrompt: prompt, launchedFlow: copyLabel);
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text(copyLabel)));
+      ).showSnackBar(const SnackBar(content: Text('Промпт скопирован')));
       return;
     }
 
@@ -1252,6 +1347,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
           launchedFlow: 'Открыт ${tool.name}',
           generatedPrompt: prompt,
         );
+        setState(() => _operatorStatus = 'Opened ${tool.name}');
       } else {
         _recordExecutionHistory(launchedFlow: action.label);
       }
@@ -1268,14 +1364,20 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     return switch (action.copyTarget) {
       _PromptCopyTarget.en => 'Скопирован EN-промпт',
       _PromptCopyTarget.ru => 'Скопировано RU-описание',
-      _PromptCopyTarget.all => 'Скопирован полный production prompt',
+      _PromptCopyTarget.all => 'Скопирован production prompt',
       null => 'Скопирован production prompt',
     };
   }
 
   String _flowEventLabel(_WorkspaceActionSpec action) {
     return switch (action.flowEvent) {
-      'generate_prompt' => action.label,
+      'generate_prompt' => switch (_mode) {
+        _WorkMode.video => 'Создан cinematic prompt',
+        _WorkMode.audio => 'Создан audio direction',
+        _WorkMode.design => 'Создан image prompt',
+        _WorkMode.text => 'Создан text prompt',
+        _ => action.label,
+      },
       'refine_prompt' => 'Улучшен production prompt',
       'continue_flow' => 'Продолжен execution flow',
       _ => action.label,
@@ -1363,25 +1465,88 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     _recordExecutionHistory(launchedFlow: _saveEventLabel(session));
   }
 
-  void _createProjectFromActiveSession() {
+  Future<void> _createProjectFromActiveSession() async {
     final now = DateTime.now();
     final session = _activeSessionId == null
         ? null
         : _sessionById(_activeSessionId!);
-    final project = MemoryProject(
-      id: _newMemoryId('project'),
-      title: session == null ? 'Новый проект' : 'Проект: ${session.title}',
-      description: session == null
-          ? 'Локальный проект для будущих сессий и результатов.'
-          : 'Создан из активной сессии: ${session.preview}',
-      category: session?.type.label ?? 'workspace',
-      sessionIds: session == null ? const [] : [session.id],
-      createdAt: now,
-      updatedAt: now,
-      pinned: true,
+    final titleController = TextEditingController(
+      text: session == null ? 'Новый проект' : 'Проект: ${session.title}',
     );
+    final categoryController = TextEditingController(
+      text: session?.type.label ?? 'workspace',
+    );
+    final descriptionController = TextEditingController(
+      text: session == null
+          ? ''
+          : 'Создан из активной сессии: ${session.preview}',
+    );
+    final saved = await showDialog<MemoryProject>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Новый проект'),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(labelText: 'Название'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: categoryController,
+                decoration: const InputDecoration(labelText: 'Категория'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: descriptionController,
+                minLines: 2,
+                maxLines: 4,
+                decoration: const InputDecoration(labelText: 'Описание'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(
+              context,
+              MemoryProject(
+                id: _newMemoryId('project'),
+                title: titleController.text.trim().isEmpty
+                    ? 'Новый проект'
+                    : titleController.text.trim(),
+                description: descriptionController.text.trim(),
+                category: categoryController.text.trim().isEmpty
+                    ? 'workspace'
+                    : categoryController.text.trim(),
+                sessionIds: session == null ? const [] : [session.id],
+                createdAt: now,
+                updatedAt: now,
+                pinned: true,
+              ),
+            ),
+            child: const Text('Сохранить'),
+          ),
+        ],
+      ),
+    );
+    titleController.dispose();
+    categoryController.dispose();
+    descriptionController.dispose();
+    if (saved == null) return;
+    final project = saved;
     setState(() {
       _memoryProjects = [project, ..._memoryProjects];
+      _activeViewType = _ActiveViewType.project;
+      _activeSummaryTitle = project.title;
+      _activeSummarySubtitle = project.description;
       _historyTab = 'Проекты';
     });
     _storage.saveProjects(_memoryProjects);
@@ -1391,16 +1556,17 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
       );
       _recordExecutionHistory(launchedFlow: _saveEventLabel(session));
     }
+    _recordExecutionHistory(launchedFlow: 'Проект сохранён');
   }
 
   String _saveEventLabel(WorkspaceSession session) {
     return switch (session.type) {
-      WorkspaceSessionType.image => 'Сохранён image prompt',
-      WorkspaceSessionType.video => 'Сохранён video scene prompt',
-      WorkspaceSessionType.audio => 'Сохранён audio prompt',
-      WorkspaceSessionType.text => 'Сохранён text prompt',
-      WorkspaceSessionType.helper => 'Сохранён helper context',
-      WorkspaceSessionType.workflow => 'Сохранён workflow route',
+      WorkspaceSessionType.image => 'Проект сохранён: image prompt',
+      WorkspaceSessionType.video => 'Проект сохранён: video scene prompt',
+      WorkspaceSessionType.audio => 'Проект сохранён: audio prompt',
+      WorkspaceSessionType.text => 'Проект сохранён: text prompt',
+      WorkspaceSessionType.helper => 'Проект сохранён: helper context',
+      WorkspaceSessionType.workflow => 'Проект сохранён: workflow route',
     };
   }
 
@@ -1503,6 +1669,8 @@ class _DesktopStation extends StatelessWidget {
     required this.activeSummaryTitle,
     required this.activeSummarySubtitle,
     required this.model,
+    required this.operatorStatus,
+    required this.referenceCount,
     required this.aspect,
     required this.quality,
     required this.settings,
@@ -1513,6 +1681,7 @@ class _DesktopStation extends StatelessWidget {
     required this.onCloseActive,
     required this.onSaveToProject,
     required this.onWorkspaceExecution,
+    required this.onReferenceAdded,
     required this.onOpenWorkflow,
     required this.onOpenAgent,
     required this.onOpenTool,
@@ -1550,6 +1719,8 @@ class _DesktopStation extends StatelessWidget {
   final String? activeSummaryTitle;
   final String? activeSummarySubtitle;
   final String model;
+  final String operatorStatus;
+  final int referenceCount;
   final String aspect;
   final String quality;
   final AppSettings settings;
@@ -1561,6 +1732,7 @@ class _DesktopStation extends StatelessWidget {
   final VoidCallback onSaveToProject;
   final void Function(_WorkspaceActionSpec action, String prompt)
   onWorkspaceExecution;
+  final VoidCallback onReferenceAdded;
   final ValueChanged<String?> onOpenWorkflow;
   final ValueChanged<String?> onOpenAgent;
   final ValueChanged<String?> onOpenTool;
@@ -1584,15 +1756,18 @@ class _DesktopStation extends StatelessWidget {
       children: [
         Column(
           children: [
-            _TopBar(mode: mode, onMode: onMode),
+            _TopBar(mode: mode, onMode: onMode, onNavigate: onNavigate),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(286, 18, 336, 118),
+                padding: const EdgeInsets.fromLTRB(310, 18, 336, 132),
                 child: _CenterStage(
                   mode: mode,
                   routePlan: routePlan,
                   recommendation: recommendation,
                   creativeSession: creativeSession,
+                  selectedModel: model,
+                  operatorStatus: operatorStatus,
+                  referenceCount: referenceCount,
                   activeViewType: activeViewType,
                   activeWorkflowId: activeWorkflowId,
                   activeAgentId: activeAgentId,
@@ -1618,7 +1793,7 @@ class _DesktopStation extends StatelessWidget {
           left: 22,
           top: 72,
           bottom: 24,
-          width: 236,
+          width: 260,
           child: _HistoryPanel(
             tab: historyTab,
             currentTaskSession: currentTaskSession,
@@ -1666,7 +1841,7 @@ class _DesktopStation extends StatelessWidget {
         ),
         if (mode != _WorkMode.toolkit)
           Positioned(
-            left: 330,
+            left: 354,
             right: 380,
             bottom: 24,
             child: _PromptComposer(
@@ -1674,6 +1849,7 @@ class _DesktopStation extends StatelessWidget {
               controller: taskController,
               onSubmit: onSubmit,
               onQuickGoal: onQuickGoal,
+              onReferenceAdded: onReferenceAdded,
             ),
           ),
       ],
@@ -1696,6 +1872,8 @@ class _MobileStation extends StatelessWidget {
     required this.activeSummaryTitle,
     required this.activeSummarySubtitle,
     required this.model,
+    required this.operatorStatus,
+    required this.referenceCount,
     required this.aspect,
     required this.quality,
     required this.settings,
@@ -1706,6 +1884,7 @@ class _MobileStation extends StatelessWidget {
     required this.onCloseActive,
     required this.onSaveToProject,
     required this.onWorkspaceExecution,
+    required this.onReferenceAdded,
     required this.onOpenWorkflow,
     required this.onOpenAgent,
     required this.onOpenTool,
@@ -1730,6 +1909,8 @@ class _MobileStation extends StatelessWidget {
   final String? activeSummaryTitle;
   final String? activeSummarySubtitle;
   final String model;
+  final String operatorStatus;
+  final int referenceCount;
   final String aspect;
   final String quality;
   final AppSettings settings;
@@ -1741,6 +1922,7 @@ class _MobileStation extends StatelessWidget {
   final VoidCallback onSaveToProject;
   final void Function(_WorkspaceActionSpec action, String prompt)
   onWorkspaceExecution;
+  final VoidCallback onReferenceAdded;
   final ValueChanged<String?> onOpenWorkflow;
   final ValueChanged<String?> onOpenAgent;
   final ValueChanged<String?> onOpenTool;
@@ -1765,6 +1947,9 @@ class _MobileStation extends StatelessWidget {
             routePlan: routePlan,
             recommendation: recommendation,
             creativeSession: creativeSession,
+            selectedModel: model,
+            operatorStatus: operatorStatus,
+            referenceCount: referenceCount,
             activeViewType: activeViewType,
             activeWorkflowId: activeWorkflowId,
             activeAgentId: activeAgentId,
@@ -1790,6 +1975,7 @@ class _MobileStation extends StatelessWidget {
             controller: taskController,
             onSubmit: onSubmit,
             onQuickGoal: onQuickGoal,
+            onReferenceAdded: onReferenceAdded,
           ),
           const SizedBox(height: 14),
         ],
@@ -1822,11 +2008,13 @@ class _TopBar extends StatelessWidget {
     required this.mode,
     required this.onMode,
     this.compact = false,
+    this.onNavigate,
   });
 
   final _WorkMode mode;
   final ValueChanged<_WorkMode> onMode;
   final bool compact;
+  final ValueChanged<AppDestination>? onNavigate;
 
   @override
   Widget build(BuildContext context) {
@@ -1850,7 +2038,10 @@ class _TopBar extends StatelessWidget {
                       child: _ModeTabs(mode: mode, onMode: onMode),
                     ),
                   ),
-                  const SizedBox(width: 190, child: _TopActions()),
+                  SizedBox(
+                    width: 190,
+                    child: _TopActions(onNavigate: onNavigate),
+                  ),
                 ],
               ),
       ),
@@ -1889,18 +2080,38 @@ class _TopIdentity extends StatelessWidget {
 }
 
 class _TopActions extends StatelessWidget {
-  const _TopActions();
+  const _TopActions({this.onNavigate});
+
+  final ValueChanged<AppDestination>? onNavigate;
 
   @override
   Widget build(BuildContext context) {
-    return const Row(
+    final settings = AppSettingsScope.of(context);
+    return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
-        Icon(Icons.dark_mode_outlined, size: 17, color: Color(0xFF8B8F9A)),
-        SizedBox(width: 12),
-        _SoftBadge('Hybrid'),
-        SizedBox(width: 12),
-        CircleAvatar(radius: 12, backgroundColor: Color(0xFF242833)),
+        IconButton(
+          tooltip: settings.darkMode ? 'Светлая тема' : 'Тёмная тема',
+          onPressed: () => settings.setDarkMode(!settings.darkMode),
+          icon: Icon(
+            settings.darkMode
+                ? Icons.dark_mode_outlined
+                : Icons.light_mode_outlined,
+            size: 17,
+            color: const Color(0xFF8B8F9A),
+          ),
+        ),
+        const SizedBox(width: 4),
+        const _SoftBadge('Hybrid'),
+        const SizedBox(width: 4),
+        IconButton(
+          tooltip: 'Настройки',
+          onPressed: onNavigate == null
+              ? null
+              : () => onNavigate!(AppDestination.settings),
+          icon: const Icon(Icons.tune_rounded, size: 17),
+          color: const Color(0xFF8B8F9A),
+        ),
       ],
     );
   }
@@ -2173,21 +2384,23 @@ class _HistoryPanel extends StatelessWidget {
                 onTap: () => onOpenAgent('prompt-engineer-agent'),
               ),
               const SizedBox(height: 14),
-              const _PanelLabel('ИНСТРУМЕНТЫ'),
-              const _SectionHint('нейросети и сервисы под рукой'),
-              _HistoryItem(
-                title: 'Kling',
-                subtitle: 'видео-инструмент',
-                type: 'инструмент',
-                icon: Icons.movie_creation_outlined,
-                onTap: () => onOpenTool('kling'),
+              const _PanelLabel('ОПЕРАТОРСКИЕ ИНСТРУМЕНТЫ'),
+              const _SectionHint(
+                'инфраструктура, локальный runtime и автоматизация',
               ),
               _HistoryItem(
-                title: 'ChatGPT',
-                subtitle: 'текст / промпты',
+                title: 'ComfyUI',
+                subtitle: 'локальный image/video runtime',
                 type: 'инструмент',
-                icon: Icons.grid_view_rounded,
-                onTap: () => onOpenTool('chatgpt'),
+                icon: Icons.hub_outlined,
+                onTap: () => onOpenTool('comfyui'),
+              ),
+              _HistoryItem(
+                title: 'Ollama',
+                subtitle: 'локальные LLM',
+                type: 'инструмент',
+                icon: Icons.dns_outlined,
+                onTap: () => onOpenTool('ollama'),
               ),
               _HistoryItem(
                 title: 'n8n',
@@ -2197,11 +2410,25 @@ class _HistoryPanel extends StatelessWidget {
                 onTap: () => onOpenTool('n8n'),
               ),
               _HistoryItem(
-                title: 'Midjourney',
-                subtitle: 'дизайн-инструмент',
+                title: 'OpenRouter',
+                subtitle: 'API gateway',
                 type: 'инструмент',
-                icon: Icons.auto_awesome_mosaic_outlined,
-                onTap: () => onOpenTool('midjourney'),
+                icon: Icons.api_rounded,
+                onTap: () => onOpenTool('openrouter'),
+              ),
+              _HistoryItem(
+                title: 'Hugging Face',
+                subtitle: 'модели и пространства',
+                type: 'инструмент',
+                icon: Icons.storage_outlined,
+                onTap: () => onOpenTool('huggingface'),
+              ),
+              _HistoryItem(
+                title: 'Local Runtime',
+                subtitle: 'локальный запуск позже',
+                type: 'инструмент',
+                icon: Icons.memory_rounded,
+                onTap: () => onOpenTool('ollama'),
               ),
               const SizedBox(height: 14),
               const _PanelLabel('БЫСТРЫЕ СЦЕНАРИИ'),
@@ -2319,6 +2546,9 @@ class _CenterStage extends StatelessWidget {
     required this.mode,
     required this.routePlan,
     required this.creativeSession,
+    required this.selectedModel,
+    required this.operatorStatus,
+    required this.referenceCount,
     required this.recommendation,
     required this.activeViewType,
     required this.activeWorkflowId,
@@ -2341,6 +2571,9 @@ class _CenterStage extends StatelessWidget {
   final _WorkMode mode;
   final RoutePlan? routePlan;
   final _CreativeSession? creativeSession;
+  final String selectedModel;
+  final String operatorStatus;
+  final int referenceCount;
   final RoutingRecommendation? recommendation;
   final _ActiveViewType activeViewType;
   final String? activeWorkflowId;
@@ -2376,6 +2609,9 @@ class _CenterStage extends StatelessWidget {
           ? _EmptyModeStage(mode: mode, key: ValueKey(mode))
           : _CreativeWorkspaceStage(
               session: creativeSession!,
+              selectedModel: selectedModel,
+              operatorStatus: operatorStatus,
+              referenceCount: referenceCount,
               onClose: onCloseActive,
               onSaveToProject: onSaveToProject,
               onWorkspaceExecution: onWorkspaceExecution,
@@ -2624,7 +2860,7 @@ class _EmptyModeStage extends StatelessWidget {
   }
 }
 
-class _ToolkitSearchStage extends StatelessWidget {
+class _ToolkitSearchStage extends StatefulWidget {
   const _ToolkitSearchStage({
     super.key,
     required this.mode,
@@ -2635,16 +2871,23 @@ class _ToolkitSearchStage extends StatelessWidget {
   final ValueChanged<String?> onOpenTool;
 
   @override
+  State<_ToolkitSearchStage> createState() => _ToolkitSearchStageState();
+}
+
+class _ToolkitSearchStageState extends State<_ToolkitSearchStage> {
+  String _query = '';
+  String _filter = 'Все';
+
+  @override
   Widget build(BuildContext context) {
-    final graph = const GraphRepository();
-    final tools = graph.toolsByIds(mode.config.recommendedToolIds);
-    return Center(
+    final tools = const GraphRepository().allTools.where(_matchesTool).toList();
+    return Align(
+      alignment: Alignment.topCenter,
       child: _GlassPanel(
         width: 680,
         padding: const EdgeInsets.all(22),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: ListView(
+          padding: EdgeInsets.zero,
           children: [
             const _PanelLabel('БАЗА НЕЙРОСЕТЕЙ'),
             const SizedBox(height: 10),
@@ -2658,16 +2901,16 @@ class _ToolkitSearchStage extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              mode.description,
+              widget.mode.description,
               style: const TextStyle(color: Color(0xFF9AA0AA), height: 1.35),
             ),
             const SizedBox(height: 16),
             TextField(
+              onChanged: (value) => setState(() => _query = value),
               decoration: InputDecoration(
                 isDense: true,
                 prefixIcon: const Icon(Icons.search_rounded, size: 18),
-                hintText:
-                    'Например: Kling, Nano Banana, Veo, ChatGPT, ComfyUI...',
+                hintText: 'Например: Kling, Flux, Suno, ChatGPT, ComfyUI...',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: const BorderSide(color: Color(0x12FFFFFF)),
@@ -2678,25 +2921,57 @@ class _ToolkitSearchStage extends StatelessWidget {
             Wrap(
               spacing: 7,
               runSpacing: 7,
-              children: const [
-                _SoftBadge('Все'),
-                _SoftBadge('Бесплатные'),
-                _SoftBadge('Видео'),
-                _SoftBadge('Изображения'),
-                _SoftBadge('Аудио'),
-                _SoftBadge('Текст'),
-                _SoftBadge('Локальные'),
-                _SoftBadge('API'),
-                _SoftBadge('Free'),
+              children: [
+                for (final filter in const [
+                  'Все',
+                  'Бесплатные',
+                  'Видео',
+                  'Изображения',
+                  'Аудио',
+                  'Текст',
+                  'Локальные',
+                  'API',
+                  'Автоматизация',
+                ])
+                  _TinyTab(
+                    label: filter,
+                    selected: _filter == filter,
+                    onTap: () => setState(() => _filter = filter),
+                  ),
               ],
             ),
             const SizedBox(height: 16),
-            for (final tool in tools.take(5))
-              _ToolSearchResult(tool: tool, onOpenTool: onOpenTool),
+            if (tools.isEmpty)
+              const _SectionHint('Инструменты не найдены')
+            else
+              for (final tool in tools)
+                _ToolSearchResult(tool: tool, onOpenTool: widget.onOpenTool),
           ],
         ),
       ),
     );
+  }
+
+  bool _matchesTool(AiTool tool) {
+    final matchesFilter = switch (_filter) {
+      'Бесплатные' => tool.isFreePath,
+      'Видео' => tool.category == ToolCategory.video,
+      'Изображения' =>
+        tool.category == ToolCategory.image ||
+            tool.category == ToolCategory.design,
+      'Аудио' =>
+        tool.category == ToolCategory.music ||
+            tool.category == ToolCategory.voice,
+      'Текст' =>
+        tool.category == ToolCategory.text ||
+            tool.category == ToolCategory.research ||
+            tool.category == ToolCategory.search,
+      'Локальные' => tool.isLocal || tool.category == ToolCategory.localModels,
+      'API' => tool.hasApi || tool.platforms.contains(ToolPlatform.api),
+      'Автоматизация' => tool.category == ToolCategory.automation,
+      _ => true,
+    };
+    return matchesFilter && tool.matches(_query);
   }
 }
 
@@ -2997,6 +3272,9 @@ class _CreativeWorkspaceStage extends StatelessWidget {
   const _CreativeWorkspaceStage({
     super.key,
     required this.session,
+    required this.selectedModel,
+    required this.operatorStatus,
+    required this.referenceCount,
     required this.onClose,
     required this.onSaveToProject,
     required this.onWorkspaceExecution,
@@ -3004,6 +3282,9 @@ class _CreativeWorkspaceStage extends StatelessWidget {
   });
 
   final _CreativeSession session;
+  final String selectedModel;
+  final String operatorStatus;
+  final int referenceCount;
   final VoidCallback onClose;
   final VoidCallback onSaveToProject;
   final void Function(_WorkspaceActionSpec action, String prompt)
@@ -3034,7 +3315,7 @@ class _CreativeWorkspaceStage extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               Text(
-                session.title,
+                '${session.title} · $selectedModel',
                 style: const TextStyle(
                   color: Color(0xFFF2F3F5),
                   fontSize: 20,
@@ -3051,23 +3332,29 @@ class _CreativeWorkspaceStage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              _ExecutionModeStrip(mode: executionMode),
+              _OperatorStateStrip(
+                selectedModel: selectedModel,
+                status: operatorStatus,
+                referenceCount: referenceCount,
+                executionMode: executionMode,
+              ),
               const SizedBox(height: 12),
               _WorkspaceOutputBlock(
                 title: 'FINAL PRODUCTION PROMPT',
-                value: _productionPromptForSession(session),
+                value: _productionPromptForSession(session, selectedModel),
               ),
               const SizedBox(height: 12),
               _WorkspaceModeBoard(
                 session: session,
+                selectedModel: selectedModel,
                 onExecute: onWorkspaceExecution,
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
                 children: [
-                  for (final section in session.sections)
+                  for (final section in session.sections.take(2))
                     _WorkspaceMiniBlock(
                       title: section.title,
                       value: section.value,
@@ -3076,9 +3363,9 @@ class _CreativeWorkspaceStage extends StatelessWidget {
               ),
               if (session.promptBlocks.isNotEmpty) ...[
                 const SizedBox(height: 14),
-                const _PanelLabel('PROMPT BLOCKS'),
+                const _PanelLabel('PROMPT FRAGMENTS'),
                 const SizedBox(height: 8),
-                for (final block in session.promptBlocks)
+                for (final block in session.promptBlocks.take(2))
                   _WorkspacePromptLine(text: block),
               ],
               const SizedBox(height: 14),
@@ -3095,6 +3382,7 @@ class _CreativeWorkspaceStage extends StatelessWidget {
                       ),
                       _promptForAction(
                         session,
+                        selectedModel,
                         const _WorkspaceActionSpec(
                           'Скопировать всё',
                           Icons.copy_rounded,
@@ -3108,7 +3396,10 @@ class _CreativeWorkspaceStage extends StatelessWidget {
                     label: const Text('Скопировать всё'),
                   ),
                   OutlinedButton.icon(
-                    onPressed: () => _copyText(context, session.output),
+                    onPressed: () => _copyText(
+                      context,
+                      _productionPromptForSession(session, selectedModel),
+                    ),
                     icon: const Icon(Icons.copy_all_rounded),
                     label: const Text('Duplicate session'),
                   ),
@@ -3174,6 +3465,7 @@ class _WorkspaceOutputBlock extends StatelessWidget {
 
 ({String ru, String en, String full}) _productionPromptParts(
   _CreativeSession session,
+  String selectedModel,
 ) {
   final task = session.sourceTask.trim().isEmpty
       ? session.title
@@ -3200,15 +3492,32 @@ class _WorkspaceOutputBlock extends StatelessWidget {
       'Create audio for: $task.\nGoal: produce a usable voice/music/sound design direction.\nMood: focused, emotional, controlled.\nTempo: medium, steady, with natural dynamic movement.\nGenre: choose a style that supports the content without overpowering it.\nVoice style: clear, warm, confident, natural pacing, no exaggerated acting.\nStructure: intro cue, main phrase/theme, short pause, final resolve.\nNegative notes: avoid harsh noise, overcompression, muddy mix, robotic pronunciation, generic trailer sound.',
     _ => session.output,
   };
-  return (ru: ru, en: en, full: '$ru\n\nEN production prompt:\n$en');
+  final productionPrompt = session.mode == _WorkMode.audio
+      ? en.replaceFirst(
+          'Tempo: medium, steady, with natural dynamic movement.',
+          'BPM: medium tempo, steady pulse, with natural dynamic movement.\nVocal/music direction: clear voice or focused musical lead, warm tone, confident pacing.',
+        )
+      : en;
+  return (
+    ru: ru,
+    en: productionPrompt,
+    full: 'Prepared for: $selectedModel\n\n$productionPrompt',
+  );
 }
 
-String _productionPromptForSession(_CreativeSession session) {
-  return _productionPromptParts(session).full;
+String _productionPromptForSession(
+  _CreativeSession session,
+  String selectedModel,
+) {
+  return _productionPromptParts(session, selectedModel).full;
 }
 
-String _promptForAction(_CreativeSession session, _WorkspaceActionSpec action) {
-  final parts = _productionPromptParts(session);
+String _promptForAction(
+  _CreativeSession session,
+  String selectedModel,
+  _WorkspaceActionSpec action,
+) {
+  final parts = _productionPromptParts(session, selectedModel);
   return switch (action.copyTarget) {
     _PromptCopyTarget.ru => parts.ru,
     _PromptCopyTarget.en => parts.en,
@@ -3218,14 +3527,38 @@ String _promptForAction(_CreativeSession session, _WorkspaceActionSpec action) {
 }
 
 class _WorkspaceModeBoard extends StatelessWidget {
-  const _WorkspaceModeBoard({required this.session, required this.onExecute});
+  const _WorkspaceModeBoard({
+    required this.session,
+    required this.selectedModel,
+    required this.onExecute,
+  });
 
   final _CreativeSession session;
+  final String selectedModel;
   final void Function(_WorkspaceActionSpec action, String prompt) onExecute;
 
   @override
   Widget build(BuildContext context) {
     final spec = _WorkspaceBoardSpec.forMode(session.mode);
+    final selectedTool = _toolForModel(selectedModel);
+    final selectedName = selectedTool?.name ?? selectedModel;
+    final actions = selectedTool == null
+        ? spec.actions
+        : [
+            _WorkspaceActionSpec(
+              'Open $selectedName',
+              Icons.open_in_new_rounded,
+              true,
+              toolId: selectedTool.id,
+            ),
+            _WorkspaceActionSpec(
+              'Copy $selectedName prompt',
+              Icons.copy_rounded,
+              false,
+              copyOutput: true,
+              copyTarget: _PromptCopyTarget.all,
+            ),
+          ];
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -3255,7 +3588,11 @@ class _WorkspaceModeBoard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          _NextStepCard(text: spec.nextStep),
+          _NextStepCard(
+            text: selectedTool == null
+                ? spec.nextStep
+                : 'Open $selectedName, paste the prepared prompt, then continue manually.',
+          ),
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
@@ -3272,13 +3609,13 @@ class _WorkspaceModeBoard extends StatelessWidget {
           const SizedBox(height: 12),
           _ResponsiveActionBar(
             children: [
-              for (final action in spec.actions)
+              for (final action in actions)
                 action.primary
                     ? FilledButton.icon(
                         onPressed: () => _runWorkspaceAction(
                           context,
                           action,
-                          _promptForAction(session, action),
+                          _promptForAction(session, selectedModel, action),
                           onExecute,
                         ),
                         icon: Icon(action.icon),
@@ -3288,7 +3625,7 @@ class _WorkspaceModeBoard extends StatelessWidget {
                         onPressed: () => _runWorkspaceAction(
                           context,
                           action,
-                          _promptForAction(session, action),
+                          _promptForAction(session, selectedModel, action),
                           onExecute,
                         ),
                         icon: Icon(action.icon),
@@ -4868,7 +5205,7 @@ class _DemoModeNotice extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Text(
-      'Демо-режим: сейчас действия готовят план и промпты. Реальный запуск через API/локальные модели будет позже.',
+      'Ручной запуск: подготовь prompt, открой выбранный инструмент и сохрани результат в проект.',
       style: TextStyle(color: Color(0xFF7D828D), fontSize: 12, height: 1.35),
     );
   }
@@ -4951,7 +5288,7 @@ class _ManualModeBox extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
       ),
       child: const Text(
-        'Сейчас OS помогает вручную: собирает промпты, маршруты и инструменты. API, Local и автоматические агенты подключим позже.',
+        'Сейчас OS работает как ручной операторский слой: собирает промпты, маршруты и выбранные инструменты.',
         style: TextStyle(color: Color(0xFF9AA0AA), fontSize: 12, height: 1.35),
       ),
     );
@@ -4974,21 +5311,32 @@ class _MissingEntityStage extends StatelessWidget {
   }
 }
 
-class _PromptComposer extends StatelessWidget {
+class _PromptComposer extends StatefulWidget {
   const _PromptComposer({
     required this.mode,
     required this.controller,
     required this.onSubmit,
     required this.onQuickGoal,
+    required this.onReferenceAdded,
   });
 
   final _WorkMode mode;
   final TextEditingController controller;
   final VoidCallback onSubmit;
   final ValueChanged<String> onQuickGoal;
+  final VoidCallback onReferenceAdded;
+
+  @override
+  State<_PromptComposer> createState() => _PromptComposerState();
+}
+
+class _PromptComposerState extends State<_PromptComposer> {
+  String? _referenceLabel;
+  bool _referenceImageMode = false;
 
   @override
   Widget build(BuildContext context) {
+    final mode = widget.mode;
     final config = mode.config;
     final showMic =
         mode == _WorkMode.agents ||
@@ -5050,57 +5398,103 @@ class _PromptComposer extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (_referenceLabel != null || _referenceImageMode) ...[
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (_referenceLabel != null)
+                  InputChip(
+                    avatar: const Icon(Icons.attach_file_rounded, size: 16),
+                    label: Text(_referenceLabel!),
+                    onDeleted: () => setState(() => _referenceLabel = null),
+                  ),
+                if (_referenceImageMode)
+                  InputChip(
+                    avatar: const Icon(Icons.image_outlined, size: 16),
+                    label: const Text('Reference Image Mode'),
+                    selected: true,
+                    onDeleted: () =>
+                        setState(() => _referenceImageMode = false),
+                  ),
+              ],
+            ),
+          ),
+          if (_referenceImageMode) ...[
+            const SizedBox(height: 6),
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Референс влияет на стиль, композицию или continuity',
+                style: TextStyle(color: Color(0xFF9AA0AA), fontSize: 11),
+              ),
+            ),
+          ],
+          const SizedBox(height: 8),
+        ],
         _GlassPanel(
           padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
-          child: Column(
-            children: [
-              TextField(
-                controller: controller,
-                minLines: 1,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  hintText: mode.placeholder,
-                  prefixIcon: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      SizedBox(width: 10),
-                      Icon(Icons.attach_file_rounded, size: 17),
-                      SizedBox(width: 9),
-                      Icon(Icons.image_outlined, size: 17),
-                      SizedBox(width: 9),
-                      Icon(Icons.lock_outline_rounded, size: 16),
-                    ],
+          child: TextField(
+            controller: widget.controller,
+            minLines: 1,
+            maxLines: 3,
+            decoration: InputDecoration(
+              hintText: mode.placeholder,
+              prefixIcon: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(width: 6),
+                  IconButton(
+                    tooltip: 'Добавить reference',
+                    onPressed: _addMockReference,
+                    icon: const Icon(Icons.attach_file_rounded, size: 17),
                   ),
-                  suffixIcon: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (showMic) ...[
-                        const Icon(Icons.mic_none_rounded, size: 18),
-                        const SizedBox(width: 8),
-                      ],
-                      if (formatBadge != null) ...[
-                        formatBadge,
-                        const SizedBox(width: 8),
-                      ],
-                      IconButton.filled(
-                        key: const ValueKey('build-plan-button'),
-                        onPressed: onSubmit,
-                        icon: const Icon(Icons.arrow_forward_rounded, size: 18),
-                        tooltip: mode == _WorkMode.agents
-                            ? 'Собрать AI-маршрут'
-                            : 'Создать результат',
-                      ),
-                    ],
+                  IconButton(
+                    tooltip: 'Reference Image Mode',
+                    isSelected: _referenceImageMode,
+                    onPressed: () => setState(
+                      () => _referenceImageMode = !_referenceImageMode,
+                    ),
+                    selectedIcon: const Icon(Icons.image_rounded, size: 17),
+                    icon: const Icon(Icons.image_outlined, size: 17),
                   ),
-                  prefixIconConstraints: const BoxConstraints(minWidth: 86),
-                  suffixIconConstraints: const BoxConstraints(minWidth: 112),
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                ),
-                onSubmitted: (_) => onSubmit(),
+                  IconButton(
+                    tooltip: 'Expanded Prompt Studio',
+                    onPressed: _openPromptStudio,
+                    icon: const Icon(Icons.fullscreen_rounded, size: 17),
+                  ),
+                ],
               ),
-            ],
+              suffixIcon: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (showMic) ...[
+                    const Icon(Icons.mic_none_rounded, size: 18),
+                    const SizedBox(width: 8),
+                  ],
+                  if (formatBadge != null) ...[
+                    formatBadge,
+                    const SizedBox(width: 8),
+                  ],
+                  IconButton.filled(
+                    key: const ValueKey('build-plan-button'),
+                    onPressed: widget.onSubmit,
+                    icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                    tooltip: mode == _WorkMode.agents
+                        ? 'Собрать AI-маршрут'
+                        : 'Создать результат',
+                  ),
+                ],
+              ),
+              prefixIconConstraints: const BoxConstraints(minWidth: 132),
+              suffixIconConstraints: const BoxConstraints(minWidth: 112),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+            ),
+            onSubmitted: (_) => widget.onSubmit(),
           ),
         ),
         const SizedBox(height: 9),
@@ -5112,13 +5506,90 @@ class _PromptComposer extends StatelessWidget {
             for (final goal in smartSuggestions.take(10))
               ActionChip(
                 label: Text(goal.label),
-                onPressed: () => onQuickGoal(goal.task),
+                onPressed: () => widget.onQuickGoal(goal.task),
                 visualDensity: VisualDensity.compact,
               ),
             for (final hint in config.emptyStateHints.take(2)) _SoftBadge(hint),
           ],
         ),
       ],
+    );
+  }
+
+  void _addMockReference() {
+    setState(
+      () => _referenceLabel =
+          'reference-local.${widget.mode == _WorkMode.audio ? 'wav' : 'png'}',
+    );
+    widget.onReferenceAdded();
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Добавлен reference image')));
+  }
+
+  Future<void> _openPromptStudio() async {
+    final mainController = TextEditingController(text: widget.controller.text);
+    final negativeController = TextEditingController();
+    final styleController = TextEditingController();
+    final cameraController = TextEditingController();
+    final refsController = TextEditingController(text: _referenceLabel ?? '');
+    final notesController = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Expanded Prompt Studio'),
+        content: SizedBox(
+          width: 560,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _studioField(mainController, 'Main prompt', minLines: 2),
+                _studioField(negativeController, 'Negative prompt'),
+                _studioField(styleController, 'Style notes'),
+                _studioField(cameraController, 'Camera notes'),
+                _studioField(refsController, 'References'),
+                _studioField(notesController, 'Generation notes'),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, mainController.text.trim()),
+            child: const Text('Применить'),
+          ),
+        ],
+      ),
+    );
+    mainController.dispose();
+    negativeController.dispose();
+    styleController.dispose();
+    cameraController.dispose();
+    refsController.dispose();
+    notesController.dispose();
+    if (result != null && result.isNotEmpty) {
+      widget.controller.text = result;
+    }
+  }
+
+  Widget _studioField(
+    TextEditingController controller,
+    String label, {
+    int minLines = 1,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: TextField(
+        controller: controller,
+        minLines: minLines,
+        maxLines: 4,
+        decoration: InputDecoration(labelText: label),
+      ),
     );
   }
 }
@@ -5238,7 +5709,7 @@ class _SettingsPanel extends StatelessWidget {
             ),
             _SettingsGroup(
               title: 'AI-помощники и контекст',
-              child: _ModeContext(mode),
+              child: _ModeContext(mode, selectedModel: model),
             ),
             _SettingsGroup(
               title: 'Режим выполнения',
@@ -5409,8 +5880,38 @@ class _ExecutionModeStrip extends StatelessWidget {
       runSpacing: 6,
       children: [
         _RouteBadge(mode.label.toUpperCase()),
-        const _StateBadge('Runtime foundation'),
-        const _StateBadge('No API yet'),
+        const _StateBadge('Manual launch'),
+        const _StateBadge('Operator ready'),
+      ],
+    );
+  }
+}
+
+class _OperatorStateStrip extends StatelessWidget {
+  const _OperatorStateStrip({
+    required this.selectedModel,
+    required this.status,
+    required this.referenceCount,
+    required this.executionMode,
+  });
+
+  final String selectedModel;
+  final String status;
+  final int referenceCount;
+  final ExecutionMode executionMode;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        _RouteBadge('Prepared for $selectedModel'),
+        _StateBadge(status),
+        if (referenceCount > 0)
+          _StateBadge('$referenceCount references attached'),
+        const _StateBadge('Ready to Launch'),
+        _StateBadge(executionMode.label),
       ],
     );
   }
@@ -5429,12 +5930,15 @@ class _SegmentedValues extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
       children: [
         for (final item in values)
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.only(right: 5),
+          Tooltip(
+            message: item,
+            child: SizedBox(
+              width: 82,
               child: _TinyTab(
                 label: item,
                 selected: item == value,
@@ -5585,14 +6089,16 @@ class _ActiveContextPanel extends StatelessWidget {
 }
 
 class _ModeContext extends StatelessWidget {
-  const _ModeContext(this.mode);
+  const _ModeContext(this.mode, {required this.selectedModel});
 
   final _WorkMode mode;
+  final String selectedModel;
 
   @override
   Widget build(BuildContext context) {
     final graph = const GraphRepository();
     final tools = graph.toolsByIds(mode.config.recommendedToolIds);
+    final selectedTool = _toolForModel(selectedModel);
     final rows = switch (mode) {
       _WorkMode.agents => const [
         ('Активный агент', Icons.smart_toy_outlined),
@@ -5628,8 +6134,35 @@ class _ModeContext extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (mode == _WorkMode.agents) ...[
+          _PathRow(
+            _helperRoleForModel(selectedModel),
+            Icons.smart_toy_outlined,
+          ),
+          _PathRow(
+            'Ответственность: удерживает маршрут и роль выбранного агента',
+            Icons.assignment_turned_in_outlined,
+          ),
+          _PathRow(
+            'Сейчас: собирает следующий операторский шаг',
+            Icons.route_outlined,
+          ),
+          _PathRow(
+            'Дальше: выбрать инструмент и подготовить запуск',
+            Icons.arrow_forward_rounded,
+          ),
+          const SizedBox(height: 4),
+        ],
         for (final row in rows) _PathRow(row.$1, row.$2),
-        if (tools.isNotEmpty) ...[
+        if (selectedTool != null) ...[
+          const SizedBox(height: 6),
+          Text(
+            'Выбрано: ${selectedTool.name}',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Color(0xFF9AA0AA), fontSize: 11),
+          ),
+        ] else if (tools.isNotEmpty) ...[
           const SizedBox(height: 6),
           Text(
             tools.take(3).map((tool) => tool.name).join(' / '),
@@ -5640,6 +6173,23 @@ class _ModeContext extends StatelessWidget {
         ],
       ],
     );
+  }
+
+  String _helperRoleForModel(String value) {
+    final normalized = value.toLowerCase();
+    if (normalized.contains('реж') || normalized.contains('director')) {
+      return 'Агент-режиссёр = сцены, камера, драматургия';
+    }
+    if (normalized.contains('фриланс') || normalized.contains('freelance')) {
+      return 'Агент фриланса = клиенты, заявки, отклики';
+    }
+    if (normalized.contains('локал') || normalized.contains('localization')) {
+      return 'Агент локализации = перевод, субтитры, дубляж';
+    }
+    if (normalized.contains('автомат') || normalized.contains('automation')) {
+      return 'Агент автоматизации = n8n, API, webhooks';
+    }
+    return 'Агент-маршрутизатор = разбивает задачу на шаги';
   }
 }
 
@@ -5899,14 +6449,17 @@ class _HistoryItem extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      color: active ? const Color(0xFFF2F3F5) : null,
+                  Tooltip(
+                    message: title,
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: active ? const Color(0xFFF2F3F5) : null,
+                      ),
                     ),
                   ),
                   Text(
