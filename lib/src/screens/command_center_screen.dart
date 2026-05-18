@@ -16,6 +16,8 @@ import '../models/workflow_template.dart';
 import '../models/workspace_memory.dart';
 import '../services/graph_repository.dart';
 import '../services/execution_router_service.dart';
+import '../services/execution_adapters.dart';
+import '../services/ollama_execution_service.dart';
 import '../services/provider_registry.dart';
 import '../services/router_service.dart';
 import '../services/storage_service.dart';
@@ -603,10 +605,13 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
   String _operatorStatus = 'Prompt Ready';
   int _referenceCount = 0;
   String _quality = 'Сбалансировано';
+  int _settingsResetToken = 0;
+  bool _ollamaRunning = false;
+  String? _ollamaResponse;
+  String? _ollamaError;
   _TaskSession? _currentTaskSession;
   final Map<_WorkMode, _CreativeSession> _creativeSessions = {};
   final StorageService _storage = const StorageService();
-  final ToolLauncherService _toolLauncher = const ToolLauncherService();
   List<WorkspaceSession> _memorySessions = const [];
   List<MemoryProject> _memoryProjects = const [];
   String? _activeSessionId;
@@ -687,6 +692,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                       model: _model,
                       operatorStatus: _operatorStatus,
                       referenceCount: _referenceCount,
+                      settingsResetToken: _settingsResetToken,
                       aspect: _aspect,
                       quality: _quality,
                       settings: settings,
@@ -697,6 +703,10 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                       onCloseActive: _closeActiveWork,
                       onSaveToProject: _saveActiveSessionToProject,
                       onWorkspaceExecution: _handleWorkspaceExecution,
+                      onRunOllama: _runOllamaText,
+                      ollamaRunning: _ollamaRunning,
+                      ollamaResponse: _ollamaResponse,
+                      ollamaError: _ollamaError,
                       onReferenceAdded: _registerReference,
                       onOpenWorkflow: _openWorkflow,
                       onOpenAgent: _openAgent,
@@ -734,6 +744,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                       model: _model,
                       operatorStatus: _operatorStatus,
                       referenceCount: _referenceCount,
+                      settingsResetToken: _settingsResetToken,
                       aspect: _aspect,
                       quality: _quality,
                       settings: settings,
@@ -744,6 +755,10 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                       onCloseActive: _closeActiveWork,
                       onSaveToProject: _saveActiveSessionToProject,
                       onWorkspaceExecution: _handleWorkspaceExecution,
+                      onRunOllama: _runOllamaText,
+                      ollamaRunning: _ollamaRunning,
+                      ollamaResponse: _ollamaResponse,
+                      ollamaError: _ollamaError,
                       onReferenceAdded: _registerReference,
                       onOpenWorkflow: _openWorkflow,
                       onOpenAgent: _openAgent,
@@ -1335,47 +1350,67 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     _WorkspaceActionSpec action,
     String prompt,
   ) async {
-    final nextMode = action.toolId != null
-        ? ExecutionMode.browserLaunch
-        : action.copyOutput
-        ? ExecutionMode.manual
-        : ExecutionMode.manual;
+    final tool = action.toolId == null
+        ? null
+        : _firstOrNull(const GraphRepository().toolsByIds([action.toolId!]));
+    final route = const ExecutionRouterService().resolveRoute(
+      workspaceType: _workspaceTypeForMode(_mode),
+      toolId: action.toolId,
+    );
+    final adapter = action.copyOutput
+        ? const ManualExecutionAdapter()
+        : const ExecutionAdapterFactory().adapterFor(route);
+    final nextMode = switch (route.routeType) {
+      ExecutionRouteType.local ||
+      ExecutionRouteType.hybridFallback => ExecutionMode.local,
+      ExecutionRouteType.api => ExecutionMode.api,
+      ExecutionRouteType.browserLaunch => ExecutionMode.browserLaunch,
+      ExecutionRouteType.manual => ExecutionMode.manual,
+    };
     setState(() => _executionMode = nextMode);
 
+    final result = action.copyOutput
+        ? await adapter.copyPrompt(
+            ExecutionAdapterRequest(route: route, prompt: prompt, tool: tool),
+          )
+        : await adapter.launch(
+            ExecutionAdapterRequest(route: route, prompt: prompt, tool: tool),
+          );
+
     if (action.copyOutput) {
-      await _toolLauncher.copyPrompt(prompt);
       final copyLabel = _copyEventLabel(action);
-      setState(() => _operatorStatus = 'Prompt Copied');
-      _recordExecutionHistory(copiedPrompt: prompt, launchedFlow: copyLabel);
+      setState(() => _operatorStatus = result.stateLabel);
+      _recordExecutionHistory(
+        copiedPrompt: result.copiedPrompt ?? prompt,
+        launchedFlow: copyLabel,
+      );
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Промпт скопирован')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.userMessage ?? 'Промпт скопирован')),
+      );
       return;
     }
 
     if (action.toolId != null) {
-      final tool = _firstOrNull(
-        const GraphRepository().toolsByIds([action.toolId!]),
-      );
       if (tool != null) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Открыт ${tool.name}. Prompt уже в буфере')),
-        );
-        final opened = await _toolLauncher.continueInTool(tool, prompt);
-        if (!opened && mounted) {
+        if (!result.success) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('URL инструмента не задан')),
+            SnackBar(
+              content: Text(result.userMessage ?? 'Execution unavailable'),
+            ),
           );
           return;
         }
-        _recordExecutionHistory(
-          openedToolId: tool.id,
-          launchedFlow: 'Открыт ${tool.name}',
-          generatedPrompt: prompt,
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.userMessage ?? 'Opened ${tool.name}')),
         );
-        setState(() => _operatorStatus = 'Opened ${tool.name}');
+        _recordExecutionHistory(
+          openedToolId: result.openedToolId ?? tool.id,
+          launchedFlow: result.eventLabel,
+          generatedPrompt: result.generatedPrompt ?? prompt,
+        );
+        setState(() => _operatorStatus = result.stateLabel);
       } else {
         _recordExecutionHistory(launchedFlow: action.label);
       }
@@ -1383,9 +1418,69 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     }
 
     _recordExecutionHistory(
-      generatedPrompt: prompt,
-      launchedFlow: _flowEventLabel(action),
+      generatedPrompt: result.generatedPrompt ?? prompt,
+      launchedFlow: result.eventLabel == 'Manual workflow ready'
+          ? _flowEventLabel(action)
+          : result.eventLabel,
     );
+    setState(() => _operatorStatus = result.stateLabel);
+  }
+
+  Future<void> _runOllamaText(
+    _CreativeSession session,
+    String selectedModel,
+  ) async {
+    final endpoint = AppSettingsScope.of(context).ollamaBaseUrl;
+    final model = _ollamaModelName(selectedModel);
+    final prompt = _productionPromptForSession(session, selectedModel);
+    setState(() {
+      _ollamaRunning = true;
+      _ollamaResponse = null;
+      _ollamaError = null;
+      _executionMode = ExecutionMode.local;
+      _operatorStatus = 'Preparing local runtime...';
+    });
+
+    final result = await const OllamaExecutionService().generate(
+      endpoint: endpoint,
+      model: model,
+      prompt: prompt,
+    );
+    if (!mounted) return;
+
+    if (!result.success || (result.response ?? '').trim().isEmpty) {
+      setState(() {
+        _ollamaRunning = false;
+        _ollamaError = result.error ?? 'Ollama unavailable';
+        _operatorStatus = 'Ollama unavailable';
+      });
+      _recordExecutionHistory(launchedFlow: 'Ollama unavailable');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.error ?? 'Ollama unavailable')),
+      );
+      return;
+    }
+
+    setState(() {
+      _ollamaRunning = false;
+      _ollamaResponse = result.response;
+      _operatorStatus = 'Ollama response generated';
+    });
+    _recordExecutionHistory(
+      generatedPrompt: result.response,
+      launchedFlow: 'Ollama response generated',
+    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Ollama response generated')));
+  }
+
+  String _ollamaModelName(String selectedModel) {
+    final normalized = selectedModel.trim();
+    if (normalized.toLowerCase().startsWith('ollama:')) {
+      return normalized.split(':').last.trim();
+    }
+    return 'llama3.2';
   }
 
   String _copyEventLabel(_WorkspaceActionSpec action) {
@@ -1672,6 +1767,8 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
       _model = _mode.config.models.isEmpty ? '' : _mode.config.models.first;
       _aspect = '9:16';
       _quality = 'Сбалансировано';
+      _settingsResetToken += 1;
+      _operatorStatus = 'Prompt Ready';
     });
   }
 }
@@ -1699,6 +1796,7 @@ class _DesktopStation extends StatelessWidget {
     required this.model,
     required this.operatorStatus,
     required this.referenceCount,
+    required this.settingsResetToken,
     required this.aspect,
     required this.quality,
     required this.settings,
@@ -1709,6 +1807,10 @@ class _DesktopStation extends StatelessWidget {
     required this.onCloseActive,
     required this.onSaveToProject,
     required this.onWorkspaceExecution,
+    required this.onRunOllama,
+    required this.ollamaRunning,
+    required this.ollamaResponse,
+    required this.ollamaError,
     required this.onReferenceAdded,
     required this.onOpenWorkflow,
     required this.onOpenAgent,
@@ -1749,6 +1851,7 @@ class _DesktopStation extends StatelessWidget {
   final String model;
   final String operatorStatus;
   final int referenceCount;
+  final int settingsResetToken;
   final String aspect;
   final String quality;
   final AppSettings settings;
@@ -1760,6 +1863,11 @@ class _DesktopStation extends StatelessWidget {
   final VoidCallback onSaveToProject;
   final void Function(_WorkspaceActionSpec action, String prompt)
   onWorkspaceExecution;
+  final Future<void> Function(_CreativeSession session, String selectedModel)
+  onRunOllama;
+  final bool ollamaRunning;
+  final String? ollamaResponse;
+  final String? ollamaError;
   final VoidCallback onReferenceAdded;
   final ValueChanged<String?> onOpenWorkflow;
   final ValueChanged<String?> onOpenAgent;
@@ -1812,6 +1920,10 @@ class _DesktopStation extends StatelessWidget {
                   onCloseActive: onCloseActive,
                   onSaveToProject: onSaveToProject,
                   onWorkspaceExecution: onWorkspaceExecution,
+                  onRunOllama: onRunOllama,
+                  ollamaRunning: ollamaRunning,
+                  ollamaResponse: ollamaResponse,
+                  ollamaError: ollamaError,
                 ),
               ),
             ),
@@ -1849,6 +1961,7 @@ class _DesktopStation extends StatelessWidget {
           width: 286,
           child: _SettingsPanel(
             model: model,
+            resetToken: settingsResetToken,
             aspect: aspect,
             quality: quality,
             mode: mode,
@@ -1902,6 +2015,7 @@ class _MobileStation extends StatelessWidget {
     required this.model,
     required this.operatorStatus,
     required this.referenceCount,
+    required this.settingsResetToken,
     required this.aspect,
     required this.quality,
     required this.settings,
@@ -1912,6 +2026,10 @@ class _MobileStation extends StatelessWidget {
     required this.onCloseActive,
     required this.onSaveToProject,
     required this.onWorkspaceExecution,
+    required this.onRunOllama,
+    required this.ollamaRunning,
+    required this.ollamaResponse,
+    required this.ollamaError,
     required this.onReferenceAdded,
     required this.onOpenWorkflow,
     required this.onOpenAgent,
@@ -1939,6 +2057,7 @@ class _MobileStation extends StatelessWidget {
   final String model;
   final String operatorStatus;
   final int referenceCount;
+  final int settingsResetToken;
   final String aspect;
   final String quality;
   final AppSettings settings;
@@ -1950,6 +2069,11 @@ class _MobileStation extends StatelessWidget {
   final VoidCallback onSaveToProject;
   final void Function(_WorkspaceActionSpec action, String prompt)
   onWorkspaceExecution;
+  final Future<void> Function(_CreativeSession session, String selectedModel)
+  onRunOllama;
+  final bool ollamaRunning;
+  final String? ollamaResponse;
+  final String? ollamaError;
   final VoidCallback onReferenceAdded;
   final ValueChanged<String?> onOpenWorkflow;
   final ValueChanged<String?> onOpenAgent;
@@ -1994,6 +2118,10 @@ class _MobileStation extends StatelessWidget {
             onCloseActive: onCloseActive,
             onSaveToProject: onSaveToProject,
             onWorkspaceExecution: onWorkspaceExecution,
+            onRunOllama: onRunOllama,
+            ollamaRunning: ollamaRunning,
+            ollamaResponse: ollamaResponse,
+            ollamaError: ollamaError,
           ),
         ),
         const SizedBox(height: 14),
@@ -2009,6 +2137,7 @@ class _MobileStation extends StatelessWidget {
         ],
         _SettingsPanel(
           model: model,
+          resetToken: settingsResetToken,
           aspect: aspect,
           quality: quality,
           mode: mode,
@@ -2594,6 +2723,10 @@ class _CenterStage extends StatelessWidget {
     required this.onCloseActive,
     required this.onSaveToProject,
     required this.onWorkspaceExecution,
+    required this.onRunOllama,
+    required this.ollamaRunning,
+    required this.ollamaResponse,
+    required this.ollamaError,
   });
 
   final _WorkMode mode;
@@ -2620,6 +2753,11 @@ class _CenterStage extends StatelessWidget {
   final VoidCallback onSaveToProject;
   final void Function(_WorkspaceActionSpec action, String prompt)
   onWorkspaceExecution;
+  final Future<void> Function(_CreativeSession session, String selectedModel)
+  onRunOllama;
+  final bool ollamaRunning;
+  final String? ollamaResponse;
+  final String? ollamaError;
 
   @override
   Widget build(BuildContext context) {
@@ -2643,6 +2781,10 @@ class _CenterStage extends StatelessWidget {
               onClose: onCloseActive,
               onSaveToProject: onSaveToProject,
               onWorkspaceExecution: onWorkspaceExecution,
+              onRunOllama: onRunOllama,
+              ollamaRunning: ollamaRunning,
+              ollamaResponse: ollamaResponse,
+              ollamaError: ollamaError,
               executionMode: executionMode,
               key: ValueKey(
                 'creative-${creativeSession!.mode.name}-${creativeSession!.timestamp.millisecondsSinceEpoch}',
@@ -3306,6 +3448,10 @@ class _CreativeWorkspaceStage extends StatelessWidget {
     required this.onClose,
     required this.onSaveToProject,
     required this.onWorkspaceExecution,
+    required this.onRunOllama,
+    required this.ollamaRunning,
+    required this.ollamaResponse,
+    required this.ollamaError,
     required this.executionMode,
   });
 
@@ -3317,6 +3463,11 @@ class _CreativeWorkspaceStage extends StatelessWidget {
   final VoidCallback onSaveToProject;
   final void Function(_WorkspaceActionSpec action, String prompt)
   onWorkspaceExecution;
+  final Future<void> Function(_CreativeSession session, String selectedModel)
+  onRunOllama;
+  final bool ollamaRunning;
+  final String? ollamaResponse;
+  final String? ollamaError;
   final ExecutionMode executionMode;
 
   @override
@@ -3380,6 +3531,16 @@ class _CreativeWorkspaceStage extends StatelessWidget {
                 subtitle: 'Prepared for $selectedModel',
                 value: _productionPromptForSession(session, selectedModel),
               ),
+              if (session.mode == _WorkMode.text &&
+                  route.providerId == 'ollama') ...[
+                const SizedBox(height: 12),
+                _OllamaExecutionPanel(
+                  running: ollamaRunning,
+                  response: ollamaResponse,
+                  error: ollamaError,
+                  onRun: () => onRunOllama(session, selectedModel),
+                ),
+              ],
               const SizedBox(height: 12),
               _WorkspaceModeBoard(
                 session: session,
@@ -3515,6 +3676,85 @@ class _WorkspaceOutputBlock extends StatelessWidget {
               height: 1.45,
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OllamaExecutionPanel extends StatelessWidget {
+  const _OllamaExecutionPanel({
+    required this.running,
+    required this.response,
+    required this.error,
+    required this.onRun,
+  });
+
+  final bool running;
+  final String? response;
+  final String? error;
+  final VoidCallback onRun;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0x0F6BE4C9),
+        border: Border.all(color: const Color(0x1F6BE4C9)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.memory_rounded,
+                size: 17,
+                color: Color(0xFF9CF5E2),
+              ),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'Ollama local execution',
+                  style: TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: running ? null : onRun,
+                icon: running
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.play_arrow_rounded, size: 17),
+                label: Text(running ? 'Running...' : 'Run with Ollama'),
+              ),
+            ],
+          ),
+          if (error != null && error!.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Text(
+              error!,
+              style: const TextStyle(color: Color(0xFFFFB4A3), fontSize: 12),
+            ),
+          ],
+          if (response != null && response!.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            const _PanelLabel('OLLAMA RESPONSE'),
+            const SizedBox(height: 6),
+            SelectableText(
+              response!,
+              style: const TextStyle(
+                color: Color(0xFFE5E7EC),
+                fontSize: 12,
+                height: 1.4,
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -5742,6 +5982,7 @@ class _PromptComposerState extends State<_PromptComposer> {
 class _SettingsPanel extends StatelessWidget {
   const _SettingsPanel({
     required this.model,
+    required this.resetToken,
     required this.aspect,
     required this.quality,
     required this.mode,
@@ -5761,6 +6002,7 @@ class _SettingsPanel extends StatelessWidget {
   });
 
   final String model;
+  final int resetToken;
   final String aspect;
   final String quality;
   final _WorkMode mode;
@@ -5825,7 +6067,10 @@ class _SettingsPanel extends StatelessWidget {
                   for (final section in config.settings)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 9),
-                      child: _ModeSettingLine(section: section),
+                      child: _ModeSettingLine(
+                        section: section,
+                        resetToken: resetToken,
+                      ),
                     ),
                   if (!config.showModelSelector)
                     Wrap(
@@ -6075,11 +6320,13 @@ class _SegmentedValues extends StatelessWidget {
     required this.value,
     required this.values,
     required this.onChanged,
+    this.allowDeselect = false,
   });
 
-  final String value;
+  final String? value;
   final List<String> values;
-  final ValueChanged<String> onChanged;
+  final ValueChanged<String?> onChanged;
+  final bool allowDeselect;
 
   @override
   Widget build(BuildContext context) {
@@ -6095,7 +6342,8 @@ class _SegmentedValues extends StatelessWidget {
               child: _TinyTab(
                 label: item,
                 selected: item == value,
-                onTap: () => onChanged(item),
+                onTap: () =>
+                    onChanged(allowDeselect && item == value ? null : item),
               ),
             ),
           ),
@@ -6105,16 +6353,26 @@ class _SegmentedValues extends StatelessWidget {
 }
 
 class _ModeSettingLine extends StatefulWidget {
-  const _ModeSettingLine({required this.section});
+  const _ModeSettingLine({required this.section, required this.resetToken});
 
   final _ModeSettingConfig section;
+  final int resetToken;
 
   @override
   State<_ModeSettingLine> createState() => _ModeSettingLineState();
 }
 
 class _ModeSettingLineState extends State<_ModeSettingLine> {
-  late String _value = widget.section.values.first;
+  String? _value;
+
+  @override
+  void didUpdateWidget(covariant _ModeSettingLine oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.resetToken != widget.resetToken ||
+        oldWidget.section.title != widget.section.title) {
+      _value = null;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -6134,6 +6392,7 @@ class _ModeSettingLineState extends State<_ModeSettingLine> {
           value: _value,
           values: widget.section.values,
           onChanged: (value) => setState(() => _value = value),
+          allowDeselect: true,
         ),
       ],
     );
