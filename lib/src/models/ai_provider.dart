@@ -41,11 +41,11 @@ class AiProvider {
 extension AiProviderStatusLabel on AiProviderStatus {
   String get label {
     return switch (this) {
-      AiProviderStatus.available => 'Manual ready',
-      AiProviderStatus.notConfigured => 'API key needed',
-      AiProviderStatus.connectedMock => 'Mock connected',
-      AiProviderStatus.localUnavailable => 'Local endpoint later',
-      AiProviderStatus.comingSoon => 'Coming soon',
+      AiProviderStatus.available => 'Manual Ready',
+      AiProviderStatus.notConfigured => 'API Key Needed',
+      AiProviderStatus.connectedMock => 'Local Connected',
+      AiProviderStatus.localUnavailable => 'Local Runtime Unavailable',
+      AiProviderStatus.comingSoon => 'Automation Layer Pending',
     };
   }
 }
