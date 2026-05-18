@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../ai_operator_app.dart';
 import '../models/ai_provider.dart';
 import '../models/execution_mode.dart';
+import '../models/execution_route.dart';
+import '../services/execution_router_service.dart';
 import '../services/local_runtime_status_service.dart';
 import '../services/provider_registry.dart';
 import '../state/app_settings.dart';
@@ -358,6 +360,14 @@ class _ProviderCard extends StatelessWidget {
     final statusLabel =
         runtimeState?.label ??
         (connected ? 'Mock Connected' : provider.status.label);
+    final route = const ExecutionRouterService().resolveRoute(
+      workspaceType: provider.supportedWorkspaces.first,
+      toolId: provider.id,
+      configuredApiProviderIds: connected ? {provider.id} : const {},
+      localRuntimeStates: runtimeState == null
+          ? const {}
+          : {provider.id: runtimeState!},
+    );
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -410,6 +420,7 @@ class _ProviderCard extends StatelessWidget {
               children: [
                 for (final mode in provider.executionModes)
                   _RuntimeChip(_modeLabel(mode)),
+                _RuntimeChip('Route: ${route.routeType.label}'),
               ],
             ),
             if (showLocalPanel) ...[

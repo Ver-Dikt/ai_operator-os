@@ -7,6 +7,7 @@ import '../models/ai_agent.dart';
 import '../models/ai_provider.dart';
 import '../models/ai_tool.dart';
 import '../models/execution_mode.dart';
+import '../models/execution_route.dart';
 import '../models/monetization.dart';
 import '../models/route_plan.dart';
 import '../models/routing_recommendation.dart';
@@ -14,6 +15,7 @@ import '../models/use_case.dart';
 import '../models/workflow_template.dart';
 import '../models/workspace_memory.dart';
 import '../services/graph_repository.dart';
+import '../services/execution_router_service.dart';
 import '../services/provider_registry.dart';
 import '../services/router_service.dart';
 import '../services/storage_service.dart';
@@ -84,6 +86,24 @@ AiProvider _providerForModelLabel(String value) {
   return const ProviderRegistry().getProviderForToolId(
     _toolIdForModelLabel(value),
   );
+}
+
+ExecutionRoute _routeForModelLabel(_WorkMode mode, String value) {
+  return const ExecutionRouterService().resolveRoute(
+    workspaceType: _workspaceTypeForMode(mode),
+    toolId: _toolIdForModelLabel(value),
+  );
+}
+
+String _workspaceTypeForMode(_WorkMode mode) {
+  return switch (mode) {
+    _WorkMode.agents => 'agents',
+    _WorkMode.text => 'text',
+    _WorkMode.design => 'image',
+    _WorkMode.video => 'video',
+    _WorkMode.audio => 'audio',
+    _WorkMode.toolkit => 'automation',
+  };
 }
 
 String _formatSessionTime(DateTime value) {
@@ -3302,6 +3322,9 @@ class _CreativeWorkspaceStage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = _providerForModelLabel(selectedModel);
+    final route = _routeForModelLabel(session.mode, selectedModel);
+    final routeProvider =
+        const ProviderRegistry().getProviderById(route.providerId) ?? provider;
     return Center(
       child: _GlassPanel(
         width: 680,
@@ -3344,10 +3367,13 @@ class _CreativeWorkspaceStage extends StatelessWidget {
               _OperatorStateStrip(
                 selectedModel: selectedModel,
                 provider: provider,
+                route: route,
                 status: operatorStatus,
                 referenceCount: referenceCount,
                 executionMode: executionMode,
               ),
+              const SizedBox(height: 12),
+              _ExecutionRoutePreview(route: route, provider: routeProvider),
               const SizedBox(height: 12),
               _WorkspaceOutputBlock(
                 title: 'FINAL PRODUCTION PROMPT',
@@ -4367,6 +4393,60 @@ class _StateBadge extends StatelessWidget {
           fontSize: 9,
           fontWeight: FontWeight.w800,
         ),
+      ),
+    );
+  }
+}
+
+class _ExecutionRoutePreview extends StatelessWidget {
+  const _ExecutionRoutePreview({required this.route, required this.provider});
+
+  final ExecutionRoute route;
+  final AiProvider provider;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0x0F6BE4C9),
+        border: Border.all(color: const Color(0x1F6BE4C9)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(
+            Icons.alt_route_rounded,
+            size: 18,
+            color: Color(0xFF9CF5E2),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Selected Route: ${route.routeType.label} → ${provider.name}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${route.statusLabel}. ${route.reason}',
+                  style: const TextStyle(
+                    color: Color(0xFF9AA0AA),
+                    fontSize: 11,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -5956,6 +6036,7 @@ class _OperatorStateStrip extends StatelessWidget {
   const _OperatorStateStrip({
     required this.selectedModel,
     required this.provider,
+    required this.route,
     required this.status,
     required this.referenceCount,
     required this.executionMode,
@@ -5963,6 +6044,7 @@ class _OperatorStateStrip extends StatelessWidget {
 
   final String selectedModel;
   final AiProvider provider;
+  final ExecutionRoute route;
   final String status;
   final int referenceCount;
   final ExecutionMode executionMode;
@@ -5975,6 +6057,7 @@ class _OperatorStateStrip extends StatelessWidget {
       runSpacing: 6,
       children: [
         _RouteBadge('Prepared for $selectedModel'),
+        _RouteBadge('Route: ${route.routeType.label}'),
         _ProviderStatusBadge(provider),
         _StateBadge(status),
         if (referenceCount > 0 && !hasReferenceStatus)
