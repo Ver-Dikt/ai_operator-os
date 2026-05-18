@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../ai_operator_app.dart';
 import '../models/ai_provider.dart';
 import '../models/execution_mode.dart';
+import '../services/local_runtime_status_service.dart';
 import '../services/provider_registry.dart';
 import '../state/app_settings.dart';
 import '../widgets/cards/os_card.dart';
@@ -19,6 +20,9 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   final Map<String, TextEditingController> _keyControllers = {};
   final Set<String> _mockConnected = {};
+  final Map<String, LocalRuntimeState> _runtimeStates = {};
+  final LocalRuntimeStatusService _runtimeStatus =
+      const LocalRuntimeStatusService();
 
   @override
   void dispose() {
@@ -30,6 +34,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   TextEditingController _controllerFor(AiProvider provider) {
     return _keyControllers.putIfAbsent(provider.id, TextEditingController.new);
+  }
+
+  Future<void> _refreshRuntime(AiProvider provider) async {
+    if (provider.localEndpoint == null) return;
+    setState(() => _runtimeStates[provider.id] = LocalRuntimeState.checking);
+    final state = await _runtimeStatus.checkProvider(provider);
+    if (!mounted) return;
+    setState(() => _runtimeStates[provider.id] = state);
   }
 
   @override
@@ -82,7 +94,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _ProviderManagerPanel(
             providers: providers,
             mockConnected: _mockConnected,
+            runtimeStates: _runtimeStates,
             controllerFor: _controllerFor,
+            onRefreshRuntime: _refreshRuntime,
             onConnect: (provider) => setState(() {
               if (provider.apiKeyRequired &&
                   _controllerFor(provider).text.trim().isEmpty) {
@@ -231,7 +245,9 @@ class _ProviderManagerPanel extends StatelessWidget {
   const _ProviderManagerPanel({
     required this.providers,
     required this.mockConnected,
+    required this.runtimeStates,
     required this.controllerFor,
+    required this.onRefreshRuntime,
     required this.onConnect,
     required this.onDisconnect,
     required this.onClear,
@@ -239,7 +255,9 @@ class _ProviderManagerPanel extends StatelessWidget {
 
   final List<AiProvider> providers;
   final Set<String> mockConnected;
+  final Map<String, LocalRuntimeState> runtimeStates;
   final TextEditingController Function(AiProvider provider) controllerFor;
+  final ValueChanged<AiProvider> onRefreshRuntime;
   final ValueChanged<AiProvider> onConnect;
   final ValueChanged<AiProvider> onDisconnect;
   final ValueChanged<AiProvider> onClear;
@@ -270,7 +288,9 @@ class _ProviderManagerPanel extends StatelessWidget {
                         child: _ProviderCard(
                           provider: provider,
                           connected: mockConnected.contains(provider.id),
+                          runtimeState: runtimeStates[provider.id],
                           controller: controllerFor(provider),
+                          onRefreshRuntime: () => onRefreshRuntime(provider),
                           onConnect: () => onConnect(provider),
                           onDisconnect: () => onDisconnect(provider),
                           onClear: () => onClear(provider),
@@ -289,7 +309,9 @@ class _ProviderManagerPanel extends StatelessWidget {
                       child: _ProviderCard(
                         provider: provider,
                         connected: mockConnected.contains(provider.id),
+                        runtimeState: runtimeStates[provider.id],
                         controller: controllerFor(provider),
+                        onRefreshRuntime: () => onRefreshRuntime(provider),
                         onConnect: () => onConnect(provider),
                         onDisconnect: () => onDisconnect(provider),
                         onClear: () => onClear(provider),
@@ -309,7 +331,9 @@ class _ProviderCard extends StatelessWidget {
   const _ProviderCard({
     required this.provider,
     required this.connected,
+    required this.runtimeState,
     required this.controller,
+    required this.onRefreshRuntime,
     required this.onConnect,
     required this.onDisconnect,
     required this.onClear,
@@ -317,7 +341,9 @@ class _ProviderCard extends StatelessWidget {
 
   final AiProvider provider;
   final bool connected;
+  final LocalRuntimeState? runtimeState;
   final TextEditingController controller;
+  final VoidCallback onRefreshRuntime;
   final VoidCallback onConnect;
   final VoidCallback onDisconnect;
   final VoidCallback onClear;
@@ -329,7 +355,9 @@ class _ProviderCard extends StatelessWidget {
         provider.type == AiProviderType.local ||
         provider.id == 'n8n' ||
         provider.localEndpoint != null;
-    final statusLabel = connected ? 'Mock Connected' : provider.status.label;
+    final statusLabel =
+        runtimeState?.label ??
+        (connected ? 'Mock Connected' : provider.status.label);
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -392,10 +420,9 @@ class _ProviderCard extends StatelessWidget {
               ),
               _ProviderInfoLine(
                 label: 'Runtime',
-                value: provider.type == AiProviderType.local
-                    ? 'Local runtime'
-                    : 'Hybrid runtime',
+                value: _runtimeType(provider),
               ),
+              _ProviderInfoLine(label: 'Status', value: statusLabel),
             ],
             if (showKeyField) ...[
               const SizedBox(height: 12),
@@ -423,6 +450,14 @@ class _ProviderCard extends StatelessWidget {
                   child: const Text('Disconnect'),
                 ),
                 TextButton(onPressed: onClear, child: const Text('Clear')),
+                if (provider.localEndpoint != null)
+                  TextButton.icon(
+                    onPressed: runtimeState == LocalRuntimeState.checking
+                        ? null
+                        : onRefreshRuntime,
+                    icon: const Icon(Icons.refresh_rounded, size: 16),
+                    label: const Text('Refresh Status'),
+                  ),
               ],
             ),
           ],
@@ -512,4 +547,13 @@ String _modeLabel(ExecutionMode mode) {
     ExecutionMode.api => 'api',
     ExecutionMode.local => 'local',
   };
+}
+
+String _runtimeType(AiProvider provider) {
+  if (provider.id == 'ollama') return 'Local LLM runtime';
+  if (provider.id == 'comfyui') return 'Local node runtime';
+  if (provider.id == 'n8n') return 'Local automation runtime';
+  return provider.type == AiProviderType.local
+      ? 'Local runtime'
+      : 'Hybrid runtime';
 }

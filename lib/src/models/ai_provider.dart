@@ -10,6 +10,8 @@ enum AiProviderStatus {
   comingSoon,
 }
 
+enum LocalRuntimeState { connected, unavailable, checking, manual, unknown }
+
 class AiProvider {
   const AiProvider({
     required this.id,
@@ -58,6 +60,18 @@ extension AiProviderTypeLabel on AiProviderType {
       AiProviderType.manual => 'Manual',
       AiProviderType.browser => 'Browser',
       AiProviderType.hybrid => 'Hybrid',
+    };
+  }
+}
+
+extension LocalRuntimeStateLabel on LocalRuntimeState {
+  String get label {
+    return switch (this) {
+      LocalRuntimeState.connected => 'Local Runtime Ready',
+      LocalRuntimeState.unavailable => 'Endpoint Unreachable',
+      LocalRuntimeState.checking => 'Checking Runtime...',
+      LocalRuntimeState.manual => 'Manual Launch',
+      LocalRuntimeState.unknown => 'Status Unknown',
     };
   }
 }

@@ -91,6 +91,7 @@ const seedProviders = <AiProvider>[
     description: 'Workflow automation provider for operator pipelines.',
     baseUrl: 'https://n8n.io',
     apiKeyRequired: false,
+    localEndpoint: 'http://localhost:5678',
     notes:
         'Automation execution is planned for a later Integration Layer step.',
   ),
