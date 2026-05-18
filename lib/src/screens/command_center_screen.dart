@@ -247,17 +247,17 @@ extension _WorkModeUi on _WorkMode {
           _ModeSettingConfig('Режим', [
             'Черновик',
             'Под контролем',
-            'Авто позже',
+            'Operator flow',
           ]),
           _ModeSettingConfig('Память', [
             'Без памяти',
             'Проектная',
-            'Локальная позже',
+            'Локальная',
           ]),
           _ModeSettingConfig('Подтверждения', [
             'Включены',
             'Только важные',
-            'Скоро авто',
+            'Автопроверка',
           ]),
         ],
         quickActions: [
@@ -2425,7 +2425,7 @@ class _HistoryPanel extends StatelessWidget {
               ),
               _HistoryItem(
                 title: 'Local Runtime',
-                subtitle: 'локальный запуск позже',
+                subtitle: 'локальный runtime',
                 type: 'инструмент',
                 icon: Icons.memory_rounded,
                 onTap: () => onOpenTool('ollama'),
@@ -3315,7 +3315,7 @@ class _CreativeWorkspaceStage extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               Text(
-                '${session.title} · $selectedModel',
+                '$selectedModel workspace',
                 style: const TextStyle(
                   color: Color(0xFFF2F3F5),
                   fontSize: 20,
@@ -3324,7 +3324,7 @@ class _CreativeWorkspaceStage extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                session.subtitle,
+                _workspaceTone(session.mode, selectedModel),
                 style: const TextStyle(
                   color: Color(0xFF9AA0AA),
                   fontSize: 12,
@@ -3341,6 +3341,7 @@ class _CreativeWorkspaceStage extends StatelessWidget {
               const SizedBox(height: 12),
               _WorkspaceOutputBlock(
                 title: 'FINAL PRODUCTION PROMPT',
+                subtitle: 'Prepared for $selectedModel',
                 value: _productionPromptForSession(session, selectedModel),
               ),
               const SizedBox(height: 12),
@@ -3371,7 +3372,7 @@ class _CreativeWorkspaceStage extends StatelessWidget {
               const SizedBox(height: 14),
               _ResponsiveActionBar(
                 children: [
-                  OutlinedButton.icon(
+                  TextButton.icon(
                     onPressed: () => onWorkspaceExecution(
                       const _WorkspaceActionSpec(
                         'Скопировать всё',
@@ -3393,30 +3394,30 @@ class _CreativeWorkspaceStage extends StatelessWidget {
                       ),
                     ),
                     icon: const Icon(Icons.copy_rounded),
-                    label: const Text('Скопировать всё'),
+                    label: const Text('Copy Prompt'),
                   ),
-                  OutlinedButton.icon(
+                  TextButton.icon(
                     onPressed: () => _copyText(
                       context,
                       _productionPromptForSession(session, selectedModel),
                     ),
                     icon: const Icon(Icons.copy_all_rounded),
-                    label: const Text('Duplicate session'),
+                    label: const Text('Copy Full'),
                   ),
-                  OutlinedButton.icon(
+                  TextButton.icon(
                     onPressed: onClose,
                     icon: const Icon(Icons.refresh_rounded),
                     label: const Text('Очистить'),
                   ),
-                  OutlinedButton.icon(
+                  TextButton.icon(
                     onPressed: onSaveToProject,
                     icon: const Icon(Icons.drive_file_move_outline),
-                    label: const Text('Save to project'),
+                    label: const Text('Save'),
                   ),
-                  OutlinedButton.icon(
+                  TextButton.icon(
                     onPressed: onSaveToProject,
                     icon: const Icon(Icons.folder_open_outlined),
-                    label: const Text('Continue project'),
+                    label: const Text('Continue'),
                   ),
                 ],
               ),
@@ -3429,38 +3430,75 @@ class _CreativeWorkspaceStage extends StatelessWidget {
 }
 
 class _WorkspaceOutputBlock extends StatelessWidget {
-  const _WorkspaceOutputBlock({required this.title, required this.value});
+  const _WorkspaceOutputBlock({
+    required this.title,
+    required this.subtitle,
+    required this.value,
+  });
 
   final String title;
+  final String subtitle;
   final String value;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0x0DFFFFFF),
-        border: Border.all(color: const Color(0x14FFFFFF)),
+        color: const Color(0x12FFFFFF),
+        border: Border.all(color: const Color(0x26FF9A78)),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+          Row(
+            children: [
+              const Icon(
+                Icons.auto_awesome_rounded,
+                size: 16,
+                color: Color(0xFFFF9A78),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ),
+              _StateBadge(subtitle),
+            ],
+          ),
           const SizedBox(height: 8),
           SelectableText(
             value,
             style: const TextStyle(
               color: Color(0xFFE5E7EC),
-              fontSize: 12,
-              height: 1.4,
+              fontSize: 13,
+              height: 1.45,
             ),
           ),
         ],
       ),
     );
   }
+}
+
+String _workspaceTone(_WorkMode mode, String selectedModel) {
+  return switch (mode) {
+    _WorkMode.text =>
+      '$selectedModel writing desk: brief, structure, draft, final text.',
+    _WorkMode.design =>
+      '$selectedModel image desk: subject, style, lighting, composition.',
+    _WorkMode.video =>
+      '$selectedModel cinematic desk: scene, camera, motion, timing.',
+    _WorkMode.audio =>
+      '$selectedModel audio desk: genre, mood, BPM, voice/music direction.',
+    _WorkMode.agents =>
+      '$selectedModel orchestration desk: responsibility, step, next action.',
+    _ => '$selectedModel operator workspace.',
+  };
 }
 
 ({String ru, String en, String full}) _productionPromptParts(
@@ -3552,7 +3590,7 @@ class _WorkspaceModeBoard extends StatelessWidget {
               toolId: selectedTool.id,
             ),
             _WorkspaceActionSpec(
-              'Copy $selectedName prompt',
+              'Copy Prompt',
               Icons.copy_rounded,
               false,
               copyOutput: true,
@@ -3598,7 +3636,7 @@ class _WorkspaceModeBoard extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              for (final block in spec.blocks)
+              for (final block in spec.blocks.take(3))
                 _WorkspaceBoardBlock(
                   icon: block.icon,
                   title: block.title,
@@ -3611,17 +3649,20 @@ class _WorkspaceModeBoard extends StatelessWidget {
             children: [
               for (final action in actions)
                 action.primary
-                    ? FilledButton.icon(
-                        onPressed: () => _runWorkspaceAction(
-                          context,
-                          action,
-                          _promptForAction(session, selectedModel, action),
-                          onExecute,
+                    ? SizedBox(
+                        height: 42,
+                        child: FilledButton.icon(
+                          onPressed: () => _runWorkspaceAction(
+                            context,
+                            action,
+                            _promptForAction(session, selectedModel, action),
+                            onExecute,
+                          ),
+                          icon: Icon(action.icon),
+                          label: Text(action.label),
                         ),
-                        icon: Icon(action.icon),
-                        label: Text(action.label),
                       )
-                    : OutlinedButton.icon(
+                    : TextButton.icon(
                         onPressed: () => _runWorkspaceAction(
                           context,
                           action,
@@ -4693,7 +4734,7 @@ class _AgentStage extends StatelessWidget {
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('${agent!.name}: демо-ответ готов'),
+                        content: Text('${agent!.name}: рабочий шаг готов'),
                       ),
                     );
                   },
@@ -5408,7 +5449,7 @@ class _PromptComposerState extends State<_PromptComposer> {
                 if (_referenceLabel != null)
                   InputChip(
                     avatar: const Icon(Icons.attach_file_rounded, size: 16),
-                    label: Text(_referenceLabel!),
+                    label: Text('Reference linked: $_referenceLabel'),
                     onDeleted: () => setState(() => _referenceLabel = null),
                   ),
                 if (_referenceImageMode)
@@ -5427,7 +5468,7 @@ class _PromptComposerState extends State<_PromptComposer> {
             const Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'Референс влияет на стиль, композицию или continuity',
+                'Референс связан с текущим prompt: стиль, композиция и continuity учитываются в рабочем направлении.',
                 style: TextStyle(color: Color(0xFF9AA0AA), fontSize: 11),
               ),
             ),
@@ -5694,13 +5735,13 @@ class _SettingsPanel extends StatelessWidget {
                           icon: const Icon(Icons.grid_view_rounded, size: 16),
                           label: const Text('Открыть инструменты'),
                         ),
-                        OutlinedButton.icon(
+                        TextButton.icon(
                           onPressed: null,
                           icon: const Icon(
                             Icons.compare_arrows_rounded,
                             size: 16,
                           ),
-                          label: const Text('Сравнить скоро'),
+                          label: const Text('Сравнить'),
                         ),
                       ],
                     ),
@@ -5719,11 +5760,11 @@ class _SettingsPanel extends StatelessWidget {
                   _ExecutionModeStrip(mode: executionMode),
                   const SizedBox(height: 8),
                   _PathRow('Ручной запуск', Icons.open_in_new_rounded),
-                  _PathRow('API позже', Icons.api_rounded),
-                  _PathRow('Локально позже', Icons.dns_outlined),
+                  _PathRow('Cloud connectors', Icons.api_rounded),
+                  _PathRow('Local runtime', Icons.dns_outlined),
                   const SizedBox(height: 6),
                   const Text(
-                    'Сейчас OS работает в ручном режиме: она собирает маршрут, промпты и инструменты. На следующих этапах подключим OpenAI API, Ollama и автоматические агенты.',
+                    'OS готовит маршрут, промпты и выбранный инструмент для уверенного ручного запуска.',
                     style: TextStyle(
                       color: Color(0xFF8B8F9A),
                       fontSize: 11,
@@ -5902,14 +5943,16 @@ class _OperatorStateStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasReferenceStatus = status.toLowerCase().contains('reference');
     return Wrap(
       spacing: 6,
       runSpacing: 6,
       children: [
         _RouteBadge('Prepared for $selectedModel'),
         _StateBadge(status),
-        if (referenceCount > 0)
+        if (referenceCount > 0 && !hasReferenceStatus)
           _StateBadge('$referenceCount references attached'),
+        if (referenceCount > 0) const _StateBadge('References linked'),
         const _StateBadge('Ready to Launch'),
         _StateBadge(executionMode.label),
       ],
@@ -6042,8 +6085,8 @@ class _ActiveContextPanel extends StatelessWidget {
       ],
       _ActiveViewType.agent => const [
         ('Задача помощника', Icons.smart_toy_outlined),
-        ('Демо-режим', Icons.science_outlined),
-        ('API позже', Icons.api_rounded),
+        ('Активная роль', Icons.assignment_ind_outlined),
+        ('Контроль оператора', Icons.verified_user_outlined),
       ],
       _ActiveViewType.tool => const [
         ('Статус интеграции', Icons.hub_outlined),
@@ -6063,7 +6106,7 @@ class _ActiveContextPanel extends StatelessWidget {
       _ => const [
         ('Настройки режима', Icons.tune_rounded),
         ('Ручной запуск', Icons.open_in_new_rounded),
-        ('Local/API позже', Icons.dns_outlined),
+        ('Local / Cloud ready', Icons.dns_outlined),
       ],
     };
 
@@ -6207,7 +6250,7 @@ class _NextActionHint extends StatelessWidget {
             ? 'Скопируй первый промпт и открой видео-инструмент.'
             : 'Начни вручную: скопируй первый промпт и открой нужный инструмент.',
       _ActiveViewType.agent =>
-        'Назначь задачу AI-помощнику и используй демо-ответ как план действий.',
+        'Назначь задачу AI-помощнику и используй ответ как рабочий план.',
       _ActiveViewType.tool =>
         'Открой сайт инструмента и вставь подготовленный промпт.',
       _ActiveViewType.useCase =>
@@ -6606,7 +6649,14 @@ class _PathRow extends StatelessWidget {
         children: [
           Icon(icon, size: 16, color: const Color(0xFF8B8F9A)),
           const SizedBox(width: 8),
-          Text(label, style: const TextStyle(fontSize: 12)),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12, height: 1.25),
+            ),
+          ),
         ],
       ),
     );
