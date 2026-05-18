@@ -96,6 +96,7 @@ class AppSettings extends ChangeNotifier {
     );
     ollamaBaseUrl =
         _preferences.getString(_ollamaBaseUrlKey) ?? 'http://localhost:11434';
+    ollamaModel = _preferences.getString(_ollamaModelKey) ?? defaultOllamaModel;
     themeAccent = _preferences.getString(_accentKey) ?? 'cyan';
     darkMode = _preferences.getBool(_darkModeKey) ?? true;
 
@@ -115,8 +116,16 @@ class AppSettings extends ChangeNotifier {
   static const _startupKey = 'startup_destination';
   static const _operatorModeKey = 'operator_mode';
   static const _ollamaBaseUrlKey = 'ollama_base_url';
+  static const _ollamaModelKey = 'ollama_model';
   static const _accentKey = 'theme_accent';
   static const _darkModeKey = 'dark_mode';
+  static const defaultOllamaModel = 'qwen2.5-coder:7b';
+  static const ollamaModels = <String>[
+    'qwen2.5-coder:7b',
+    'llama3.1:8b',
+    'qwen3.5:9b',
+    'gemma4:latest',
+  ];
   static const allCategories = 'Все';
 
   final SharedPreferences _preferences;
@@ -131,6 +140,7 @@ class AppSettings extends ChangeNotifier {
   bool compactCards = false;
   OperatorMode operatorMode = OperatorMode.hybrid;
   String ollamaBaseUrl = 'http://localhost:11434';
+  String ollamaModel = defaultOllamaModel;
   String themeAccent = 'cyan';
   bool darkMode = true;
   AppDestination startupDestination = AppDestination.commandCenter;
@@ -262,6 +272,12 @@ class AppSettings extends ChangeNotifier {
   Future<void> setOllamaBaseUrl(String value) async {
     ollamaBaseUrl = value;
     await _preferences.setString(_ollamaBaseUrlKey, value);
+    notifyListeners();
+  }
+
+  Future<void> setOllamaModel(String value) async {
+    ollamaModel = value;
+    await _preferences.setString(_ollamaModelKey, value);
     notifyListeners();
   }
 

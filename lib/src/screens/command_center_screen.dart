@@ -1431,14 +1431,14 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     String selectedModel,
   ) async {
     final endpoint = AppSettingsScope.of(context).ollamaBaseUrl;
-    final model = _ollamaModelName(selectedModel);
+    final model = AppSettingsScope.of(context).ollamaModel;
     final prompt = _productionPromptForSession(session, selectedModel);
     setState(() {
       _ollamaRunning = true;
       _ollamaResponse = null;
       _ollamaError = null;
       _executionMode = ExecutionMode.local;
-      _operatorStatus = 'Preparing local runtime...';
+      _operatorStatus = 'Ollama model: $model';
     });
 
     final result = await const OllamaExecutionService().generate(
@@ -1464,7 +1464,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     setState(() {
       _ollamaRunning = false;
       _ollamaResponse = result.response;
-      _operatorStatus = 'Ollama response generated';
+      _operatorStatus = 'Ollama response generated · $model';
     });
     _recordExecutionHistory(
       generatedPrompt: result.response,
@@ -1473,14 +1473,6 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Ollama response generated')));
-  }
-
-  String _ollamaModelName(String selectedModel) {
-    final normalized = selectedModel.trim();
-    if (normalized.toLowerCase().startsWith('ollama:')) {
-      return normalized.split(':').last.trim();
-    }
-    return 'llama3.2';
   }
 
   String _copyEventLabel(_WorkspaceActionSpec action) {

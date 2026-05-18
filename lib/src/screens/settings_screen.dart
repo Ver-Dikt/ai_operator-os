@@ -95,6 +95,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 18),
           _ProviderManagerPanel(
             providers: providers,
+            settings: settings,
             mockConnected: _mockConnected,
             runtimeStates: _runtimeStates,
             controllerFor: _controllerFor,
@@ -246,6 +247,7 @@ class _ModeTile extends StatelessWidget {
 class _ProviderManagerPanel extends StatelessWidget {
   const _ProviderManagerPanel({
     required this.providers,
+    required this.settings,
     required this.mockConnected,
     required this.runtimeStates,
     required this.controllerFor,
@@ -256,6 +258,7 @@ class _ProviderManagerPanel extends StatelessWidget {
   });
 
   final List<AiProvider> providers;
+  final AppSettings settings;
   final Set<String> mockConnected;
   final Map<String, LocalRuntimeState> runtimeStates;
   final TextEditingController Function(AiProvider provider) controllerFor;
@@ -289,6 +292,7 @@ class _ProviderManagerPanel extends StatelessWidget {
                         padding: const EdgeInsets.only(bottom: 12),
                         child: _ProviderCard(
                           provider: provider,
+                          settings: settings,
                           connected: mockConnected.contains(provider.id),
                           runtimeState: runtimeStates[provider.id],
                           controller: controllerFor(provider),
@@ -310,6 +314,7 @@ class _ProviderManagerPanel extends StatelessWidget {
                       width: (constraints.maxWidth - 12) / 2,
                       child: _ProviderCard(
                         provider: provider,
+                        settings: settings,
                         connected: mockConnected.contains(provider.id),
                         runtimeState: runtimeStates[provider.id],
                         controller: controllerFor(provider),
@@ -332,6 +337,7 @@ class _ProviderManagerPanel extends StatelessWidget {
 class _ProviderCard extends StatelessWidget {
   const _ProviderCard({
     required this.provider,
+    required this.settings,
     required this.connected,
     required this.runtimeState,
     required this.controller,
@@ -342,6 +348,7 @@ class _ProviderCard extends StatelessWidget {
   });
 
   final AiProvider provider;
+  final AppSettings settings;
   final bool connected;
   final LocalRuntimeState? runtimeState;
   final TextEditingController controller;
@@ -434,6 +441,27 @@ class _ProviderCard extends StatelessWidget {
                 value: _runtimeType(provider),
               ),
               _ProviderInfoLine(label: 'Status', value: statusLabel),
+            ],
+            if (provider.id == 'ollama') ...[
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue:
+                    AppSettings.ollamaModels.contains(settings.ollamaModel)
+                    ? settings.ollamaModel
+                    : AppSettings.defaultOllamaModel,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  labelText: 'Ollama model',
+                  isDense: true,
+                ),
+                items: [
+                  for (final model in AppSettings.ollamaModels)
+                    DropdownMenuItem(value: model, child: Text(model)),
+                ],
+                onChanged: (value) {
+                  if (value != null) settings.setOllamaModel(value);
+                },
+              ),
             ],
             if (showKeyField) ...[
               const SizedBox(height: 12),
