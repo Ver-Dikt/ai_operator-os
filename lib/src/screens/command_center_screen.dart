@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../ai_operator_app.dart';
 import '../data/seed_free_credits.dart';
 import '../models/ai_agent.dart';
+import '../models/ai_provider.dart';
 import '../models/ai_tool.dart';
 import '../models/execution_mode.dart';
 import '../models/monetization.dart';
@@ -13,6 +14,7 @@ import '../models/use_case.dart';
 import '../models/workflow_template.dart';
 import '../models/workspace_memory.dart';
 import '../services/graph_repository.dart';
+import '../services/provider_registry.dart';
 import '../services/router_service.dart';
 import '../services/storage_service.dart';
 import '../services/tool_launcher_service.dart';
@@ -76,6 +78,12 @@ AiTool? _toolForModel(String value) {
   final id = _toolIdForModelLabel(value);
   if (id == null) return null;
   return _firstOrNull(const GraphRepository().toolsByIds([id]));
+}
+
+AiProvider _providerForModelLabel(String value) {
+  return const ProviderRegistry().getProviderForToolId(
+    _toolIdForModelLabel(value),
+  );
 }
 
 String _formatSessionTime(DateTime value) {
@@ -3293,6 +3301,7 @@ class _CreativeWorkspaceStage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final provider = _providerForModelLabel(selectedModel);
     return Center(
       child: _GlassPanel(
         width: 680,
@@ -3334,6 +3343,7 @@ class _CreativeWorkspaceStage extends StatelessWidget {
               const SizedBox(height: 16),
               _OperatorStateStrip(
                 selectedModel: selectedModel,
+                provider: provider,
                 status: operatorStatus,
                 referenceCount: referenceCount,
                 executionMode: executionMode,
@@ -4358,6 +4368,20 @@ class _StateBadge extends StatelessWidget {
           fontWeight: FontWeight.w800,
         ),
       ),
+    );
+  }
+}
+
+class _ProviderStatusBadge extends StatelessWidget {
+  const _ProviderStatusBadge(this.provider);
+
+  final AiProvider provider;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: '${provider.name} · ${provider.type.label}. ${provider.notes}',
+      child: _StateBadge(provider.status.label),
     );
   }
 }
@@ -5931,12 +5955,14 @@ class _ExecutionModeStrip extends StatelessWidget {
 class _OperatorStateStrip extends StatelessWidget {
   const _OperatorStateStrip({
     required this.selectedModel,
+    required this.provider,
     required this.status,
     required this.referenceCount,
     required this.executionMode,
   });
 
   final String selectedModel;
+  final AiProvider provider;
   final String status;
   final int referenceCount;
   final ExecutionMode executionMode;
@@ -5949,6 +5975,7 @@ class _OperatorStateStrip extends StatelessWidget {
       runSpacing: 6,
       children: [
         _RouteBadge('Prepared for $selectedModel'),
+        _ProviderStatusBadge(provider),
         _StateBadge(status),
         if (referenceCount > 0 && !hasReferenceStatus)
           _StateBadge('$referenceCount references attached'),
