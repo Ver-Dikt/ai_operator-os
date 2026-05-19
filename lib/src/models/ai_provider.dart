@@ -43,11 +43,11 @@ class AiProvider {
 extension AiProviderStatusLabel on AiProviderStatus {
   String get label {
     return switch (this) {
-      AiProviderStatus.available => 'Manual Ready',
-      AiProviderStatus.notConfigured => 'API Key Needed',
-      AiProviderStatus.connectedMock => 'Local Connected',
-      AiProviderStatus.localUnavailable => 'Local Runtime Unavailable',
-      AiProviderStatus.comingSoon => 'Automation Layer Pending',
+      AiProviderStatus.available => 'Ручной запуск',
+      AiProviderStatus.notConfigured => 'Требуется API ключ',
+      AiProviderStatus.connectedMock => 'Локально доступно',
+      AiProviderStatus.localUnavailable => 'Локальный runtime недоступен',
+      AiProviderStatus.comingSoon => 'Будет позже',
     };
   }
 }
@@ -56,10 +56,10 @@ extension AiProviderTypeLabel on AiProviderType {
   String get label {
     return switch (this) {
       AiProviderType.api => 'API',
-      AiProviderType.local => 'Local',
-      AiProviderType.manual => 'Manual',
+      AiProviderType.local => 'Локально',
+      AiProviderType.manual => 'Ручной',
       AiProviderType.browser => 'Browser',
-      AiProviderType.hybrid => 'Hybrid',
+      AiProviderType.hybrid => 'Гибрид',
     };
   }
 }
@@ -67,11 +67,11 @@ extension AiProviderTypeLabel on AiProviderType {
 extension LocalRuntimeStateLabel on LocalRuntimeState {
   String get label {
     return switch (this) {
-      LocalRuntimeState.connected => 'Local Runtime Ready',
-      LocalRuntimeState.unavailable => 'Endpoint Unreachable',
-      LocalRuntimeState.checking => 'Checking Runtime...',
-      LocalRuntimeState.manual => 'Manual Launch',
-      LocalRuntimeState.unknown => 'Status Unknown',
+      LocalRuntimeState.connected => 'Локально доступно',
+      LocalRuntimeState.unavailable => 'Endpoint недоступен',
+      LocalRuntimeState.checking => 'Проверка runtime...',
+      LocalRuntimeState.manual => 'Ручной запуск',
+      LocalRuntimeState.unknown => 'Статус неизвестен',
     };
   }
 }

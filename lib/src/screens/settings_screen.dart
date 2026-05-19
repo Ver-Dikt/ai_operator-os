@@ -83,9 +83,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 _ModeTile(settings: settings),
                 const Divider(height: 1),
                 const ListTile(
-                  title: Text('Provider Manager'),
+                  title: Text('Provider / API Manager'),
                   subtitle: Text(
-                    'Runtime providers, manual fallback, local endpoints and API key placeholders.',
+                    'Карта runtime-маршрутов: API, local, manual и browser launch.',
                   ),
                   trailing: Icon(Icons.hub_outlined),
                 ),
@@ -105,7 +105,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _controllerFor(provider).text.trim().isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('${provider.name}: добавь mock key локально'),
+                    content: Text(
+                      '${provider.name}: добавь локальный mock key',
+                    ),
                   ),
                 );
                 return;
@@ -366,7 +368,7 @@ class _ProviderCard extends StatelessWidget {
         provider.localEndpoint != null;
     final statusLabel =
         runtimeState?.label ??
-        (connected ? 'Mock Connected' : provider.status.label);
+        (connected ? 'Подключено (mock)' : provider.status.label);
     final route = const ExecutionRouterService().resolveRoute(
       workspaceType: provider.supportedWorkspaces.first,
       toolId: provider.id,
@@ -427,7 +429,7 @@ class _ProviderCard extends StatelessWidget {
               children: [
                 for (final mode in provider.executionModes)
                   _RuntimeChip(_modeLabel(mode)),
-                _RuntimeChip('Route: ${route.routeType.label}'),
+                _RuntimeChip('Маршрут: ${route.routeType.label}'),
               ],
             ),
             if (showLocalPanel) ...[
@@ -470,7 +472,7 @@ class _ProviderCard extends StatelessWidget {
                 obscureText: true,
                 decoration: InputDecoration(
                   labelText: '${provider.name} API Key',
-                  hintText: 'Mock local field only',
+                  hintText: 'Локальное поле, без отправки на сервер',
                   isDense: true,
                 ),
               ),
@@ -482,20 +484,20 @@ class _ProviderCard extends StatelessWidget {
               children: [
                 FilledButton.tonal(
                   onPressed: onConnect,
-                  child: const Text('Connect'),
+                  child: const Text('Подключить'),
                 ),
                 TextButton(
                   onPressed: onDisconnect,
-                  child: const Text('Disconnect'),
+                  child: const Text('Отключить'),
                 ),
-                TextButton(onPressed: onClear, child: const Text('Clear')),
+                TextButton(onPressed: onClear, child: const Text('Очистить')),
                 if (provider.localEndpoint != null)
                   TextButton.icon(
                     onPressed: runtimeState == LocalRuntimeState.checking
                         ? null
                         : onRefreshRuntime,
                     icon: const Icon(Icons.refresh_rounded, size: 16),
-                    label: const Text('Refresh Status'),
+                    label: const Text('Проверить'),
                   ),
               ],
             ),
@@ -580,19 +582,19 @@ class _ProviderInfoLine extends StatelessWidget {
 
 String _modeLabel(ExecutionMode mode) {
   return switch (mode) {
-    ExecutionMode.demo => 'manual',
-    ExecutionMode.manual => 'manual',
-    ExecutionMode.browserLaunch => 'browserLaunch',
-    ExecutionMode.api => 'api',
-    ExecutionMode.local => 'local',
+    ExecutionMode.demo => 'Ручной запуск',
+    ExecutionMode.manual => 'Ручной запуск',
+    ExecutionMode.browserLaunch => 'Browser Launch',
+    ExecutionMode.api => 'API',
+    ExecutionMode.local => 'Local Runtime',
   };
 }
 
 String _runtimeType(AiProvider provider) {
-  if (provider.id == 'ollama') return 'Local LLM runtime';
-  if (provider.id == 'comfyui') return 'Local node runtime';
-  if (provider.id == 'n8n') return 'Local automation runtime';
+  if (provider.id == 'ollama') return 'Local LLM Runtime';
+  if (provider.id == 'comfyui') return 'Local Node Runtime';
+  if (provider.id == 'n8n') return 'Local Automation Runtime';
   return provider.type == AiProviderType.local
-      ? 'Local runtime'
-      : 'Hybrid runtime';
+      ? 'Local Runtime'
+      : 'Hybrid Runtime';
 }

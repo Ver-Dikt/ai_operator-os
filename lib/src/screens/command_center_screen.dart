@@ -56,6 +56,10 @@ String? _toolIdForModelLabel(String value) {
   if (normalized.contains('midjourney')) return 'midjourney';
   if (normalized.contains('chatgpt images')) return 'chatgpt-images';
   if (normalized.contains('chatgpt')) return 'chatgpt';
+  if (normalized.contains('mistral')) return 'mistral-chat';
+  if (normalized.contains('openrouter')) return 'openrouter';
+  if (normalized.contains('deepseek')) return 'deepseek';
+  if (normalized.contains('qwen')) return 'qwen';
   if (normalized.contains('nano')) return 'nano-banana';
   if (normalized.contains('leonardo')) return 'leonardo';
   if (normalized.contains('flux')) return 'flux-playground';
@@ -325,7 +329,16 @@ extension _WorkModeUi on _WorkMode {
             'Что написать, объяснить, проанализировать или улучшить?',
         modelTitle: 'Текстовая модель',
         modelHelper: 'Основная модель для текста, анализа и промптов.',
-        models: ['ChatGPT', 'Claude', 'Gemini', 'Mistral', 'Ollama Local'],
+        models: [
+          'ChatGPT',
+          'Claude',
+          'Gemini',
+          'Mistral',
+          'OpenRouter',
+          'DeepSeek',
+          'Qwen',
+          'Ollama Local',
+        ],
         settings: [
           _ModeSettingConfig('Тип задачи', [
             'Идея',
@@ -580,12 +593,51 @@ extension _WorkModeUi on _WorkMode {
     };
   }
 
-  String get label => config.label;
-  String get title => config.title;
-  String get description => config.description;
+  String get label => switch (this) {
+    _WorkMode.video => 'Видео',
+    _WorkMode.audio => 'Аудио',
+    _WorkMode.toolkit => 'База AI',
+    _ => config.label,
+  };
+  String get title => switch (this) {
+    _WorkMode.video => 'Видео-студия',
+    _WorkMode.audio => 'Аудио-студия',
+    _WorkMode.toolkit => 'База нейросетей',
+    _ => config.title,
+  };
+  String get description => switch (this) {
+    _WorkMode.video =>
+      'Сцены, storyboard, движение камеры и cinematic prompts.',
+    _WorkMode.audio => 'Озвучка, музыка, голос, дубляж и транскрибация.',
+    _WorkMode.toolkit =>
+      'Поиск нейросетей, сервисов и сравнение free/pro/local/API вариантов.',
+    _ => config.description,
+  };
   IconData get icon => config.icon;
-  String get placeholder => config.promptPlaceholder;
-  List<({String label, String task})> get quickActions => config.quickActions;
+  String get placeholder => switch (this) {
+    _WorkMode.video => 'Опиши сцену, ролик, Reels или видео-идею...',
+    _WorkMode.audio => 'Опиши голос, музыку, озвучку или аудио-задачу...',
+    _ => config.promptPlaceholder,
+  };
+  List<({String label, String task})> get quickActions => switch (this) {
+    _WorkMode.video => const [
+      (label: 'AI Reels', task: 'Сделать 10 Reels для трека'),
+      (label: 'Раскадровка', task: 'Собрать storyboard и shot plan'),
+      (label: 'Трейлер', task: 'Собрать AI trailer plan'),
+      (label: 'Сцена', task: 'Собрать cinematic AI scene builder'),
+    ],
+    _WorkMode.audio => const [
+      (label: 'Озвучка', task: 'Подготовить voiceover и инструменты озвучки'),
+      (label: 'Промо музыки', task: 'Продвинуть музыкальный релиз'),
+      (label: 'Дубляж', task: 'Собрать сценарий дубляжа видео'),
+    ],
+    _WorkMode.toolkit => const [
+      (label: 'Бесплатный стек', task: 'Найти бесплатный AI stack под задачу'),
+      (label: 'Сравнить', task: 'Сравнить несколько нейросетей по задаче'),
+      (label: 'Локальный путь', task: 'Подобрать локальные инструменты'),
+    ],
+    _ => config.quickActions,
+  };
 }
 
 class CommandCenterScreen extends StatefulWidget {
@@ -794,22 +846,21 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     );
   }
 
-  bool get _isTextOllama =>
-      _mode == _WorkMode.text && _toolIdForModelLabel(_model) == 'ollama';
+  bool get _isTextMode => _mode == _WorkMode.text;
 
   void _setModel(String value) {
     setState(() {
       _model = value;
       _operatorStatus = 'Prepared for $value';
-      if (_mode == _WorkMode.text && _toolIdForModelLabel(value) == 'ollama') {
+      if (_mode == _WorkMode.text) {
         _textChatMode = true;
       }
     });
   }
 
   void _submitPrimary() {
-    if (_isTextOllama && _textChatMode) {
-      _sendOllamaChatMessage();
+    if (_isTextMode && _textChatMode) {
+      _sendTextChatMessage();
       return;
     }
     _buildPlan();
@@ -828,8 +879,8 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
         }
         _activeViewType = _ActiveViewType.creativeSession;
         _operatorStatus = 'Prompt Ready';
-      } else if (chatMode && _isTextOllama) {
-        _operatorStatus = 'Ollama chat ready';
+      } else if (chatMode && _mode == _WorkMode.text) {
+        _operatorStatus = 'Chat ready';
       }
     });
     final savedSession = sessionToSave;
@@ -850,6 +901,10 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
 
   void _quickGoal(String task) {
     _taskController.text = task;
+    if (_isTextMode && _textChatMode) {
+      _sendTextChatMessage();
+      return;
+    }
     _buildPlan();
   }
 
@@ -865,11 +920,13 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     setState(() {
       _mode = mode;
       _model = mode.config.models.isEmpty ? '' : mode.config.models.first;
+      _textChatMode = mode == _WorkMode.text;
       _activeViewType = switch (mode) {
         _WorkMode.agents =>
           _routePlan == null
               ? _ActiveViewType.empty
               : _ActiveViewType.routePlan,
+        _WorkMode.text => _ActiveViewType.empty,
         _WorkMode.toolkit => _ActiveViewType.empty,
         _ =>
           _creativeSessions[mode] == null
@@ -1544,9 +1601,38 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     ).showSnackBar(const SnackBar(content: Text('Ollama response generated')));
   }
 
-  Future<void> _sendOllamaChatMessage() async {
+  Future<void> _sendTextChatMessage() async {
     final message = _taskController.text.trim();
     if (message.isEmpty || _ollamaRunning) return;
+    final provider = _providerForModelLabel(_model);
+    final route = _routeForModelLabel(_WorkMode.text, _model);
+    final now = DateTime.now();
+
+    if (provider.id != 'ollama') {
+      setState(() {
+        _taskController.clear();
+        _textChatMessages.add(
+          _ChatMessage(role: 'user', text: message, timestamp: now),
+        );
+        _textChatMessages.add(
+          _ChatMessage(
+            role: 'system',
+            text: _textProviderUnavailableMessage(provider, route),
+            timestamp: DateTime.now(),
+          ),
+        );
+        _executionMode = route.routeType == ExecutionRouteType.api
+            ? ExecutionMode.api
+            : ExecutionMode.manual;
+        _operatorStatus = '${provider.name}: ${provider.status.label}';
+      });
+      _recordExecutionHistory(
+        generatedPrompt: message,
+        launchedFlow: '${provider.name} chat route',
+      );
+      return;
+    }
+
     final settings = AppSettingsScope.of(context);
     final model = settings.ollamaModel;
     final history = [
@@ -1600,6 +1686,19 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
       generatedPrompt: result.response,
       launchedFlow: 'Ollama chat response',
     );
+  }
+
+  String _textProviderUnavailableMessage(
+    AiProvider provider,
+    ExecutionRoute route,
+  ) {
+    if (provider.apiKeyRequired) {
+      return '${provider.name} пока не подключен к API в этом интерфейсе. Сообщение сохранено в чате; открой Workspace, чтобы скопировать production prompt или продолжить через ручной маршрут.';
+    }
+    if (route.routeType == ExecutionRouteType.browserLaunch) {
+      return '${provider.name} доступен как ручной browser-route. Открой Workspace, чтобы скопировать промпт и перейти в выбранный инструмент.';
+    }
+    return '${provider.name} пока не исполняется напрямую в Text runtime. Чат остается активным, а Workspace содержит маршрут, промпт и операторские действия.';
   }
 
   String _ollamaChatPrompt(List<_ChatMessage> messages) {
@@ -2920,11 +3019,8 @@ class _CenterStage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Widget stage;
-    final textOllama =
-        mode == _WorkMode.text &&
-        _toolIdForModelLabel(selectedModel) == 'ollama';
-    if (textOllama && textChatMode) {
-      stage = _TextOllamaChatStage(
+    if (mode == _WorkMode.text && textChatMode) {
+      stage = _TextConversationStage(
         selectedModel: selectedModel,
         messages: textChatMessages,
         running: ollamaRunning,
@@ -3002,14 +3098,22 @@ class _CenterStage extends StatelessWidget {
 
     return Column(
       children: [
-        _SessionHeader(
-          mode: mode,
-          routePlan: routePlan,
-          creativeSession: creativeSession,
-          recommendation: recommendation,
-          activeViewType: activeViewType,
-        ),
-        const SizedBox(height: 18),
+        if (!(mode == _WorkMode.text && textChatMode) &&
+            !(mode == _WorkMode.design &&
+                activeViewType == _ActiveViewType.creativeSession) &&
+            !(mode == _WorkMode.video &&
+                activeViewType == _ActiveViewType.creativeSession) &&
+            !(mode == _WorkMode.audio &&
+                activeViewType == _ActiveViewType.creativeSession)) ...[
+          _SessionHeader(
+            mode: mode,
+            routePlan: routePlan,
+            creativeSession: creativeSession,
+            recommendation: recommendation,
+            activeViewType: activeViewType,
+          ),
+          const SizedBox(height: 18),
+        ],
         Expanded(
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 220),
@@ -3650,6 +3754,43 @@ class _CreativeWorkspaceStage extends StatelessWidget {
     final route = _routeForModelLabel(session.mode, selectedModel);
     final routeProvider =
         const ProviderRegistry().getProviderById(route.providerId) ?? provider;
+    if (session.mode == _WorkMode.design) {
+      return _ImageGenerationWorkspace(
+        session: session,
+        selectedModel: selectedModel,
+        provider: provider,
+        route: route,
+        operatorStatus: operatorStatus,
+        referenceCount: referenceCount,
+        onClose: onClose,
+        onWorkspaceExecution: onWorkspaceExecution,
+      );
+    }
+    if (session.mode == _WorkMode.video) {
+      return _VideoGenerationWorkspace(
+        session: session,
+        selectedModel: selectedModel,
+        provider: provider,
+        route: route,
+        operatorStatus: operatorStatus,
+        referenceCount: referenceCount,
+        onClose: onClose,
+        onSaveToProject: onSaveToProject,
+        onWorkspaceExecution: onWorkspaceExecution,
+      );
+    }
+    if (session.mode == _WorkMode.audio) {
+      return _AudioGenerationWorkspace(
+        session: session,
+        selectedModel: selectedModel,
+        provider: provider,
+        route: route,
+        operatorStatus: operatorStatus,
+        referenceCount: referenceCount,
+        onClose: onClose,
+        onWorkspaceExecution: onWorkspaceExecution,
+      );
+    }
     return Center(
       child: _GlassPanel(
         width: 680,
@@ -3697,8 +3838,7 @@ class _CreativeWorkspaceStage extends StatelessWidget {
                 referenceCount: referenceCount,
                 executionMode: executionMode,
               ),
-              if (session.mode == _WorkMode.text &&
-                  route.providerId == 'ollama') ...[
+              if (session.mode == _WorkMode.text) ...[
                 const SizedBox(height: 10),
                 _TextRuntimeModeSwitch(
                   chatMode: textChatMode,
@@ -3773,7 +3913,7 @@ class _CreativeWorkspaceStage extends StatelessWidget {
                       ),
                     ),
                     icon: const Icon(Icons.copy_rounded),
-                    label: const Text('Copy Prompt'),
+                    label: const Text('Скопировать промпт'),
                   ),
                   TextButton.icon(
                     onPressed: () => _copyText(
@@ -3781,7 +3921,7 @@ class _CreativeWorkspaceStage extends StatelessWidget {
                       _productionPromptForSession(session, selectedModel),
                     ),
                     icon: const Icon(Icons.copy_all_rounded),
-                    label: const Text('Copy Full'),
+                    label: const Text('Скопировать всё'),
                   ),
                   TextButton.icon(
                     onPressed: onClose,
@@ -3791,18 +3931,2021 @@ class _CreativeWorkspaceStage extends StatelessWidget {
                   TextButton.icon(
                     onPressed: onSaveToProject,
                     icon: const Icon(Icons.drive_file_move_outline),
-                    label: const Text('Save'),
+                    label: const Text('Сохранить'),
                   ),
                   TextButton.icon(
                     onPressed: onSaveToProject,
                     icon: const Icon(Icons.folder_open_outlined),
-                    label: const Text('Continue'),
+                    label: const Text('Продолжить'),
                   ),
                 ],
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ImageGenerationWorkspace extends StatefulWidget {
+  const _ImageGenerationWorkspace({
+    required this.session,
+    required this.selectedModel,
+    required this.provider,
+    required this.route,
+    required this.operatorStatus,
+    required this.referenceCount,
+    required this.onClose,
+    required this.onWorkspaceExecution,
+  });
+
+  final _CreativeSession session;
+  final String selectedModel;
+  final AiProvider provider;
+  final ExecutionRoute route;
+  final String operatorStatus;
+  final int referenceCount;
+  final VoidCallback onClose;
+  final void Function(_WorkspaceActionSpec action, String prompt)
+  onWorkspaceExecution;
+
+  @override
+  State<_ImageGenerationWorkspace> createState() =>
+      _ImageGenerationWorkspaceState();
+}
+
+class _ImageGenerationWorkspaceState extends State<_ImageGenerationWorkspace> {
+  late final TextEditingController _promptController;
+  late final TextEditingController _negativeController;
+  String _resolution = '2K';
+  String _ratio = '1:1';
+  String _outputs = '2';
+  String _quality = 'Cinematic';
+  String _stylePreset = 'Cinematic';
+  String _composition = 'Portrait';
+  bool _enhancePrompt = true;
+  bool _variations = false;
+  String _generationState = 'Ready to Generate';
+
+  @override
+  void initState() {
+    super.initState();
+    _promptController = TextEditingController(
+      text: widget.session.output.trim().isEmpty
+          ? widget.session.sourceTask
+          : widget.session.output,
+    );
+    _negativeController = TextEditingController(
+      text: 'low quality, blurry, warped text, extra fingers, random artifacts',
+    );
+    final source = widget.session.sourceTask.toLowerCase();
+    if (source.contains('cyberpunk') || source.contains('rain')) {
+      _stylePreset = 'Sci-Fi';
+      _composition = 'Portrait';
+      _ratio = '4:5';
+    }
+    if (source.contains('product')) {
+      _stylePreset = 'Product Shot';
+      _composition = 'Studio Light';
+    }
+  }
+
+  @override
+  void dispose() {
+    _promptController.dispose();
+    _negativeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 720;
+        return SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(6, 0, 6, compact ? 12 : 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _ImageModelBar(
+                selectedModel: widget.selectedModel,
+                provider: widget.provider,
+                route: widget.route,
+                state: _generationState,
+                onClose: widget.onClose,
+              ),
+              const SizedBox(height: 8),
+              _RuntimePipeline(
+                items: const ['Prompt', 'References', 'Generate', 'Gallery'],
+                activeIndex: _generationState == 'Pending Generation' ? 2 : 0,
+              ),
+              const SizedBox(height: 12),
+              if (compact)
+                Column(
+                  children: [
+                    _buildPromptStudio(),
+                    const SizedBox(height: 12),
+                    _buildControls(),
+                  ],
+                )
+              else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 7, child: _buildPromptStudio()),
+                    const SizedBox(width: 12),
+                    SizedBox(width: 236, child: _buildControls()),
+                  ],
+                ),
+              const SizedBox(height: 12),
+              _ImageOutputGallery(
+                state: _generationState,
+                outputs: int.tryParse(_outputs) ?? 2,
+                resolution: _resolution,
+                ratio: _ratio,
+                style: _stylePreset,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPromptStudio() {
+    return _VideoSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(child: _PanelLabel('IMAGE PROMPT STUDIO')),
+              _StateBadge(widget.operatorStatus),
+              if (widget.referenceCount > 0) ...[
+                const SizedBox(width: 6),
+                _StateBadge('${widget.referenceCount} refs'),
+              ],
+            ],
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _promptController,
+            minLines: 7,
+            maxLines: 11,
+            decoration: InputDecoration(
+              hintText:
+                  'Опиши изображение: герой, среда, свет, настроение, объектив, цвет, композиция...',
+              alignLabelWithHint: true,
+              filled: true,
+              fillColor: const Color(0x20050608),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0x16FFFFFF)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _negativeController,
+            minLines: 2,
+            maxLines: 4,
+            decoration: InputDecoration(
+              labelText: 'Negative prompt',
+              alignLabelWithHint: true,
+              filled: true,
+              fillColor: const Color(0x14050608),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0x14FFFFFF)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: const [
+              _ImageReferenceSlot(
+                title: 'Style Ref',
+                subtitle: 'палитра / техника',
+                icon: Icons.palette_outlined,
+              ),
+              _ImageReferenceSlot(
+                title: 'Character',
+                subtitle: 'лицо / образ',
+                icon: Icons.person_outline_rounded,
+              ),
+              _ImageReferenceSlot(
+                title: 'Composition',
+                subtitle: 'кадр / поза',
+                icon: Icons.grid_4x4_outlined,
+              ),
+              _ImageReferenceSlot(
+                title: 'Lighting',
+                subtitle: 'свет / контраст',
+                icon: Icons.light_mode_outlined,
+              ),
+              _ImageReferenceSlot(
+                title: 'Environment',
+                subtitle: 'локация',
+                icon: Icons.landscape_outlined,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const _PanelLabel('STYLE PRESETS'),
+          const SizedBox(height: 8),
+          _VideoPresetWrap(
+            value: _stylePreset,
+            values: const [
+              'Cinematic',
+              'Anime',
+              'Hyperreal',
+              'Concept Art',
+              'Fashion',
+              'Noir',
+              'Sci-Fi',
+              'Editorial',
+              'Product Shot',
+            ],
+            onChanged: (value) => setState(() => _stylePreset = value),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: const [
+              _RouteBadge('concept art guidance'),
+              _RouteBadge('clean silhouette'),
+              _RouteBadge('cinematic light'),
+              _RouteBadge('production prompt ready'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildControls() {
+    return _VideoSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _PanelLabel('GENERATION'),
+          const SizedBox(height: 10),
+          _VideoChoiceRow(
+            title: 'Resolution',
+            value: _resolution,
+            values: const ['1K', '2K', '4K'],
+            onChanged: (value) => setState(() => _resolution = value),
+          ),
+          _VideoChoiceRow(
+            title: 'Aspect Ratio',
+            value: _ratio,
+            values: const ['1:1', '16:9', '9:16', '4:5'],
+            onChanged: (value) => setState(() => _ratio = value),
+          ),
+          _VideoChoiceRow(
+            title: 'Outputs',
+            value: _outputs,
+            values: const ['1', '2', '4'],
+            onChanged: (value) => setState(() => _outputs = value),
+          ),
+          _VideoChoiceRow(
+            title: 'Quality',
+            value: _quality,
+            values: const ['Draft', 'Standard', 'Cinematic'],
+            onChanged: (value) => setState(() => _quality = value),
+          ),
+          const SizedBox(height: 8),
+          const _PanelLabel('COMPOSITION'),
+          const SizedBox(height: 8),
+          _VideoPresetWrap(
+            value: _composition,
+            values: const [
+              'Wide Shot',
+              'Close-Up',
+              'Portrait',
+              'Overhead',
+              'Symmetrical',
+              'Handheld Feel',
+              'Macro',
+              'Studio Light',
+            ],
+            onChanged: (value) => setState(() => _composition = value),
+          ),
+          const SizedBox(height: 12),
+          _VideoToggle(
+            title: 'Enhance Prompt',
+            value: _enhancePrompt,
+            onChanged: (value) => setState(() => _enhancePrompt = value),
+          ),
+          _VideoToggle(
+            title: 'Variation Set',
+            value: _variations,
+            onChanged: (value) => setState(() => _variations = value),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: FilledButton.icon(
+              onPressed: _prepareGeneration,
+              icon: const Icon(Icons.auto_awesome_rounded),
+              label: Text(_variations ? 'Создать вариации' : 'Сгенерировать'),
+            ),
+          ),
+          TextButton.icon(
+            onPressed: _openProvider,
+            icon: const Icon(Icons.open_in_new_rounded, size: 16),
+            label: Text('Открыть ${_imageProviderName(widget.selectedModel)}'),
+          ),
+          TextButton.icon(
+            onPressed: _copyPrompt,
+            icon: const Icon(Icons.copy_rounded, size: 16),
+            label: const Text('Скопировать промпт'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _prepareGeneration() {
+    setState(() => _generationState = 'Pending Generation');
+    widget.onWorkspaceExecution(
+      _WorkspaceActionSpec(
+        _variations ? 'Создать вариации' : 'Сгенерировать изображение',
+        Icons.auto_awesome_rounded,
+        false,
+        flowEvent: 'generate_prompt',
+      ),
+      _imagePromptBundle(),
+    );
+  }
+
+  void _openProvider() {
+    final tool = _toolForModel(widget.selectedModel);
+    widget.onWorkspaceExecution(
+      _WorkspaceActionSpec(
+        'Открыть ${_imageProviderName(widget.selectedModel)}',
+        Icons.open_in_new_rounded,
+        true,
+        toolId: tool?.id,
+      ),
+      _imagePromptBundle(),
+    );
+  }
+
+  void _copyPrompt() {
+    widget.onWorkspaceExecution(
+      const _WorkspaceActionSpec(
+        'Скопировать промпт',
+        Icons.copy_rounded,
+        false,
+        copyOutput: true,
+        copyTarget: _PromptCopyTarget.all,
+      ),
+      _imagePromptBundle(),
+    );
+  }
+
+  String _imagePromptBundle() {
+    return [
+      'Model: ${widget.selectedModel}',
+      'Resolution: $_resolution',
+      'Aspect ratio: $_ratio',
+      'Outputs: $_outputs',
+      'Quality: $_quality',
+      'Style: $_stylePreset',
+      'Composition: $_composition',
+      'Enhance prompt: $_enhancePrompt',
+      '',
+      _promptController.text.trim(),
+      '',
+      'Negative prompt:',
+      _negativeController.text.trim(),
+    ].join('\n');
+  }
+}
+
+class _ImageModelBar extends StatelessWidget {
+  const _ImageModelBar({
+    required this.selectedModel,
+    required this.provider,
+    required this.route,
+    required this.state,
+    required this.onClose,
+  });
+
+  final String selectedModel;
+  final AiProvider provider;
+  final ExecutionRoute route;
+  final String state;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return _VideoSurface(
+      child: Row(
+        children: [
+          const Icon(Icons.image_outlined, color: Color(0xFFFF9A78)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  _imageProviderName(selectedModel),
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFFF2F3F5),
+                  ),
+                ),
+                _ProviderStatusBadge(provider),
+                _RouteBadge(route.routeType.label),
+                _StateBadge(state),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Закрыть workspace',
+            onPressed: onClose,
+            icon: const Icon(Icons.close_rounded, size: 18),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _imageProviderName(String model) {
+  final normalized = model.toLowerCase();
+  if (normalized.contains('flux')) return 'Flux';
+  if (normalized.contains('recraft')) return 'Recraft';
+  if (normalized.contains('midjourney')) return 'Midjourney';
+  if (normalized.contains('leonardo')) return 'Leonardo';
+  if (normalized.contains('comfy')) return 'ComfyUI';
+  if (normalized.contains('stable')) return 'SDXL';
+  return model;
+}
+
+class _ImageReferenceSlot extends StatelessWidget {
+  const _ImageReferenceSlot({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 120,
+      height: 82,
+      padding: const EdgeInsets.all(9),
+      decoration: BoxDecoration(
+        color: const Color(0x14000000),
+        border: Border.all(color: const Color(0x18FFFFFF)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: const Color(0xFFB0B4BE)),
+          const Spacer(),
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+          Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Color(0xFF8B8F9A), fontSize: 10),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ImageOutputGallery extends StatelessWidget {
+  const _ImageOutputGallery({
+    required this.state,
+    required this.outputs,
+    required this.resolution,
+    required this.ratio,
+    required this.style,
+  });
+
+  final String state;
+  final int outputs;
+  final String resolution;
+  final String ratio;
+  final String style;
+
+  @override
+  Widget build(BuildContext context) {
+    return _VideoSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(child: _PanelLabel('OUTPUT GALLERY')),
+              _StateBadge(state),
+            ],
+          ),
+          const SizedBox(height: 10),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cardWidth = constraints.maxWidth >= 620
+                  ? (constraints.maxWidth - 16) / 3
+                  : constraints.maxWidth;
+              return Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (var index = 0; index < outputs.clamp(1, 4); index++)
+                    SizedBox(
+                      width: cardWidth,
+                      child: _ImagePreviewCard(
+                        index: index + 1,
+                        state: state,
+                        resolution: resolution,
+                        ratio: ratio,
+                        style: style,
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ImagePreviewCard extends StatelessWidget {
+  const _ImagePreviewCard({
+    required this.index,
+    required this.state,
+    required this.resolution,
+    required this.ratio,
+    required this.style,
+  });
+
+  final int index;
+  final String state;
+  final String resolution;
+  final String ratio;
+  final String style;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 154,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0x22000000),
+        border: Border.all(color: const Color(0x1FFFFFFF)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.image_search_outlined, size: 18),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Image $index',
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ),
+              _StateBadge(state == 'Pending Generation' ? 'Pending' : 'Ready'),
+            ],
+          ),
+          const Spacer(),
+          Text(
+            '$resolution / $ratio / $style',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Color(0xFF8B8F9A), fontSize: 11),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'preview / rerun / upscale / variations slot',
+            style: TextStyle(color: Color(0xFF6F7480), fontSize: 10),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VideoGenerationWorkspace extends StatefulWidget {
+  const _VideoGenerationWorkspace({
+    required this.session,
+    required this.selectedModel,
+    required this.provider,
+    required this.route,
+    required this.operatorStatus,
+    required this.referenceCount,
+    required this.onClose,
+    required this.onSaveToProject,
+    required this.onWorkspaceExecution,
+  });
+
+  final _CreativeSession session;
+  final String selectedModel;
+  final AiProvider provider;
+  final ExecutionRoute route;
+  final String operatorStatus;
+  final int referenceCount;
+  final VoidCallback onClose;
+  final VoidCallback onSaveToProject;
+  final void Function(_WorkspaceActionSpec action, String prompt)
+  onWorkspaceExecution;
+
+  @override
+  State<_VideoGenerationWorkspace> createState() =>
+      _VideoGenerationWorkspaceState();
+}
+
+class _VideoGenerationWorkspaceState extends State<_VideoGenerationWorkspace> {
+  late final TextEditingController _promptController;
+  bool _multiShot = false;
+  String _resolution = '1080p';
+  String _ratio = '9:16';
+  double _duration = 7;
+  int _outputs = 1;
+  bool _nativeAudio = false;
+  bool _cinematicMotion = true;
+  bool _storyboardFlow = true;
+  String _cameraPreset = 'Orbit';
+  String _transition = 'Match cut';
+  String _generationState = 'Ready to Generate';
+  final List<_VideoShotDraft> _shots = [
+    _VideoShotDraft(title: 'Shot 1', duration: 7, prompt: ''),
+    _VideoShotDraft(title: 'Shot 2', duration: 8, prompt: ''),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _promptController = TextEditingController(
+      text: widget.session.output.trim().isEmpty
+          ? widget.session.sourceTask
+          : widget.session.output,
+    );
+    _shots[0].prompt = widget.session.sourceTask;
+    if (widget.session.sourceTask.toLowerCase().contains('hallway')) {
+      _cameraPreset = 'Dolly';
+      _transition = 'Push-through';
+    }
+    if (widget.session.sourceTask.toLowerCase().contains('orbit')) {
+      _cameraPreset = 'Orbit';
+    }
+  }
+
+  @override
+  void dispose() {
+    _promptController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 720;
+        return SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(6, 0, 6, compact ? 12 : 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _VideoModelBar(
+                selectedModel: widget.selectedModel,
+                provider: widget.provider,
+                route: widget.route,
+                state: _generationState,
+                onClose: widget.onClose,
+              ),
+              const SizedBox(height: 8),
+              _RuntimePipeline(
+                items: const ['Prompt', 'Shots', 'Generate', 'Render Queue'],
+                activeIndex: _generationState == 'Pending Render' ? 2 : 0,
+              ),
+              const SizedBox(height: 12),
+              if (compact)
+                Column(
+                  children: [
+                    _buildPromptSurface(),
+                    const SizedBox(height: 12),
+                    _buildGenerationPanel(),
+                  ],
+                )
+              else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 7, child: _buildPromptSurface()),
+                    const SizedBox(width: 12),
+                    SizedBox(width: 236, child: _buildGenerationPanel()),
+                  ],
+                ),
+              const SizedBox(height: 12),
+              _VideoOutputFoundation(
+                state: _generationState,
+                outputs: _outputs,
+                resolution: _resolution,
+                ratio: _ratio,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPromptSurface() {
+    return _VideoSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(child: _PanelLabel('CINEMATIC PROMPT')),
+              _StateBadge(widget.operatorStatus),
+              if (widget.referenceCount > 0) ...[
+                const SizedBox(width: 6),
+                _StateBadge('${widget.referenceCount} refs'),
+              ],
+            ],
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _promptController,
+            minLines: 6,
+            maxLines: 10,
+            decoration: InputDecoration(
+              hintText:
+                  'Опиши сцену, движение камеры, героя, свет, переход и финальный кадр...',
+              alignLabelWithHint: true,
+              filled: true,
+              fillColor: const Color(0x20050608),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0x16FFFFFF)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: const [
+              _VideoReferenceSlot(
+                title: 'Start Frame',
+                subtitle: 'первый кадр',
+                icon: Icons.first_page_rounded,
+              ),
+              _VideoReferenceSlot(
+                title: 'End Frame',
+                subtitle: 'финальный кадр',
+                icon: Icons.last_page_rounded,
+              ),
+              _VideoReferenceSlot(
+                title: 'Style Ref',
+                subtitle: 'цвет / свет',
+                icon: Icons.palette_outlined,
+              ),
+              _VideoReferenceSlot(
+                title: 'Character',
+                subtitle: 'герой',
+                icon: Icons.person_outline_rounded,
+              ),
+              _VideoReferenceSlot(
+                title: 'Environment',
+                subtitle: 'локация',
+                icon: Icons.landscape_outlined,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          SegmentedButton<bool>(
+            segments: const [
+              ButtonSegment(value: false, label: Text('Single Shot')),
+              ButtonSegment(value: true, label: Text('Multi Shot')),
+            ],
+            selected: {_multiShot},
+            onSelectionChanged: (value) =>
+                setState(() => _multiShot = value.first),
+          ),
+          if (_multiShot) ...[
+            const SizedBox(height: 12),
+            for (var index = 0; index < _shots.length; index++)
+              _VideoShotBlock(
+                index: index,
+                shot: _shots[index],
+                onChanged: (shot) => setState(() => _shots[index] = shot),
+              ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: _addShot,
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Add Shot'),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: const [
+              _RouteBadge('cinematic lighting'),
+              _RouteBadge('motivated camera'),
+              _RouteBadge('clear final frame'),
+              _RouteBadge('continuity ready'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildGenerationPanel() {
+    return _VideoSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _PanelLabel('GENERATION'),
+          const SizedBox(height: 10),
+          _VideoChoiceRow(
+            title: 'Resolution',
+            value: _resolution,
+            values: const ['720p', '1080p', '4K'],
+            onChanged: (value) => setState(() => _resolution = value),
+          ),
+          _VideoChoiceRow(
+            title: 'Aspect Ratio',
+            value: _ratio,
+            values: const ['16:9', '9:16', '1:1'],
+            onChanged: (value) => setState(() => _ratio = value),
+          ),
+          const SizedBox(height: 8),
+          Text('Duration: ${_duration.round()}s'),
+          Slider(
+            value: _duration,
+            min: 5,
+            max: 12,
+            divisions: 7,
+            label: '${_duration.round()}s',
+            onChanged: (value) => setState(() => _duration = value),
+          ),
+          _VideoStepper(
+            label: 'Outputs',
+            value: _outputs,
+            onChanged: (value) => setState(() => _outputs = value),
+          ),
+          const SizedBox(height: 8),
+          _VideoToggle(
+            title: 'Native Audio',
+            value: _nativeAudio,
+            onChanged: (value) => setState(() => _nativeAudio = value),
+          ),
+          _VideoToggle(
+            title: 'Multi Shot',
+            value: _multiShot,
+            onChanged: (value) => setState(() => _multiShot = value),
+          ),
+          _VideoToggle(
+            title: 'Cinematic Motion',
+            value: _cinematicMotion,
+            onChanged: (value) => setState(() => _cinematicMotion = value),
+          ),
+          _VideoToggle(
+            title: 'Storyboard Flow',
+            value: _storyboardFlow,
+            onChanged: (value) => setState(() => _storyboardFlow = value),
+          ),
+          const SizedBox(height: 12),
+          const _PanelLabel('CAMERA'),
+          const SizedBox(height: 8),
+          _VideoPresetWrap(
+            value: _cameraPreset,
+            values: const [
+              'Orbit',
+              'Dolly',
+              'Handheld',
+              'Drone',
+              'Crash Zoom',
+              'Parallax',
+            ],
+            onChanged: (value) => setState(() => _cameraPreset = value),
+          ),
+          const SizedBox(height: 12),
+          const _PanelLabel('STORYBOARD'),
+          const SizedBox(height: 8),
+          _VideoChoiceRow(
+            title: 'Transition',
+            value: _transition,
+            values: const ['Cut', 'Match cut', 'Push-through', 'Dissolve'],
+            onChanged: (value) => setState(() => _transition = value),
+          ),
+          const _VideoContinuityLine(),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: FilledButton.icon(
+              onPressed: _prepareGeneration,
+              icon: const Icon(Icons.movie_creation_rounded),
+              label: Text(_multiShot ? 'Собрать sequence' : 'Сгенерировать'),
+            ),
+          ),
+          TextButton.icon(
+            onPressed: _openProvider,
+            icon: const Icon(Icons.open_in_new_rounded, size: 16),
+            label: Text('Открыть ${widget.selectedModel}'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _addShot() {
+    setState(() {
+      final number = _shots.length + 1;
+      _shots.add(
+        _VideoShotDraft(
+          title: 'Shot $number',
+          duration: _duration.round(),
+          prompt: '',
+        ),
+      );
+    });
+  }
+
+  void _prepareGeneration() {
+    setState(() => _generationState = 'Pending Render');
+    widget.onWorkspaceExecution(
+      _WorkspaceActionSpec(
+        _multiShot ? 'Собрать sequence' : 'Сгенерировать видео',
+        Icons.movie_creation_rounded,
+        false,
+        flowEvent: 'generate_prompt',
+      ),
+      _videoPromptBundle(),
+    );
+  }
+
+  void _openProvider() {
+    final tool = _toolForModel(widget.selectedModel);
+    widget.onWorkspaceExecution(
+      _WorkspaceActionSpec(
+        'Открыть ${widget.selectedModel}',
+        Icons.open_in_new_rounded,
+        true,
+        toolId: tool?.id,
+      ),
+      _videoPromptBundle(),
+    );
+  }
+
+  String _videoPromptBundle() {
+    final buffer = StringBuffer()
+      ..writeln('Model: ${widget.selectedModel}')
+      ..writeln('Resolution: $_resolution')
+      ..writeln('Aspect ratio: $_ratio')
+      ..writeln('Duration: ${_duration.round()}s')
+      ..writeln('Outputs: $_outputs')
+      ..writeln('Camera: $_cameraPreset')
+      ..writeln('Transition: $_transition')
+      ..writeln()
+      ..writeln(_promptController.text.trim());
+    if (_multiShot) {
+      buffer.writeln('\nMulti-shot plan:');
+      for (final shot in _shots) {
+        buffer.writeln('${shot.title} — ${shot.duration}s');
+        buffer.writeln(shot.prompt.trim().isEmpty ? 'TBD' : shot.prompt);
+      }
+    }
+    return buffer.toString();
+  }
+}
+
+class _VideoShotDraft {
+  _VideoShotDraft({
+    required this.title,
+    required this.duration,
+    required this.prompt,
+  });
+
+  final String title;
+  final int duration;
+  String prompt;
+
+  _VideoShotDraft copyWith({String? title, int? duration, String? prompt}) {
+    return _VideoShotDraft(
+      title: title ?? this.title,
+      duration: duration ?? this.duration,
+      prompt: prompt ?? this.prompt,
+    );
+  }
+}
+
+class _VideoSurface extends StatelessWidget {
+  const _VideoSurface({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xD00C0E13), Color(0xA0080A0E)],
+        ),
+        border: Border.all(color: Color(0x12FFFFFF)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _RuntimePipeline extends StatelessWidget {
+  const _RuntimePipeline({required this.items, required this.activeIndex});
+
+  final List<String> items;
+  final int activeIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0x66050608),
+        border: Border.all(color: const Color(0x10FFFFFF)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          for (var index = 0; index < items.length; index++) ...[
+            Expanded(
+              child: Row(
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: index <= activeIndex
+                          ? const Color(0xFFFF9A78)
+                          : const Color(0xFF3A3F48),
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      items[index],
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: index == activeIndex
+                            ? const Color(0xFFF2F3F5)
+                            : const Color(0xFF8B8F9A),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (index != items.length - 1)
+              Container(
+                width: 18,
+                height: 1,
+                margin: const EdgeInsets.symmetric(horizontal: 6),
+                color: const Color(0x18FFFFFF),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _VideoModelBar extends StatelessWidget {
+  const _VideoModelBar({
+    required this.selectedModel,
+    required this.provider,
+    required this.route,
+    required this.state,
+    required this.onClose,
+  });
+
+  final String selectedModel;
+  final AiProvider provider;
+  final ExecutionRoute route;
+  final String state;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return _VideoSurface(
+      child: Row(
+        children: [
+          const Icon(Icons.movie_filter_rounded, color: Color(0xFFFF9A78)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  _videoModelVersion(selectedModel),
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFFF2F3F5),
+                  ),
+                ),
+                _ProviderStatusBadge(provider),
+                _RouteBadge(route.routeType.label),
+                _StateBadge(state),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Закрыть workspace',
+            onPressed: onClose,
+            icon: const Icon(Icons.close_rounded, size: 18),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _videoModelVersion(String model) {
+  final normalized = model.toLowerCase();
+  if (normalized.contains('kling')) return 'Kling 3.0';
+  if (normalized.contains('veo') || normalized.contains('flow')) return 'Veo';
+  if (normalized.contains('runway')) return 'Runway';
+  if (normalized.contains('higgsfield')) return 'Higgsfield';
+  if (normalized.contains('sora')) return 'Sora';
+  return model;
+}
+
+class _VideoReferenceSlot extends StatelessWidget {
+  const _VideoReferenceSlot({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 120,
+      height: 78,
+      padding: const EdgeInsets.all(9),
+      decoration: BoxDecoration(
+        color: const Color(0x14000000),
+        border: Border.all(color: const Color(0x18FFFFFF)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: const Color(0xFFB0B4BE)),
+          const Spacer(),
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+          Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Color(0xFF8B8F9A), fontSize: 10),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VideoShotBlock extends StatelessWidget {
+  const _VideoShotBlock({
+    required this.index,
+    required this.shot,
+    required this.onChanged,
+  });
+
+  final int index;
+  final _VideoShotDraft shot;
+  final ValueChanged<_VideoShotDraft> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0x0AFFFFFF),
+        border: Border.all(color: const Color(0x12FFFFFF)),
+        borderRadius: BorderRadius.circular(9),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  initialValue: shot.title,
+                  decoration: InputDecoration(
+                    labelText: 'Shot ${index + 1}',
+                    isDense: true,
+                  ),
+                  onChanged: (value) => onChanged(shot.copyWith(title: value)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 92,
+                child: DropdownButtonFormField<int>(
+                  initialValue: shot.duration,
+                  isDense: true,
+                  decoration: const InputDecoration(labelText: 'Duration'),
+                  items: const [5, 6, 7, 8, 10, 12]
+                      .map(
+                        (value) => DropdownMenuItem(
+                          value: value,
+                          child: Text('${value}s'),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      onChanged(shot.copyWith(duration: value));
+                    }
+                  },
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextFormField(
+            initialValue: shot.prompt,
+            minLines: 2,
+            maxLines: 4,
+            decoration: const InputDecoration(
+              labelText: 'Shot prompt',
+              alignLabelWithHint: true,
+            ),
+            onChanged: (value) => onChanged(shot.copyWith(prompt: value)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VideoChoiceRow extends StatelessWidget {
+  const _VideoChoiceRow({
+    required this.title,
+    required this.value,
+    required this.values,
+    required this.onChanged,
+  });
+
+  final String title;
+  final String value;
+  final List<String> values;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(color: Color(0xFF8B8F9A))),
+          const SizedBox(height: 6),
+          _VideoPresetWrap(value: value, values: values, onChanged: onChanged),
+        ],
+      ),
+    );
+  }
+}
+
+class _VideoPresetWrap extends StatelessWidget {
+  const _VideoPresetWrap({
+    required this.value,
+    required this.values,
+    required this.onChanged,
+  });
+
+  final String value;
+  final List<String> values;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: [
+        for (final item in values)
+          _TinyTab(
+            label: item,
+            selected: value == item,
+            onTap: () => onChanged(item),
+          ),
+      ],
+    );
+  }
+}
+
+class _VideoStepper extends StatelessWidget {
+  const _VideoStepper({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final int value;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(child: Text('$label: $value')),
+        IconButton(
+          onPressed: value <= 1 ? null : () => onChanged(value - 1),
+          icon: const Icon(Icons.remove_rounded),
+        ),
+        IconButton(
+          onPressed: value >= 4 ? null : () => onChanged(value + 1),
+          icon: const Icon(Icons.add_rounded),
+        ),
+      ],
+    );
+  }
+}
+
+class _VideoToggle extends StatelessWidget {
+  const _VideoToggle({
+    required this.title,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String title;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SwitchListTile.adaptive(
+      value: value,
+      dense: true,
+      contentPadding: EdgeInsets.zero,
+      title: Text(title, style: const TextStyle(fontSize: 12)),
+      onChanged: onChanged,
+    );
+  }
+}
+
+class _VideoContinuityLine extends StatelessWidget {
+  const _VideoContinuityLine();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.only(top: 6),
+      child: Text(
+        'Start/End continuity: кадры и референсы сохраняют направление движения, свет и героя.',
+        style: TextStyle(color: Color(0xFF8B8F9A), fontSize: 11, height: 1.3),
+      ),
+    );
+  }
+}
+
+class _VideoOutputFoundation extends StatelessWidget {
+  const _VideoOutputFoundation({
+    required this.state,
+    required this.outputs,
+    required this.resolution,
+    required this.ratio,
+  });
+
+  final String state;
+  final int outputs;
+  final String resolution;
+  final String ratio;
+
+  @override
+  Widget build(BuildContext context) {
+    return _VideoSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(child: _PanelLabel('RENDER QUEUE')),
+              _StateBadge(state),
+            ],
+          ),
+          const SizedBox(height: 10),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cardWidth = constraints.maxWidth >= 620
+                  ? (constraints.maxWidth - 16) / 3
+                  : constraints.maxWidth;
+              return Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (var index = 0; index < outputs.clamp(1, 4); index++)
+                    SizedBox(
+                      width: cardWidth,
+                      child: _VideoPreviewCard(
+                        index: index + 1,
+                        state: state,
+                        resolution: resolution,
+                        ratio: ratio,
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VideoPreviewCard extends StatelessWidget {
+  const _VideoPreviewCard({
+    required this.index,
+    required this.state,
+    required this.resolution,
+    required this.ratio,
+  });
+
+  final int index;
+  final String state;
+  final String resolution;
+  final String ratio;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 138,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0x22000000),
+        border: Border.all(color: const Color(0x1FFFFFFF)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.play_circle_outline_rounded, size: 18),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Render $index',
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+              ),
+              _StateBadge(state == 'Pending Render' ? 'Pending' : 'Ready'),
+            ],
+          ),
+          const Spacer(),
+          Text(
+            '$resolution / $ratio',
+            style: const TextStyle(color: Color(0xFF8B8F9A), fontSize: 11),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'preview placeholder / progress slot',
+            style: TextStyle(color: Color(0xFF6F7480), fontSize: 10),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AudioGenerationWorkspace extends StatefulWidget {
+  const _AudioGenerationWorkspace({
+    required this.session,
+    required this.selectedModel,
+    required this.provider,
+    required this.route,
+    required this.operatorStatus,
+    required this.referenceCount,
+    required this.onClose,
+    required this.onWorkspaceExecution,
+  });
+
+  final _CreativeSession session;
+  final String selectedModel;
+  final AiProvider provider;
+  final ExecutionRoute route;
+  final String operatorStatus;
+  final int referenceCount;
+  final VoidCallback onClose;
+  final void Function(_WorkspaceActionSpec action, String prompt)
+  onWorkspaceExecution;
+
+  @override
+  State<_AudioGenerationWorkspace> createState() =>
+      _AudioGenerationWorkspaceState();
+}
+
+class _AudioGenerationWorkspaceState extends State<_AudioGenerationWorkspace> {
+  late final TextEditingController _promptController;
+  String _mode = 'Voiceover';
+  String _duration = '30s';
+  String _voice = 'Natural';
+  String _language = 'Auto';
+  int _outputs = 1;
+  bool _noiseCleanup = true;
+  bool _cinematicMix = true;
+  String _generationState = 'Готово к генерации';
+
+  @override
+  void initState() {
+    super.initState();
+    _promptController = TextEditingController(
+      text: widget.session.output.trim().isEmpty
+          ? widget.session.sourceTask
+          : widget.session.output,
+    );
+    final source = widget.session.sourceTask.toLowerCase();
+    if (source.contains('music') || source.contains('song')) {
+      _mode = 'Music';
+      _duration = '60s';
+    }
+    if (source.contains('dub') || source.contains('дубляж')) {
+      _mode = 'Dubbing';
+    }
+  }
+
+  @override
+  void dispose() {
+    _promptController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 720;
+        return SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(6, 0, 6, compact ? 12 : 4),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _AudioModelBar(
+                selectedModel: widget.selectedModel,
+                provider: widget.provider,
+                route: widget.route,
+                state: _generationState,
+                onClose: widget.onClose,
+              ),
+              const SizedBox(height: 8),
+              _RuntimePipeline(
+                items: const ['Prompt', 'Voice/Music', 'Generate', 'Waveform'],
+                activeIndex: _generationState == 'Ожидает рендера' ? 2 : 0,
+              ),
+              const SizedBox(height: 12),
+              if (compact)
+                Column(
+                  children: [
+                    _buildPromptSurface(),
+                    const SizedBox(height: 12),
+                    _buildControls(),
+                  ],
+                )
+              else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 7, child: _buildPromptSurface()),
+                    const SizedBox(width: 12),
+                    SizedBox(width: 236, child: _buildControls()),
+                  ],
+                ),
+              const SizedBox(height: 12),
+              _AudioOutputFoundation(
+                state: _generationState,
+                outputs: _outputs,
+                mode: _mode,
+                duration: _duration,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPromptSurface() {
+    return _VideoSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(child: _PanelLabel('AUDIO PROMPT')),
+              _StateBadge(widget.operatorStatus),
+              if (widget.referenceCount > 0) ...[
+                const SizedBox(width: 6),
+                _StateBadge('${widget.referenceCount} refs'),
+              ],
+            ],
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _promptController,
+            minLines: 7,
+            maxLines: 10,
+            decoration: InputDecoration(
+              hintText:
+                  'Опиши голос, музыку, эмоцию, темп, язык, сцену и формат результата...',
+              alignLabelWithHint: true,
+              filled: true,
+              fillColor: const Color(0x20050608),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0x16FFFFFF)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: const [
+              _AudioReferenceSlot(
+                title: 'Voice Ref',
+                subtitle: 'тембр / дикция',
+                icon: Icons.record_voice_over_outlined,
+              ),
+              _AudioReferenceSlot(
+                title: 'Music Ref',
+                subtitle: 'жанр / ритм',
+                icon: Icons.queue_music_outlined,
+              ),
+              _AudioReferenceSlot(
+                title: 'Script',
+                subtitle: 'текст / сцена',
+                icon: Icons.article_outlined,
+              ),
+              _AudioReferenceSlot(
+                title: 'Mix Target',
+                subtitle: 'громкость / тон',
+                icon: Icons.equalizer_rounded,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: const [
+              _RouteBadge('voice direction'),
+              _RouteBadge('music mood'),
+              _RouteBadge('clean mix'),
+              _RouteBadge('waveform ready'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildControls() {
+    return _VideoSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _PanelLabel('AUDIO RUNTIME'),
+          const SizedBox(height: 10),
+          _VideoChoiceRow(
+            title: 'Mode',
+            value: _mode,
+            values: const ['Voiceover', 'Music', 'Dubbing', 'Transcript'],
+            onChanged: (value) => setState(() => _mode = value),
+          ),
+          _VideoChoiceRow(
+            title: 'Duration',
+            value: _duration,
+            values: const ['15s', '30s', '60s', 'Long'],
+            onChanged: (value) => setState(() => _duration = value),
+          ),
+          _VideoChoiceRow(
+            title: 'Voice',
+            value: _voice,
+            values: const ['Natural', 'Warm', 'Cinematic', 'Narrator'],
+            onChanged: (value) => setState(() => _voice = value),
+          ),
+          _VideoChoiceRow(
+            title: 'Language',
+            value: _language,
+            values: const ['Auto', 'RU', 'EN'],
+            onChanged: (value) => setState(() => _language = value),
+          ),
+          _VideoStepper(
+            label: 'Outputs',
+            value: _outputs,
+            onChanged: (value) => setState(() => _outputs = value),
+          ),
+          _VideoToggle(
+            title: 'Noise Cleanup',
+            value: _noiseCleanup,
+            onChanged: (value) => setState(() => _noiseCleanup = value),
+          ),
+          _VideoToggle(
+            title: 'Cinematic Mix',
+            value: _cinematicMix,
+            onChanged: (value) => setState(() => _cinematicMix = value),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            height: 46,
+            child: FilledButton.icon(
+              onPressed: _prepareGeneration,
+              icon: const Icon(Icons.graphic_eq_rounded),
+              label: const Text('Собрать аудио'),
+            ),
+          ),
+          TextButton.icon(
+            onPressed: _openProvider,
+            icon: const Icon(Icons.open_in_new_rounded, size: 16),
+            label: Text('Открыть ${widget.selectedModel}'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _prepareGeneration() {
+    setState(() => _generationState = 'Ожидает рендера');
+    widget.onWorkspaceExecution(
+      const _WorkspaceActionSpec(
+        'Собрать аудио',
+        Icons.graphic_eq_rounded,
+        false,
+        flowEvent: 'generate_prompt',
+      ),
+      _audioPromptBundle(),
+    );
+  }
+
+  void _openProvider() {
+    final tool = _toolForModel(widget.selectedModel);
+    widget.onWorkspaceExecution(
+      _WorkspaceActionSpec(
+        'Открыть ${widget.selectedModel}',
+        Icons.open_in_new_rounded,
+        true,
+        toolId: tool?.id,
+      ),
+      _audioPromptBundle(),
+    );
+  }
+
+  String _audioPromptBundle() {
+    return [
+      'Model: ${widget.selectedModel}',
+      'Mode: $_mode',
+      'Duration: $_duration',
+      'Voice: $_voice',
+      'Language: $_language',
+      'Outputs: $_outputs',
+      'Noise cleanup: $_noiseCleanup',
+      'Cinematic mix: $_cinematicMix',
+      '',
+      _promptController.text.trim(),
+    ].join('\n');
+  }
+}
+
+class _AudioModelBar extends StatelessWidget {
+  const _AudioModelBar({
+    required this.selectedModel,
+    required this.provider,
+    required this.route,
+    required this.state,
+    required this.onClose,
+  });
+
+  final String selectedModel;
+  final AiProvider provider;
+  final ExecutionRoute route;
+  final String state;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    return _VideoSurface(
+      child: Row(
+        children: [
+          const Icon(Icons.graphic_eq_rounded, color: Color(0xFFFF9A78)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  selectedModel,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFFF2F3F5),
+                  ),
+                ),
+                _ProviderStatusBadge(provider),
+                _RouteBadge(route.routeType.label),
+                _StateBadge(state),
+              ],
+            ),
+          ),
+          IconButton(
+            tooltip: 'Закрыть workspace',
+            onPressed: onClose,
+            icon: const Icon(Icons.close_rounded, size: 18),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AudioReferenceSlot extends StatelessWidget {
+  const _AudioReferenceSlot({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+  });
+
+  final String title;
+  final String subtitle;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 122,
+      height: 78,
+      padding: const EdgeInsets.all(9),
+      decoration: BoxDecoration(
+        color: const Color(0x14000000),
+        border: Border.all(color: const Color(0x18FFFFFF)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: const Color(0xFFB0B4BE)),
+          const Spacer(),
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+          Text(
+            subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Color(0xFF8B8F9A), fontSize: 10),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AudioOutputFoundation extends StatelessWidget {
+  const _AudioOutputFoundation({
+    required this.state,
+    required this.outputs,
+    required this.mode,
+    required this.duration,
+  });
+
+  final String state;
+  final int outputs;
+  final String mode;
+  final String duration;
+
+  @override
+  Widget build(BuildContext context) {
+    return _VideoSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(child: _PanelLabel('AUDIO OUTPUT')),
+              _StateBadge(state),
+            ],
+          ),
+          const SizedBox(height: 10),
+          for (var index = 0; index < outputs.clamp(1, 4); index++)
+            _AudioWaveformCard(
+              index: index + 1,
+              state: state,
+              mode: mode,
+              duration: duration,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AudioWaveformCard extends StatelessWidget {
+  const _AudioWaveformCard({
+    required this.index,
+    required this.state,
+    required this.mode,
+    required this.duration,
+  });
+
+  final int index;
+  final String state;
+  final String mode;
+  final String duration;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 84,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0x22000000),
+        border: Border.all(color: const Color(0x1FFFFFFF)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.graphic_eq_rounded, color: Color(0xFF9CF5E2)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Audio $index',
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 6),
+                const LinearProgressIndicator(value: 0.36),
+                const SizedBox(height: 6),
+                Text(
+                  '$mode / $duration / waveform placeholder',
+                  style: const TextStyle(
+                    color: Color(0xFF8B8F9A),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          _StateBadge(state == 'Ожидает рендера' ? 'Pending' : 'Ready'),
+        ],
       ),
     );
   }
@@ -3913,7 +6056,7 @@ class _OllamaExecutionPanel extends StatelessWidget {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.play_arrow_rounded, size: 17),
-                label: Text(running ? 'Running...' : 'Run with Ollama'),
+                label: Text(running ? 'Выполняется...' : 'Запустить локально'),
               ),
             ],
           ),
@@ -3956,8 +6099,8 @@ class _TextRuntimeModeSwitch extends StatelessWidget {
   Widget build(BuildContext context) {
     return SegmentedButton<bool>(
       segments: const [
-        ButtonSegment(value: true, label: Text('Chat Mode')),
-        ButtonSegment(value: false, label: Text('Workspace Mode')),
+        ButtonSegment(value: true, label: Text('Чат')),
+        ButtonSegment(value: false, label: Text('Workspace')),
       ],
       selected: {chatMode},
       onSelectionChanged: (value) => onChanged(value.first),
@@ -3965,8 +6108,156 @@ class _TextRuntimeModeSwitch extends StatelessWidget {
   }
 }
 
-class _TextOllamaChatStage extends StatelessWidget {
-  const _TextOllamaChatStage({
+class _TextConversationStage extends StatelessWidget {
+  const _TextConversationStage({
+    required this.selectedModel,
+    required this.messages,
+    required this.running,
+    required this.onModeChanged,
+  });
+
+  final String selectedModel;
+  final List<_ChatMessage> messages;
+  final bool running;
+  final ValueChanged<bool> onModeChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = _providerForModelLabel(selectedModel);
+    final route = _routeForModelLabel(_WorkMode.text, selectedModel);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(
+                provider.id == 'ollama'
+                    ? Icons.memory_rounded
+                    : Icons.chat_bubble_outline_rounded,
+                size: 17,
+                color: const Color(0xFFFF9A78),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  selectedModel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFFF2F3F5),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _StateBadge(route.statusLabel),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: () => onModeChanged(false),
+                icon: const Icon(Icons.tune_rounded, size: 16),
+                label: const Text('Открыть Workspace'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            provider.id == 'ollama'
+                ? 'Локальный чат через Ollama. Сообщения идут прямо в основной runtime.'
+                : '${provider.name}: единый chat runtime. Если прямое исполнение не подключено, ответ появится как операторское сообщение.',
+            style: const TextStyle(
+              color: Color(0xFF8B8F9A),
+              fontSize: 12,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _RuntimePipeline(
+            items: const ['Command', 'Context', 'Response', 'Workspace'],
+            activeIndex: running ? 1 : 2,
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: messages.isEmpty
+                ? _TextChatEmptyState(selectedModel: selectedModel)
+                : ListView.builder(
+                    reverse: true,
+                    padding: const EdgeInsets.only(top: 8, bottom: 12),
+                    itemCount: messages.length + (running ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      final itemCount = messages.length + (running ? 1 : 0);
+                      final sourceIndex = itemCount - 1 - index;
+                      if (running && sourceIndex == messages.length) {
+                        return const _ChatBubble(
+                          role: 'assistant',
+                          text: 'Ollama думает...',
+                          loading: true,
+                        );
+                      }
+                      final message = messages[sourceIndex];
+                      return _ChatBubble(
+                        role: message.role,
+                        text: message.text,
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TextChatEmptyState extends StatelessWidget {
+  const _TextChatEmptyState({required this.selectedModel});
+
+  final String selectedModel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 520),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.forum_outlined,
+              size: 34,
+              color: Color(0xFFFF9A78),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              '$selectedModel chat',
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Color(0xFFF2F3F5),
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Напиши сообщение в нижней строке. Диалог появится здесь, без отдельной execution-карточки.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Color(0xFF9AA0AA),
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ignore: unused_element
+class _TextChatStage extends StatelessWidget {
+  const _TextChatStage({
     required this.selectedModel,
     required this.messages,
     required this.running,
@@ -4066,39 +6357,78 @@ class _ChatBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = role == 'user';
-    return Align(
-      alignment: user ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 520),
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: user ? const Color(0x22FF9A78) : const Color(0x12FFFFFF),
-          border: Border.all(
-            color: user ? const Color(0x33FF9A78) : const Color(0x18FFFFFF),
-          ),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final system = role == 'system';
+    return Padding(
+      padding: EdgeInsets.only(
+        left: user ? 72 : 0,
+        right: user ? 0 : (system ? 96 : 48),
+        bottom: 14,
+      ),
+      child: Align(
+        alignment: user ? Alignment.centerRight : Alignment.centerLeft,
+        child: Column(
+          crossAxisAlignment: user
+              ? CrossAxisAlignment.end
+              : CrossAxisAlignment.start,
           children: [
-            if (loading) ...[
-              const SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              const SizedBox(width: 8),
-            ],
-            Flexible(
-              child: SelectableText(
-                text,
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                user
+                    ? 'Вы'
+                    : system
+                    ? 'Runtime'
+                    : 'Operator',
                 style: const TextStyle(
-                  color: Color(0xFFE5E7EC),
-                  fontSize: 13,
-                  height: 1.4,
+                  color: Color(0xFF6F7480),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
                 ),
+              ),
+            ),
+            Container(
+              constraints: BoxConstraints(maxWidth: system ? 620 : 560),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              decoration: BoxDecoration(
+                color: user
+                    ? const Color(0x2AFF7A4D)
+                    : system
+                    ? const Color(0x18FFD166)
+                    : const Color(0x0EFFFFFF),
+                border: Border(
+                  left: BorderSide(
+                    color: user
+                        ? const Color(0xFFFF9A78)
+                        : system
+                        ? const Color(0xFFFFD166)
+                        : const Color(0xFF6BE4C9),
+                    width: 2,
+                  ),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (loading) ...[
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Flexible(
+                    child: SelectableText(
+                      text,
+                      style: const TextStyle(
+                        color: Color(0xFFE5E7EC),
+                        fontSize: 13,
+                        height: 1.45,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -4207,13 +6537,13 @@ class _WorkspaceModeBoard extends StatelessWidget {
         ? spec.actions
         : [
             _WorkspaceActionSpec(
-              'Open $selectedName',
+              'Открыть $selectedName',
               Icons.open_in_new_rounded,
               true,
               toolId: selectedTool.id,
             ),
             _WorkspaceActionSpec(
-              'Copy Prompt',
+              'Скопировать промпт',
               Icons.copy_rounded,
               false,
               copyOutput: true,
@@ -4252,7 +6582,7 @@ class _WorkspaceModeBoard extends StatelessWidget {
           _NextStepCard(
             text: selectedTool == null
                 ? spec.nextStep
-                : 'Open $selectedName, paste the prepared prompt, then continue manually.',
+                : 'Открой $selectedName, вставь подготовленный промпт и продолжи вручную.',
           ),
           const SizedBox(height: 10),
           Wrap(
@@ -4941,10 +7271,10 @@ class _RouteBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        color: const Color(0x116BE4C9),
-        border: Border.all(color: const Color(0x226BE4C9)),
+        color: const Color(0x0D6BE4C9),
+        border: Border.all(color: const Color(0x186BE4C9)),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -4967,10 +7297,10 @@ class _StateBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        color: const Color(0x12FFFFFF),
-        border: Border.all(color: const Color(0x18FFFFFF)),
+        color: const Color(0x0AFFFFFF),
+        border: Border.all(color: const Color(0x10FFFFFF)),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -5015,7 +7345,7 @@ class _ExecutionRoutePreview extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Selected Route: ${route.routeType.label} → ${provider.name}',
+                  'Маршрут: ${route.routeType.label} → ${provider.name}',
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w900,
@@ -6043,6 +8373,17 @@ class _MissingEntityStage extends StatelessWidget {
   }
 }
 
+String _commandContextLabel(_WorkMode mode) {
+  return switch (mode) {
+    _WorkMode.text => 'Text Chat',
+    _WorkMode.design => 'Image Studio',
+    _WorkMode.video => 'Video Studio',
+    _WorkMode.audio => 'Audio Studio',
+    _WorkMode.agents => 'AI Helpers',
+    _WorkMode.toolkit => 'AI Database',
+  };
+}
+
 class _PromptComposer extends StatefulWidget {
   const _PromptComposer({
     required this.mode,
@@ -6166,6 +8507,20 @@ class _PromptComposerState extends State<_PromptComposer> {
           ],
           const SizedBox(height: 8),
         ],
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 6, bottom: 6),
+            child: Text(
+              'Команда для: ${_commandContextLabel(mode)}',
+              style: const TextStyle(
+                color: Color(0xFF8B8F9A),
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ),
         _GlassPanel(
           padding: const EdgeInsets.fromLTRB(12, 10, 10, 10),
           child: TextField(
@@ -6193,7 +8548,7 @@ class _PromptComposerState extends State<_PromptComposer> {
                     icon: const Icon(Icons.image_outlined, size: 17),
                   ),
                   IconButton(
-                    tooltip: 'Expanded Prompt Studio',
+                    tooltip: 'Prompt Studio',
                     onPressed: _openPromptStudio,
                     icon: const Icon(Icons.fullscreen_rounded, size: 17),
                   ),
@@ -6213,10 +8568,12 @@ class _PromptComposerState extends State<_PromptComposer> {
                   IconButton.filled(
                     key: const ValueKey('build-plan-button'),
                     onPressed: widget.onSubmit,
-                    icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+                    icon: const Icon(Icons.send_rounded, size: 18),
                     tooltip: mode == _WorkMode.agents
-                        ? 'Собрать AI-маршрут'
-                        : 'Создать результат',
+                        ? 'Собрать маршрут'
+                        : mode == _WorkMode.text
+                        ? 'Отправить'
+                        : 'Начать задачу',
                   ),
                 ],
               ),
@@ -6235,7 +8592,7 @@ class _PromptComposerState extends State<_PromptComposer> {
           runSpacing: 7,
           alignment: WrapAlignment.center,
           children: [
-            for (final goal in smartSuggestions.take(10))
+            for (final goal in smartSuggestions.take(6))
               ActionChip(
                 label: Text(goal.label),
                 onPressed: () => widget.onQuickGoal(goal.task),
@@ -6326,6 +8683,540 @@ class _PromptComposerState extends State<_PromptComposer> {
   }
 }
 
+class _ImageRightPanel extends StatelessWidget {
+  const _ImageRightPanel({
+    required this.model,
+    required this.models,
+    required this.activeViewType,
+    required this.executionMode,
+    required this.onModel,
+    required this.onReset,
+    required this.onOpenWorkflow,
+    required this.onOpenTool,
+  });
+
+  final String model;
+  final List<String> models;
+  final _ActiveViewType activeViewType;
+  final ExecutionMode executionMode;
+  final ValueChanged<String> onModel;
+  final VoidCallback onReset;
+  final ValueChanged<String?> onOpenWorkflow;
+  final ValueChanged<String?> onOpenTool;
+
+  @override
+  Widget build(BuildContext context) {
+    return _GlassPanel(
+      padding: const EdgeInsets.all(12),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _SettingsGroup(
+              title: 'МОДЕЛЬ ИЗОБРАЖЕНИЙ',
+              trailing: TextButton(
+                onPressed: onReset,
+                child: const Text('Сброс'),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _SelectLine(value: model, values: models, onChanged: onModel),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _StateBadge(_imageProviderName(model)),
+                      _ProviderStatusBadge(_providerForModelLabel(model)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            _ImagePanelSection(
+              title: 'Генерация',
+              icon: Icons.auto_awesome_outlined,
+              children: const [
+                _PathRow('1K / 2K / 4K resolution', Icons.high_quality_rounded),
+                _PathRow('1:1 / 16:9 / 9:16 / 4:5', Icons.aspect_ratio_rounded),
+                _PathRow('1 / 2 / 4 outputs', Icons.grid_view_rounded),
+              ],
+            ),
+            _ImagePanelSection(
+              title: 'Стиль',
+              icon: Icons.palette_outlined,
+              children: const [
+                _PathRow('Cinematic / Anime / Hyperreal', Icons.style_outlined),
+                _PathRow('Concept Art / Fashion / Noir', Icons.brush_outlined),
+                _PathRow(
+                  'Sci-Fi / Editorial / Product Shot',
+                  Icons.auto_fix_high_rounded,
+                ),
+              ],
+            ),
+            _ImagePanelSection(
+              title: 'Референсы',
+              icon: Icons.image_search_outlined,
+              children: const [
+                _PathRow(
+                  'Style and character references',
+                  Icons.person_outline_rounded,
+                ),
+                _PathRow(
+                  'Composition and lighting references',
+                  Icons.light_mode_outlined,
+                ),
+                _PathRow(
+                  'Environment reference placeholder',
+                  Icons.landscape_outlined,
+                ),
+              ],
+            ),
+            _ImagePanelSection(
+              title: 'Композиция',
+              icon: Icons.photo_camera_outlined,
+              children: const [
+                _PathRow(
+                  'Wide / close-up / portrait',
+                  Icons.center_focus_strong,
+                ),
+                _PathRow(
+                  'Overhead / symmetrical / macro',
+                  Icons.grid_4x4_outlined,
+                ),
+                _PathRow(
+                  'Studio light / handheld feel',
+                  Icons.videocam_outlined,
+                ),
+              ],
+            ),
+            _ImagePanelSection(
+              title: 'Вывод',
+              icon: Icons.photo_library_outlined,
+              children: const [
+                _PathRow('Gallery foundation', Icons.collections_outlined),
+                _PathRow(
+                  'Pending generation placeholders',
+                  Icons.pending_actions_rounded,
+                ),
+                _PathRow(
+                  'Rerun / upscale / variations later',
+                  Icons.auto_fix_high_rounded,
+                ),
+              ],
+            ),
+            _ImagePanelSection(
+              title: 'Runtime',
+              icon: Icons.route_outlined,
+              children: [
+                _ExecutionModeStrip(mode: executionMode),
+                const SizedBox(height: 8),
+                const _PathRow(
+                  'Flux / Recraft / Midjourney compatible',
+                  Icons.cloud_queue_rounded,
+                ),
+                const _PathRow(
+                  'ComfyUI / local SDXL future route',
+                  Icons.dns_outlined,
+                ),
+                _NextActionHint(
+                  mode: _WorkMode.design,
+                  activeViewType: activeViewType,
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => onOpenTool(_toolIdForModelLabel(model)),
+                    child: const Text('Открыть модель'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => onOpenWorkflow(null),
+                    child: const Text('План'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ImagePanelSection extends StatelessWidget {
+  const _ImagePanelSection({
+    required this.title,
+    required this.icon,
+    required this.children,
+  });
+
+  final String title;
+  final IconData icon;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return ExpansionTile(
+      initiallyExpanded: title == 'Генерация' || title == 'Runtime',
+      tilePadding: EdgeInsets.zero,
+      childrenPadding: const EdgeInsets.only(bottom: 8),
+      leading: Icon(icon, size: 18, color: const Color(0xFFFF9A78)),
+      title: Text(
+        title,
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+      ),
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: children,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _VideoRightPanel extends StatelessWidget {
+  const _VideoRightPanel({
+    required this.model,
+    required this.models,
+    required this.activeViewType,
+    required this.executionMode,
+    required this.onModel,
+    required this.onReset,
+    required this.onOpenWorkflow,
+    required this.onOpenTool,
+  });
+
+  final String model;
+  final List<String> models;
+  final _ActiveViewType activeViewType;
+  final ExecutionMode executionMode;
+  final ValueChanged<String> onModel;
+  final VoidCallback onReset;
+  final ValueChanged<String?> onOpenWorkflow;
+  final ValueChanged<String?> onOpenTool;
+
+  @override
+  Widget build(BuildContext context) {
+    return _GlassPanel(
+      padding: const EdgeInsets.all(12),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _SettingsGroup(
+              title: 'ВИДЕО-МОДЕЛЬ',
+              trailing: TextButton(
+                onPressed: onReset,
+                child: const Text('Сброс'),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _SelectLine(value: model, values: models, onChanged: onModel),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _StateBadge(_videoModelVersion(model)),
+                      _ProviderStatusBadge(_providerForModelLabel(model)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            _VideoPanelSection(
+              title: 'Генерация',
+              icon: Icons.movie_creation_outlined,
+              children: const [
+                _PathRow(
+                  'Resolution / ratio / duration',
+                  Icons.high_quality_rounded,
+                ),
+                _PathRow(
+                  'Outputs and render queue',
+                  Icons.view_carousel_outlined,
+                ),
+                _PathRow(
+                  'Ready / Preparing / Pending states',
+                  Icons.pending_actions_rounded,
+                ),
+              ],
+            ),
+            _VideoPanelSection(
+              title: 'Референсы',
+              icon: Icons.image_search_outlined,
+              children: const [
+                _PathRow('Start frame / End frame', Icons.compare_outlined),
+                _PathRow(
+                  'Style, character, environment',
+                  Icons.collections_outlined,
+                ),
+                _PathRow('Continuity placeholders', Icons.link_rounded),
+              ],
+            ),
+            _VideoPanelSection(
+              title: 'Камера',
+              icon: Icons.videocam_outlined,
+              children: const [
+                _PathRow(
+                  'Orbit / Dolly / Handheld',
+                  Icons.camera_roll_outlined,
+                ),
+                _PathRow(
+                  'Drone / Crash Zoom / Parallax',
+                  Icons.threed_rotation,
+                ),
+                _PathRow(
+                  'Cinematic motion presets',
+                  Icons.motion_photos_on_outlined,
+                ),
+              ],
+            ),
+            _VideoPanelSection(
+              title: 'Вывод',
+              icon: Icons.play_circle_outline_rounded,
+              children: const [
+                _PathRow('Preview cards foundation', Icons.grid_view_rounded),
+                _PathRow(
+                  'Progress slots for future renders',
+                  Icons.timelapse_rounded,
+                ),
+                _PathRow(
+                  'Rerun / upscale actions later',
+                  Icons.auto_fix_high_rounded,
+                ),
+              ],
+            ),
+            _VideoPanelSection(
+              title: 'Runtime',
+              icon: Icons.route_outlined,
+              children: [
+                _ExecutionModeStrip(mode: executionMode),
+                const SizedBox(height: 8),
+                const _PathRow(
+                  'Kling / Runway / Veo compatible',
+                  Icons.cloud_queue_rounded,
+                ),
+                const _PathRow(
+                  'ComfyUI future local workflow',
+                  Icons.dns_outlined,
+                ),
+                _NextActionHint(
+                  mode: _WorkMode.video,
+                  activeViewType: activeViewType,
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => onOpenTool(_toolIdForModelLabel(model)),
+                    child: const Text('Открыть модель'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => onOpenWorkflow(null),
+                    child: const Text('План'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _VideoPanelSection extends StatelessWidget {
+  const _VideoPanelSection({
+    required this.title,
+    required this.icon,
+    required this.children,
+  });
+
+  final String title;
+  final IconData icon;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return ExpansionTile(
+      initiallyExpanded: title == 'Генерация' || title == 'Runtime',
+      tilePadding: EdgeInsets.zero,
+      childrenPadding: const EdgeInsets.only(bottom: 8),
+      leading: Icon(icon, size: 18, color: const Color(0xFFFF9A78)),
+      title: Text(
+        title,
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+      ),
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: children,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AudioRightPanel extends StatelessWidget {
+  const _AudioRightPanel({
+    required this.model,
+    required this.models,
+    required this.activeViewType,
+    required this.executionMode,
+    required this.onModel,
+    required this.onReset,
+    required this.onOpenWorkflow,
+    required this.onOpenTool,
+  });
+
+  final String model;
+  final List<String> models;
+  final _ActiveViewType activeViewType;
+  final ExecutionMode executionMode;
+  final ValueChanged<String> onModel;
+  final VoidCallback onReset;
+  final ValueChanged<String?> onOpenWorkflow;
+  final ValueChanged<String?> onOpenTool;
+
+  @override
+  Widget build(BuildContext context) {
+    return _GlassPanel(
+      padding: const EdgeInsets.all(12),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _SettingsGroup(
+              title: 'AUDIO MODEL',
+              trailing: TextButton(
+                onPressed: onReset,
+                child: const Text('Сброс'),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _SelectLine(value: model, values: models, onChanged: onModel),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      _ProviderStatusBadge(_providerForModelLabel(model)),
+                      _RouteBadge(
+                        _routeForModelLabel(
+                          _WorkMode.audio,
+                          model,
+                        ).routeType.label,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            _VideoPanelSection(
+              title: 'Генерация',
+              icon: Icons.graphic_eq_rounded,
+              children: const [
+                _PathRow(
+                  'Voiceover / Music / Dubbing',
+                  Icons.record_voice_over_outlined,
+                ),
+                _PathRow('Duration, language, outputs', Icons.tune_rounded),
+                _PathRow(
+                  'Ready / Preparing / Pending states',
+                  Icons.pending_actions_rounded,
+                ),
+              ],
+            ),
+            _VideoPanelSection(
+              title: 'Референсы',
+              icon: Icons.library_music_outlined,
+              children: const [
+                _PathRow('Voice reference', Icons.mic_external_on_outlined),
+                _PathRow('Music reference', Icons.queue_music_outlined),
+                _PathRow('Script and mix target', Icons.article_outlined),
+              ],
+            ),
+            _VideoPanelSection(
+              title: 'Вывод',
+              icon: Icons.waves_rounded,
+              children: const [
+                _PathRow(
+                  'Waveform preview foundation',
+                  Icons.graphic_eq_rounded,
+                ),
+                _PathRow('Render queue slots', Icons.view_stream_outlined),
+                _PathRow(
+                  'Rerun / normalize actions later',
+                  Icons.auto_fix_high_rounded,
+                ),
+              ],
+            ),
+            _VideoPanelSection(
+              title: 'Runtime',
+              icon: Icons.route_outlined,
+              children: [
+                _ExecutionModeStrip(mode: executionMode),
+                const SizedBox(height: 8),
+                const _PathRow(
+                  'Manual routes now, APIs later',
+                  Icons.open_in_browser_rounded,
+                ),
+                const _PathRow(
+                  'Local audio workflows compatible',
+                  Icons.dns_outlined,
+                ),
+                _NextActionHint(
+                  mode: _WorkMode.audio,
+                  activeViewType: activeViewType,
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => onOpenTool(_toolIdForModelLabel(model)),
+                    child: const Text('Открыть модель'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton(
+                    onPressed: () => onOpenWorkflow(null),
+                    child: const Text('План'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _SettingsPanel extends StatelessWidget {
   const _SettingsPanel({
     required this.model,
@@ -6370,6 +9261,42 @@ class _SettingsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final config = mode.config;
+    if (mode == _WorkMode.video) {
+      return _VideoRightPanel(
+        model: model,
+        models: config.models,
+        activeViewType: activeViewType,
+        executionMode: executionMode,
+        onModel: onModel,
+        onReset: onReset,
+        onOpenWorkflow: onOpenWorkflow,
+        onOpenTool: onOpenTool,
+      );
+    }
+    if (mode == _WorkMode.design) {
+      return _ImageRightPanel(
+        model: model,
+        models: config.models,
+        activeViewType: activeViewType,
+        executionMode: executionMode,
+        onModel: onModel,
+        onReset: onReset,
+        onOpenWorkflow: onOpenWorkflow,
+        onOpenTool: onOpenTool,
+      );
+    }
+    if (mode == _WorkMode.audio) {
+      return _AudioRightPanel(
+        model: model,
+        models: config.models,
+        activeViewType: activeViewType,
+        executionMode: executionMode,
+        onModel: onModel,
+        onReset: onReset,
+        onOpenWorkflow: onOpenWorkflow,
+        onOpenTool: onOpenTool,
+      );
+    }
     return _GlassPanel(
       padding: const EdgeInsets.all(12),
       child: SingleChildScrollView(
@@ -6523,14 +9450,14 @@ class _GlassPanel extends StatelessWidget {
       constraints: width == null ? null : BoxConstraints(maxWidth: width!),
       padding: padding ?? const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xB814161C),
-        border: Border.all(color: const Color(0x14FFFFFF)),
-        borderRadius: BorderRadius.circular(14),
+        color: const Color(0xA8121419),
+        border: Border.all(color: const Color(0x10FFFFFF)),
+        borderRadius: BorderRadius.circular(10),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x66000000),
-            blurRadius: 34,
-            offset: Offset(0, 18),
+            color: Color(0x33000000),
+            blurRadius: 20,
+            offset: Offset(0, 10),
           ),
         ],
       ),
@@ -6648,8 +9575,8 @@ class _OperatorStateStrip extends StatelessWidget {
       spacing: 6,
       runSpacing: 6,
       children: [
-        _RouteBadge('Prepared for $selectedModel'),
-        _RouteBadge('Route: ${route.routeType.label}'),
+        _RouteBadge('Готово для $selectedModel'),
+        _RouteBadge('Маршрут: ${route.routeType.label}'),
         _ProviderStatusBadge(provider),
         _StateBadge(status),
         if (referenceCount > 0 && !hasReferenceStatus)

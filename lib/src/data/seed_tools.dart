@@ -121,6 +121,28 @@ final seedTools = <AiTool>[
     hasApi: true,
     rating: 4.4,
   ),
+  _tool(
+    id: 'deepseek',
+    name: 'DeepSeek',
+    category: ToolCategory.text,
+    url: 'https://www.deepseek.com/chat',
+    pricing: PricingType.free,
+    bestFor: 'coding, reasoning and technical text tasks',
+    tags: ['text', 'chat', 'coding', 'reasoning'],
+    hasApi: true,
+    rating: 4.5,
+  ),
+  _tool(
+    id: 'qwen',
+    name: 'Qwen',
+    category: ToolCategory.text,
+    url: 'https://chat.qwen.ai',
+    pricing: PricingType.free,
+    bestFor: 'alternative LLM chat, planning and multimodal prompts',
+    tags: ['text', 'chat', 'models'],
+    hasApi: true,
+    rating: 4.4,
+  ),
 
   _tool(
     id: 'google-flow',

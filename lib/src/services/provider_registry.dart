@@ -3,6 +3,32 @@ import '../models/execution_mode.dart';
 
 const seedProviders = <AiProvider>[
   AiProvider(
+    id: 'chatgpt',
+    name: 'ChatGPT',
+    type: AiProviderType.api,
+    executionModes: [ExecutionMode.api, ExecutionMode.browserLaunch],
+    status: AiProviderStatus.notConfigured,
+    supportedWorkspaces: ['text', 'agents'],
+    description: 'OpenAI ChatGPT provider for text, coding, and operator chat.',
+    baseUrl: 'https://chatgpt.com',
+    apiKeyRequired: true,
+    notes:
+        'Text runtime metadata only. Direct API calls are not connected yet.',
+  ),
+  AiProvider(
+    id: 'claude',
+    name: 'Claude',
+    type: AiProviderType.api,
+    executionModes: [ExecutionMode.api, ExecutionMode.browserLaunch],
+    status: AiProviderStatus.notConfigured,
+    supportedWorkspaces: ['text', 'agents'],
+    description: 'Anthropic Claude provider for writing and analysis.',
+    baseUrl: 'https://claude.ai',
+    apiKeyRequired: true,
+    notes:
+        'Text runtime metadata only. Direct API calls are not connected yet.',
+  ),
+  AiProvider(
     id: 'openrouter',
     name: 'OpenRouter',
     type: AiProviderType.api,
@@ -25,6 +51,45 @@ const seedProviders = <AiProvider>[
     baseUrl: 'https://gemini.google.com',
     apiKeyRequired: true,
     notes: 'Registered as metadata only.',
+  ),
+  AiProvider(
+    id: 'mistral',
+    name: 'Mistral',
+    type: AiProviderType.api,
+    executionModes: [ExecutionMode.api, ExecutionMode.browserLaunch],
+    status: AiProviderStatus.notConfigured,
+    supportedWorkspaces: ['text', 'agents'],
+    description: 'Mistral Le Chat and API provider for text workflows.',
+    baseUrl: 'https://chat.mistral.ai',
+    apiKeyRequired: true,
+    notes:
+        'Text runtime metadata only. Direct API calls are not connected yet.',
+  ),
+  AiProvider(
+    id: 'deepseek',
+    name: 'DeepSeek',
+    type: AiProviderType.api,
+    executionModes: [ExecutionMode.api, ExecutionMode.browserLaunch],
+    status: AiProviderStatus.notConfigured,
+    supportedWorkspaces: ['text', 'agents'],
+    description: 'DeepSeek provider for coding, reasoning, and text chat.',
+    baseUrl: 'https://www.deepseek.com/chat',
+    apiKeyRequired: true,
+    notes:
+        'Text runtime metadata only. Direct API calls are not connected yet.',
+  ),
+  AiProvider(
+    id: 'qwen',
+    name: 'Qwen',
+    type: AiProviderType.api,
+    executionModes: [ExecutionMode.api, ExecutionMode.browserLaunch],
+    status: AiProviderStatus.notConfigured,
+    supportedWorkspaces: ['text', 'agents'],
+    description: 'Qwen chat provider for text and multimodal planning.',
+    baseUrl: 'https://chat.qwen.ai',
+    apiKeyRequired: true,
+    notes:
+        'Text runtime metadata only. Direct API calls are not connected yet.',
   ),
   AiProvider(
     id: 'huggingface',
@@ -134,8 +199,13 @@ class ProviderRegistry {
   AiProvider getProviderForToolId(String? toolId) {
     final normalized = (toolId ?? '').trim().toLowerCase();
     final providerId = switch (normalized) {
+      'chatgpt' => 'chatgpt',
+      'claude' => 'claude',
       'openrouter' => 'openrouter',
       'gemini' || 'gemini-image-tools' => 'gemini',
+      'mistral' || 'mistral-chat' => 'mistral',
+      'deepseek' => 'deepseek',
+      'qwen' => 'qwen',
       'huggingface' => 'huggingface',
       'ollama' => 'ollama',
       'comfyui' => 'comfyui',
