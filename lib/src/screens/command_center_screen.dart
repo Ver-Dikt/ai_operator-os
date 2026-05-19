@@ -194,6 +194,18 @@ class _CreativeSession {
   final String sourceTask;
 }
 
+class _ChatMessage {
+  const _ChatMessage({
+    required this.role,
+    required this.text,
+    required this.timestamp,
+  });
+
+  final String role;
+  final String text;
+  final DateTime timestamp;
+}
+
 Future<void> _copyText(BuildContext context, String text) async {
   await Clipboard.setData(ClipboardData(text: text));
   if (!context.mounted) return;
@@ -609,6 +621,8 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
   bool _ollamaRunning = false;
   String? _ollamaResponse;
   String? _ollamaError;
+  bool _textChatMode = true;
+  final List<_ChatMessage> _textChatMessages = [];
   _TaskSession? _currentTaskSession;
   final Map<_WorkMode, _CreativeSession> _creativeSessions = {};
   final StorageService _storage = const StorageService();
@@ -698,7 +712,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                       settings: settings,
                       onMode: _switchMode,
                       onHistoryTab: (tab) => setState(() => _historyTab = tab),
-                      onSubmit: _buildPlan,
+                      onSubmit: _submitPrimary,
                       onQuickGoal: _quickGoal,
                       onCloseActive: _closeActiveWork,
                       onSaveToProject: _saveActiveSessionToProject,
@@ -707,6 +721,9 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                       ollamaRunning: _ollamaRunning,
                       ollamaResponse: _ollamaResponse,
                       ollamaError: _ollamaError,
+                      textChatMode: _textChatMode,
+                      textChatMessages: _textChatMessages,
+                      onTextChatModeChanged: _setTextRuntimeMode,
                       onReferenceAdded: _registerReference,
                       onOpenWorkflow: _openWorkflow,
                       onOpenAgent: _openAgent,
@@ -719,10 +736,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                       onToggleSessionFavorite: _toggleSessionFavorite,
                       onNewSession: _newSession,
                       onBack: _goBackInline,
-                      onModel: (value) => setState(() {
-                        _model = value;
-                        _operatorStatus = 'Prepared for $value';
-                      }),
+                      onModel: _setModel,
                       onAspect: (value) => setState(() => _aspect = value),
                       onQuality: (value) => setState(() => _quality = value),
                       onReset: _resetParameters,
@@ -750,7 +764,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                       settings: settings,
                       executionMode: _executionMode,
                       onMode: _switchMode,
-                      onSubmit: _buildPlan,
+                      onSubmit: _submitPrimary,
                       onQuickGoal: _quickGoal,
                       onCloseActive: _closeActiveWork,
                       onSaveToProject: _saveActiveSessionToProject,
@@ -759,16 +773,16 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
                       ollamaRunning: _ollamaRunning,
                       ollamaResponse: _ollamaResponse,
                       ollamaError: _ollamaError,
+                      textChatMode: _textChatMode,
+                      textChatMessages: _textChatMessages,
+                      onTextChatModeChanged: _setTextRuntimeMode,
                       onReferenceAdded: _registerReference,
                       onOpenWorkflow: _openWorkflow,
                       onOpenAgent: _openAgent,
                       onOpenTool: _openTool,
                       onOpenUseCase: _openUseCase,
                       onBack: _goBackInline,
-                      onModel: (value) => setState(() {
-                        _model = value;
-                        _operatorStatus = 'Prepared for $value';
-                      }),
+                      onModel: _setModel,
                       onAspect: (value) => setState(() => _aspect = value),
                       onQuality: (value) => setState(() => _quality = value),
                       onReset: _resetParameters,
@@ -778,6 +792,60 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
         ),
       ),
     );
+  }
+
+  bool get _isTextOllama =>
+      _mode == _WorkMode.text && _toolIdForModelLabel(_model) == 'ollama';
+
+  void _setModel(String value) {
+    setState(() {
+      _model = value;
+      _operatorStatus = 'Prepared for $value';
+      if (_mode == _WorkMode.text && _toolIdForModelLabel(value) == 'ollama') {
+        _textChatMode = true;
+      }
+    });
+  }
+
+  void _submitPrimary() {
+    if (_isTextOllama && _textChatMode) {
+      _sendOllamaChatMessage();
+      return;
+    }
+    _buildPlan();
+  }
+
+  void _setTextRuntimeMode(bool chatMode) {
+    WorkspaceSession? sessionToSave;
+    setState(() {
+      _textChatMode = chatMode;
+      if (!chatMode && _mode == _WorkMode.text) {
+        if (_creativeSessions[_WorkMode.text] == null) {
+          final task = _latestTextChatSeed();
+          final creativeSession = _buildCreativeSession(_WorkMode.text, task);
+          _creativeSessions[_WorkMode.text] = creativeSession;
+          sessionToSave = _memorySessionFromCreative(creativeSession, task);
+        }
+        _activeViewType = _ActiveViewType.creativeSession;
+        _operatorStatus = 'Prompt Ready';
+      } else if (chatMode && _isTextOllama) {
+        _operatorStatus = 'Ollama chat ready';
+      }
+    });
+    final savedSession = sessionToSave;
+    if (savedSession != null) {
+      _upsertMemorySession(savedSession);
+    }
+  }
+
+  String _latestTextChatSeed() {
+    final typed = _taskController.text.trim();
+    if (typed.isNotEmpty) return typed;
+    for (final message in _textChatMessages.reversed) {
+      final text = message.text.trim();
+      if (message.role == 'user' && text.isNotEmpty) return text;
+    }
+    return _defaultTaskForMode(_WorkMode.text);
   }
 
   void _quickGoal(String task) {
@@ -1430,6 +1498,7 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     _CreativeSession session,
     String selectedModel,
   ) async {
+    if (_ollamaRunning) return;
     final endpoint = AppSettingsScope.of(context).ollamaBaseUrl;
     final model = AppSettingsScope.of(context).ollamaModel;
     final prompt = _productionPromptForSession(session, selectedModel);
@@ -1473,6 +1542,79 @@ class _CommandCenterScreenState extends State<CommandCenterScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Ollama response generated')));
+  }
+
+  Future<void> _sendOllamaChatMessage() async {
+    final message = _taskController.text.trim();
+    if (message.isEmpty || _ollamaRunning) return;
+    final settings = AppSettingsScope.of(context);
+    final model = settings.ollamaModel;
+    final history = [
+      ..._textChatMessages,
+      _ChatMessage(role: 'user', text: message, timestamp: DateTime.now()),
+    ];
+    final prompt = _ollamaChatPrompt(history);
+    setState(() {
+      _taskController.clear();
+      _textChatMessages.add(
+        _ChatMessage(role: 'user', text: message, timestamp: DateTime.now()),
+      );
+      _ollamaRunning = true;
+      _ollamaError = null;
+      _executionMode = ExecutionMode.local;
+      _operatorStatus = 'Ollama chat · $model';
+    });
+
+    final result = await const OllamaExecutionService().generate(
+      endpoint: settings.ollamaBaseUrl,
+      model: model,
+      prompt: prompt,
+    );
+    if (!mounted) return;
+
+    if (!result.success || (result.response ?? '').trim().isEmpty) {
+      setState(() {
+        _ollamaRunning = false;
+        _ollamaError = result.error ?? 'Ollama unavailable';
+        _operatorStatus = 'Ollama unavailable';
+      });
+      _recordExecutionHistory(launchedFlow: 'Ollama unavailable');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.error ?? 'Ollama unavailable')),
+      );
+      return;
+    }
+
+    setState(() {
+      _ollamaRunning = false;
+      _textChatMessages.add(
+        _ChatMessage(
+          role: 'assistant',
+          text: result.response!.trim(),
+          timestamp: DateTime.now(),
+        ),
+      );
+      _operatorStatus = 'Ollama chat response · $model';
+    });
+    _recordExecutionHistory(
+      generatedPrompt: result.response,
+      launchedFlow: 'Ollama chat response',
+    );
+  }
+
+  String _ollamaChatPrompt(List<_ChatMessage> messages) {
+    final buffer = StringBuffer()
+      ..writeln('Continue this concise assistant conversation.')
+      ..writeln('Answer the last user message clearly.')
+      ..writeln();
+    final recentMessages = messages.length > 12
+        ? messages.sublist(messages.length - 12)
+        : messages;
+    for (final message in recentMessages) {
+      buffer.writeln('${message.role}: ${message.text}');
+    }
+    buffer.write('assistant:');
+    return buffer.toString();
   }
 
   String _copyEventLabel(_WorkspaceActionSpec action) {
@@ -1803,6 +1945,9 @@ class _DesktopStation extends StatelessWidget {
     required this.ollamaRunning,
     required this.ollamaResponse,
     required this.ollamaError,
+    required this.textChatMode,
+    required this.textChatMessages,
+    required this.onTextChatModeChanged,
     required this.onReferenceAdded,
     required this.onOpenWorkflow,
     required this.onOpenAgent,
@@ -1860,6 +2005,9 @@ class _DesktopStation extends StatelessWidget {
   final bool ollamaRunning;
   final String? ollamaResponse;
   final String? ollamaError;
+  final bool textChatMode;
+  final List<_ChatMessage> textChatMessages;
+  final ValueChanged<bool> onTextChatModeChanged;
   final VoidCallback onReferenceAdded;
   final ValueChanged<String?> onOpenWorkflow;
   final ValueChanged<String?> onOpenAgent;
@@ -1916,6 +2064,9 @@ class _DesktopStation extends StatelessWidget {
                   ollamaRunning: ollamaRunning,
                   ollamaResponse: ollamaResponse,
                   ollamaError: ollamaError,
+                  textChatMode: textChatMode,
+                  textChatMessages: textChatMessages,
+                  onTextChatModeChanged: onTextChatModeChanged,
                 ),
               ),
             ),
@@ -2022,6 +2173,9 @@ class _MobileStation extends StatelessWidget {
     required this.ollamaRunning,
     required this.ollamaResponse,
     required this.ollamaError,
+    required this.textChatMode,
+    required this.textChatMessages,
+    required this.onTextChatModeChanged,
     required this.onReferenceAdded,
     required this.onOpenWorkflow,
     required this.onOpenAgent,
@@ -2066,6 +2220,9 @@ class _MobileStation extends StatelessWidget {
   final bool ollamaRunning;
   final String? ollamaResponse;
   final String? ollamaError;
+  final bool textChatMode;
+  final List<_ChatMessage> textChatMessages;
+  final ValueChanged<bool> onTextChatModeChanged;
   final VoidCallback onReferenceAdded;
   final ValueChanged<String?> onOpenWorkflow;
   final ValueChanged<String?> onOpenAgent;
@@ -2114,6 +2271,9 @@ class _MobileStation extends StatelessWidget {
             ollamaRunning: ollamaRunning,
             ollamaResponse: ollamaResponse,
             ollamaError: ollamaError,
+            textChatMode: textChatMode,
+            textChatMessages: textChatMessages,
+            onTextChatModeChanged: onTextChatModeChanged,
           ),
         ),
         const SizedBox(height: 14),
@@ -2719,6 +2879,9 @@ class _CenterStage extends StatelessWidget {
     required this.ollamaRunning,
     required this.ollamaResponse,
     required this.ollamaError,
+    required this.textChatMode,
+    required this.textChatMessages,
+    required this.onTextChatModeChanged,
   });
 
   final _WorkMode mode;
@@ -2750,11 +2913,24 @@ class _CenterStage extends StatelessWidget {
   final bool ollamaRunning;
   final String? ollamaResponse;
   final String? ollamaError;
+  final bool textChatMode;
+  final List<_ChatMessage> textChatMessages;
+  final ValueChanged<bool> onTextChatModeChanged;
 
   @override
   Widget build(BuildContext context) {
     final Widget stage;
-    if (activeViewType == _ActiveViewType.empty) {
+    final textOllama =
+        mode == _WorkMode.text &&
+        _toolIdForModelLabel(selectedModel) == 'ollama';
+    if (textOllama && textChatMode) {
+      stage = _TextOllamaChatStage(
+        selectedModel: selectedModel,
+        messages: textChatMessages,
+        running: ollamaRunning,
+        onModeChanged: onTextChatModeChanged,
+      );
+    } else if (activeViewType == _ActiveViewType.empty) {
       stage = mode == _WorkMode.toolkit
           ? _ToolkitSearchStage(
               mode: mode,
@@ -2777,6 +2953,8 @@ class _CenterStage extends StatelessWidget {
               ollamaRunning: ollamaRunning,
               ollamaResponse: ollamaResponse,
               ollamaError: ollamaError,
+              textChatMode: textChatMode,
+              onTextChatModeChanged: onTextChatModeChanged,
               executionMode: executionMode,
               key: ValueKey(
                 'creative-${creativeSession!.mode.name}-${creativeSession!.timestamp.millisecondsSinceEpoch}',
@@ -3444,6 +3622,8 @@ class _CreativeWorkspaceStage extends StatelessWidget {
     required this.ollamaRunning,
     required this.ollamaResponse,
     required this.ollamaError,
+    required this.textChatMode,
+    required this.onTextChatModeChanged,
     required this.executionMode,
   });
 
@@ -3460,6 +3640,8 @@ class _CreativeWorkspaceStage extends StatelessWidget {
   final bool ollamaRunning;
   final String? ollamaResponse;
   final String? ollamaError;
+  final bool textChatMode;
+  final ValueChanged<bool> onTextChatModeChanged;
   final ExecutionMode executionMode;
 
   @override
@@ -3515,6 +3697,14 @@ class _CreativeWorkspaceStage extends StatelessWidget {
                 referenceCount: referenceCount,
                 executionMode: executionMode,
               ),
+              if (session.mode == _WorkMode.text &&
+                  route.providerId == 'ollama') ...[
+                const SizedBox(height: 10),
+                _TextRuntimeModeSwitch(
+                  chatMode: textChatMode,
+                  onChanged: onTextChatModeChanged,
+                ),
+              ],
               const SizedBox(height: 12),
               _ExecutionRoutePreview(route: route, provider: routeProvider),
               const SizedBox(height: 12),
@@ -3748,6 +3938,171 @@ class _OllamaExecutionPanel extends StatelessWidget {
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _TextRuntimeModeSwitch extends StatelessWidget {
+  const _TextRuntimeModeSwitch({
+    required this.chatMode,
+    required this.onChanged,
+  });
+
+  final bool chatMode;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SegmentedButton<bool>(
+      segments: const [
+        ButtonSegment(value: true, label: Text('Chat Mode')),
+        ButtonSegment(value: false, label: Text('Workspace Mode')),
+      ],
+      selected: {chatMode},
+      onSelectionChanged: (value) => onChanged(value.first),
+    );
+  }
+}
+
+class _TextOllamaChatStage extends StatelessWidget {
+  const _TextOllamaChatStage({
+    required this.selectedModel,
+    required this.messages,
+    required this.running,
+    required this.onModeChanged,
+  });
+
+  final String selectedModel;
+  final List<_ChatMessage> messages;
+  final bool running;
+  final ValueChanged<bool> onModeChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: _GlassPanel(
+        width: 680,
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Expanded(child: _PanelLabel('TEXT CHAT')),
+                _TextRuntimeModeSwitch(
+                  chatMode: true,
+                  onChanged: onModeChanged,
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(
+              '$selectedModel dialogue',
+              style: const TextStyle(
+                color: Color(0xFFF2F3F5),
+                fontSize: 20,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Ollama local chat runtime. Workspace Mode keeps production prompt routing.',
+              style: TextStyle(color: Color(0xFF9AA0AA), fontSize: 12),
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: messages.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'Напишите сообщение, чтобы начать диалог с выбранной моделью.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Color(0xFF9AA0AA),
+                          fontSize: 13,
+                        ),
+                      ),
+                    )
+                  : ListView.builder(
+                      reverse: true,
+                      padding: const EdgeInsets.only(bottom: 8),
+                      itemCount: messages.length + (running ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        final itemCount = messages.length + (running ? 1 : 0);
+                        final sourceIndex = itemCount - 1 - index;
+                        if (running && sourceIndex == messages.length) {
+                          return const _ChatBubble(
+                            role: 'assistant',
+                            text: 'Ollama думает...',
+                            loading: true,
+                          );
+                        }
+                        final message = messages[sourceIndex];
+                        return _ChatBubble(
+                          role: message.role,
+                          text: message.text,
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatBubble extends StatelessWidget {
+  const _ChatBubble({
+    required this.role,
+    required this.text,
+    this.loading = false,
+  });
+
+  final String role;
+  final String text;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    final user = role == 'user';
+    return Align(
+      alignment: user ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 520),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: user ? const Color(0x22FF9A78) : const Color(0x12FFFFFF),
+          border: Border.all(
+            color: user ? const Color(0x33FF9A78) : const Color(0x18FFFFFF),
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (loading) ...[
+              const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              const SizedBox(width: 8),
+            ],
+            Flexible(
+              child: SelectableText(
+                text,
+                style: const TextStyle(
+                  color: Color(0xFFE5E7EC),
+                  fontSize: 13,
+                  height: 1.4,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
