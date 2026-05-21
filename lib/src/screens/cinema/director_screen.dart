@@ -30,7 +30,8 @@ class _DirectorScreenState extends State<DirectorScreen> {
     final compiled = _preset.buildPrompt(_prompt.text);
     return ResponsivePage(
       title: 'Режиссёр',
-      subtitle: 'Камера, объектив, свет и движение как reusable cinematic preset.',
+      subtitle:
+          'Камера, объектив, свет и движение как reusable cinematic preset.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -86,7 +87,9 @@ class _DirectorScreenState extends State<DirectorScreen> {
                   onPressed: () {
                     Clipboard.setData(ClipboardData(text: compiled));
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Режиссёрский промпт скопирован')),
+                      const SnackBar(
+                        content: Text('Режиссёрский промпт скопирован'),
+                      ),
                     );
                   },
                   icon: const Icon(Icons.copy_rounded),

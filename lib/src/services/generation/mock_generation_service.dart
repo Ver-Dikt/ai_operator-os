@@ -37,12 +37,10 @@ class MockGenerationService {
   String _mockPreviewFor(GenerationCapability capability) {
     return switch (capability) {
       GenerationCapability.textToImage ||
-      GenerationCapability.imageToImage =>
-        'mock://image/cinematic-frame',
+      GenerationCapability.imageToImage => 'mock://image/cinematic-frame',
       GenerationCapability.textToVideo ||
       GenerationCapability.imageToVideo ||
-      GenerationCapability.videoToVideo =>
-        'mock://video/cinematic-shot',
+      GenerationCapability.videoToVideo => 'mock://video/cinematic-shot',
     };
   }
 }

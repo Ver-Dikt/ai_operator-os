@@ -11,13 +11,20 @@ class SocialIntelligenceScreen extends StatelessWidget {
     const modules = [
       ('Анализ hook', 'Первые 1-3 секунды, обещание, визуальный контраст.'),
       ('Retention diagnostics', 'Где зритель теряет внимание и почему.'),
-      ('Viral patterns', 'Повторяемые структуры роликов, темп, монтажные петли.'),
-      ('Remake suggestions', 'Как пересобрать идею под Reels, Shorts и TikTok.'),
+      (
+        'Viral patterns',
+        'Повторяемые структуры роликов, темп, монтажные петли.',
+      ),
+      (
+        'Remake suggestions',
+        'Как пересобрать идею под Reels, Shorts и TikTok.',
+      ),
       ('Trend radar', 'Плейсхолдер для будущего анализа трендов и ниш.'),
     ];
     return ResponsivePage(
       title: 'Соцаналитика',
-      subtitle: 'Архитектура для Reels analysis, hooks, retention и рекомендаций по ремейкам.',
+      subtitle:
+          'Архитектура для Reels analysis, hooks, retention и рекомендаций по ремейкам.',
       child: Wrap(
         spacing: 12,
         runSpacing: 12,

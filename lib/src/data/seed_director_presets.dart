@@ -36,12 +36,14 @@ const seedDirectorPresets = <DirectorPreset>[
       color: 'тёплая плёнка, умеренное зерно, реалистичная кожа',
     ),
     moodTags: ['честно', 'интимно', 'наблюдение'],
-    negativePrompt: 'пластиковая кожа, рекламная постановка, чрезмерная резкость',
+    negativePrompt:
+        'пластиковая кожа, рекламная постановка, чрезмерная резкость',
   ),
   DirectorPreset(
     id: 'premium-product',
     name: 'Премиальный предмет',
-    description: 'Чистый рекламный кадр для продукта, обложки или launch-видео.',
+    description:
+        'Чистый рекламный кадр для продукта, обложки или launch-видео.',
     camera: CameraProfile(
       id: 'studio-macro',
       name: 'Studio Macro',

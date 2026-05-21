@@ -10,16 +10,26 @@ class RenderHistoryScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return ResponsivePage(
       title: 'История рендеров',
-      subtitle: 'Единая будущая лента изображений, видео, pending jobs и внешних запусков.',
+      subtitle:
+          'Единая будущая лента изображений, видео, pending jobs и внешних запусков.',
       child: OsCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: const [
-            _HistoryRow('Кадр для teaser campaign', 'Изображение · mock · готово'),
+            _HistoryRow(
+              'Кадр для teaser campaign',
+              'Изображение · mock · готово',
+            ),
             Divider(),
-            _HistoryRow('Вертикальный opener 9:16', 'Видео · browser route · черновик'),
+            _HistoryRow(
+              'Вертикальный opener 9:16',
+              'Видео · browser route · черновик',
+            ),
             Divider(),
-            _HistoryRow('Product hero shot', 'Режиссёрский preset · ожидает запуска'),
+            _HistoryRow(
+              'Product hero shot',
+              'Режиссёрский preset · ожидает запуска',
+            ),
           ],
         ),
       ),

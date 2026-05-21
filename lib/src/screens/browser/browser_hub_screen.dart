@@ -22,6 +22,9 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
 
   BrowserAiCategory? _category;
   late BrowserAiTool _selectedTool;
+  bool _showInternalPlaceholder = false;
+  String _statusText =
+      'Сервис выбран. Можно открыть сайт во внешнем браузере или подготовить prompt handoff.';
 
   @override
   void initState() {
@@ -54,16 +57,18 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
             category: _category,
             searchController: _searchController,
             onCategoryChanged: (value) => setState(() => _category = value),
-            onToolSelected: (tool) => setState(() => _selectedTool = tool),
+            onToolSelected: _selectTool,
             onCopyPrompt: _copyPrompt,
           );
           final workspace = _BrowserWorkspace(
             tool: _selectedTool,
+            statusText: _statusText,
+            showInternalPlaceholder: _showInternalPlaceholder,
             promptController: _promptController,
             onCopyPrompt: _copyPrompt,
             onOpenExternal: () => _openExternal(_selectedTool),
             onOpenInside: _openInside,
-            onPastePrompt: _pastePrompt,
+            onPreparePaste: _preparePaste,
             onSaveManualResult: _saveManualResult,
           );
 
@@ -73,7 +78,7 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
               children: [
                 const _HubHeader(),
                 const SizedBox(height: 16),
-                SizedBox(height: 520, child: workspace),
+                SizedBox(height: 560, child: workspace),
                 const SizedBox(height: 14),
                 SizedBox(height: 720, child: toolsPanel),
               ],
@@ -105,23 +110,26 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
     );
   }
 
+  void _selectTool(BrowserAiTool tool) {
+    setState(() {
+      _selectedTool = tool;
+      _showInternalPlaceholder = false;
+      _statusText =
+          'Сервис выбран. Можно открыть сайт во внешнем браузере или подготовить prompt handoff.';
+    });
+    _showMessage('${tool.name}: сервис выбран.');
+  }
+
   Future<void> _copyPrompt() async {
     await Clipboard.setData(ClipboardData(text: _promptController.text.trim()));
     if (!mounted) return;
-    _showMessage('Промпт скопирован в буфер');
+    _showMessage('Промпт скопирован в буфер.');
   }
 
-  Future<void> _pastePrompt() async {
-    final clipboard = await Clipboard.getData(Clipboard.kTextPlain);
-    final text = clipboard?.text?.trim();
-    if (text == null || text.isEmpty) {
-      if (!mounted) return;
-      _showMessage('В буфере нет текста для вставки');
-      return;
-    }
-    setState(() => _promptController.text = text);
+  Future<void> _preparePaste() async {
+    await Clipboard.setData(ClipboardData(text: _promptController.text.trim()));
     if (!mounted) return;
-    _showMessage('Промпт вставлен из буфера');
+    _showMessage('Промпт скопирован. Вставьте его в открытом сервисе вручную.');
   }
 
   Future<void> _openExternal(BrowserAiTool tool) async {
@@ -130,24 +138,29 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
       mode: LaunchMode.externalApplication,
     );
     if (!mounted) return;
-    _showMessage(
-      opened
-          ? '${tool.name} открыт во внешнем браузере'
-          : 'Не удалось открыть сайт',
-    );
+    if (opened) {
+      setState(() => _statusText = '${tool.name} открыт во внешнем браузере.');
+      _showMessage('${tool.name} открыт во внешнем браузере.');
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: tool.url));
+    if (!mounted) return;
+    _showMessage('Не удалось открыть сайт. Ссылка скопирована.');
   }
 
   void _openInside() {
     final message = kIsWeb
-        ? 'В web-версии встроенный браузер ограничен. Используйте desktop-версию STUDIO.'
-        : 'Встроенный WebView будет подключен в desktop-версии. Сейчас используйте внешний браузер или буфер промпта.';
+        ? 'В web-версии встроенный браузер ограничен. Используйте desktop-версию STUDIO или откройте сайт во внешнем браузере.'
+        : 'Встроенный браузер будет доступен в desktop-версии после подключения WebView runtime.';
+    setState(() {
+      _showInternalPlaceholder = true;
+      _statusText = message;
+    });
     _showMessage(message);
   }
 
   void _saveManualResult() {
-    _showMessage(
-      'Ручное сохранение результата будет привязано к истории проекта',
-    );
+    _showMessage('Результат можно сохранить вручную после генерации.');
   }
 
   void _showMessage(String text) {
@@ -160,67 +173,63 @@ class _HubHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 680;
-        final title = const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Браузер нейронок',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  height: 1,
-                ),
-              ),
-              SizedBox(height: 6),
-              Text(
-                'Командный центр для внешних AI-сайтов: текст, ресерч, картинки, видео, промпты и creative tools.',
-                style: TextStyle(color: Color(0xFFA7B1C1), height: 1.35),
-              ),
-            ],
+    final compact = MediaQuery.sizeOf(context).width < 680;
+    final title = const Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Браузер нейронок',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.w900,
+              height: 1,
+            ),
           ),
-        );
-        final leading = Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: const Color(0xFF22D3EE),
-            borderRadius: BorderRadius.circular(14),
+          SizedBox(height: 6),
+          Text(
+            'Командный центр для внешних AI-сайтов: текст, ресерч, картинки, видео, промпты и creative tools.',
+            style: TextStyle(color: Color(0xFFA7B1C1), height: 1.35),
           ),
-          child: const Icon(Icons.public_rounded, color: Colors.black),
-        );
+        ],
+      ),
+    );
+    final leading = Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: const Color(0xFF22D3EE),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: const Icon(Icons.public_rounded, color: Colors.black),
+    );
 
-        return Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: const Color(0xCC070A0F),
-            border: Border.all(color: const Color(0x1FFFFFFF)),
-            borderRadius: BorderRadius.circular(18),
-          ),
-          child: compact
-              ? Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(children: [leading, const SizedBox(width: 14), title]),
-                    const SizedBox(height: 12),
-                    const _DesktopBadge(),
-                  ],
-                )
-              : Row(
-                  children: [
-                    leading,
-                    const SizedBox(width: 14),
-                    title,
-                    const SizedBox(width: 14),
-                    const _DesktopBadge(),
-                  ],
-                ),
-        );
-      },
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xCC070A0F),
+        border: Border.all(color: const Color(0x1FFFFFFF)),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: compact
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [leading, const SizedBox(width: 14), title]),
+                const SizedBox(height: 12),
+                const _DesktopBadge(),
+              ],
+            )
+          : Row(
+              children: [
+                leading,
+                const SizedBox(width: 14),
+                title,
+                const SizedBox(width: 14),
+                const _DesktopBadge(),
+              ],
+            ),
     );
   }
 }
@@ -421,8 +430,11 @@ class _ToolCard extends StatelessWidget {
                 Expanded(
                   child: FilledButton.icon(
                     onPressed: onSelect,
-                    icon: const Icon(Icons.play_arrow_rounded, size: 18),
-                    label: const Text('Запустить'),
+                    icon: const Icon(
+                      Icons.check_circle_outline_rounded,
+                      size: 18,
+                    ),
+                    label: const Text('Выбрать сервис'),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -443,20 +455,24 @@ class _ToolCard extends StatelessWidget {
 class _BrowserWorkspace extends StatelessWidget {
   const _BrowserWorkspace({
     required this.tool,
+    required this.statusText,
+    required this.showInternalPlaceholder,
     required this.promptController,
     required this.onCopyPrompt,
     required this.onOpenExternal,
     required this.onOpenInside,
-    required this.onPastePrompt,
+    required this.onPreparePaste,
     required this.onSaveManualResult,
   });
 
   final BrowserAiTool tool;
+  final String statusText;
+  final bool showInternalPlaceholder;
   final TextEditingController promptController;
   final VoidCallback onCopyPrompt;
   final VoidCallback onOpenExternal;
   final VoidCallback onOpenInside;
-  final VoidCallback onPastePrompt;
+  final VoidCallback onPreparePaste;
   final VoidCallback onSaveManualResult;
 
   @override
@@ -506,39 +522,7 @@ class _BrowserWorkspace extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0B0F16),
-              border: Border.all(color: const Color(0x22FFFFFF)),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  kIsWeb
-                      ? Icons.warning_amber_rounded
-                      : Icons.desktop_windows_rounded,
-                  color: kIsWeb
-                      ? const Color(0xFFFFB86B)
-                      : const Color(0xFF22C55E),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    kIsWeb
-                        ? 'В web-версии встроенный браузер ограничен. Используйте desktop-версию STUDIO.'
-                        : 'Desktop-режим: здесь будет встроенный WebView и automation-панель. MVP пока хранит промпт, URL и ручной возврат результата.',
-                    style: const TextStyle(
-                      color: Color(0xFFE8EEF8),
-                      height: 1.35,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _StatusPanel(text: statusText, isWarning: kIsWeb),
           const SizedBox(height: 14),
           Expanded(
             child: Container(
@@ -568,7 +552,9 @@ class _BrowserWorkspace extends StatelessWidget {
                             ),
                             const SizedBox(height: 14),
                             Text(
-                              'Рабочая область ${tool.name}',
+                              showInternalPlaceholder
+                                  ? 'Встроенный браузер STUDIO'
+                                  : 'Рабочая область ${tool.name}',
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: Colors.white,
@@ -577,10 +563,12 @@ class _BrowserWorkspace extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            const Text(
-                              'Здесь будет встроенный браузер для desktop-сборки. Сейчас STUDIO показывает безопасный placeholder, хранит промпт рядом и умеет открывать сайт отдельно.',
+                            Text(
+                              showInternalPlaceholder
+                                  ? 'Встроенный браузер будет доступен в desktop-версии после подключения WebView runtime.\n${tool.url}'
+                                  : 'Сервис выбран. Можно открыть сайт во внешнем браузере или подготовить prompt handoff.\n${tool.url}',
                               textAlign: TextAlign.center,
-                              style: TextStyle(
+                              style: const TextStyle(
                                 color: Color(0xFF9AA6B8),
                                 height: 1.45,
                               ),
@@ -626,9 +614,9 @@ class _BrowserWorkspace extends StatelessWidget {
                 label: const Text('Скопировать промпт'),
               ),
               OutlinedButton.icon(
-                onPressed: onPastePrompt,
+                onPressed: onPreparePaste,
                 icon: const Icon(Icons.input_rounded),
-                label: const Text('Вставить промпт'),
+                label: const Text('Подготовить вставку'),
               ),
               OutlinedButton.icon(
                 onPressed: onSaveManualResult,
@@ -636,6 +624,48 @@ class _BrowserWorkspace extends StatelessWidget {
                 label: const Text('Сохранить результат вручную'),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusPanel extends StatelessWidget {
+  const _StatusPanel({required this.text, required this.isWarning});
+
+  final String text;
+  final bool isWarning;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B0F16),
+        border: Border.all(color: const Color(0x22FFFFFF)),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isWarning
+                ? Icons.warning_amber_rounded
+                : Icons.info_outline_rounded,
+            color: isWarning
+                ? const Color(0xFFFFB86B)
+                : const Color(0xFF22D3EE),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                color: Color(0xFFE8EEF8),
+                height: 1.35,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
