@@ -2,11 +2,18 @@ import 'package:flutter/material.dart';
 
 import '../ai_operator_app.dart';
 import '../screens/agents/agents_screen.dart';
+import '../screens/browser/browser_hub_screen.dart';
+import '../screens/cinema/director_screen.dart';
 import '../screens/command_center_screen.dart';
 import '../screens/content_factory/content_factory_screen.dart';
 import '../screens/favorites_screen.dart';
+import '../screens/generation/image_generation_screen.dart';
+import '../screens/generation/video_generation_screen.dart';
+import '../screens/history/render_history_screen.dart';
 import '../screens/projects/projects_screen.dart';
+import '../screens/providers/providers_screen.dart';
 import '../screens/settings_screen.dart';
+import '../screens/social_intelligence/social_intelligence_screen.dart';
 import '../screens/tools/tools_screen.dart';
 import '../screens/use_cases/use_cases_screen.dart';
 import '../screens/workflows/workflows_screen.dart';
@@ -31,9 +38,7 @@ class _AppShellState extends State<AppShell> {
   @override
   void didUpdateWidget(covariant AppShell oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.destination != widget.destination) {
-      _syncCurrentRoute();
-    }
+    if (oldWidget.destination != widget.destination) _syncCurrentRoute();
   }
 
   void _syncCurrentRoute() {
@@ -49,60 +54,22 @@ class _AppShellState extends State<AppShell> {
   @override
   Widget build(BuildContext context) {
     final destination = widget.destination;
-    final isWide = MediaQuery.sizeOf(context).width >= 980;
-    final commandWorkspace = destination == AppDestination.commandCenter;
-    final mobileDestinations = const [
-      AppDestination.commandCenter,
-      AppDestination.tools,
-      AppDestination.agents,
-      AppDestination.workflows,
-      AppDestination.settings,
-    ];
-    final mobileIndex = mobileDestinations.contains(destination)
-        ? mobileDestinations.indexOf(destination)
-        : 0;
-
     return Scaffold(
-      body: Row(
-        children: [
-          if (isWide && !commandWorkspace)
-            _DesktopSidebar(
-              destination: destination,
-              onSelect: (value) => _goTo(context, value),
-            ),
-          Expanded(child: _screenFor(context, destination)),
-        ],
+      body: Container(
+        color: const Color(0xFF030303),
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              _StudioTopBar(
+                destination: destination,
+                onSelect: (value) => _goTo(context, value),
+              ),
+              Expanded(child: _screenFor(context, destination)),
+            ],
+          ),
+        ),
       ),
-      bottomNavigationBar: isWide
-          ? null
-          : NavigationBar(
-              height: 72,
-              selectedIndex: mobileIndex,
-              onDestinationSelected: (index) =>
-                  _goTo(context, mobileDestinations[index]),
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.dashboard_customize_outlined),
-                  label: 'Главная',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.grid_view_rounded),
-                  label: 'Инструменты',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.smart_toy_outlined),
-                  label: 'Агенты',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.schema_outlined),
-                  label: 'Сценарии',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.tune_rounded),
-                  label: 'Настройки',
-                ),
-              ],
-            ),
     );
   }
 
@@ -117,6 +84,13 @@ class _AppShellState extends State<AppShell> {
       AppDestination.commandCenter => CommandCenterScreen(
         onNavigate: (value) => _goTo(context, value),
       ),
+      AppDestination.images => const ImageGenerationScreen(),
+      AppDestination.video => const VideoGenerationScreen(),
+      AppDestination.director => const DirectorScreen(),
+      AppDestination.providers => const ProvidersScreen(),
+      AppDestination.renderHistory => const RenderHistoryScreen(),
+      AppDestination.socialIntelligence => const SocialIntelligenceScreen(),
+      AppDestination.browserHub => const BrowserHubScreen(),
       AppDestination.tools => const ToolsScreen(),
       AppDestination.agents => const AgentsScreen(),
       AppDestination.workflows => const WorkflowsScreen(),
@@ -129,118 +103,94 @@ class _AppShellState extends State<AppShell> {
   }
 }
 
-class _DesktopSidebar extends StatelessWidget {
-  const _DesktopSidebar({required this.destination, required this.onSelect});
+class _StudioTopBar extends StatelessWidget {
+  const _StudioTopBar({required this.destination, required this.onSelect});
 
   final AppDestination destination;
   final ValueChanged<AppDestination> onSelect;
 
+  static const _tabs = [
+    _StudioTab(AppDestination.images, 'Изображения'),
+    _StudioTab(AppDestination.video, 'Видео'),
+    _StudioTab(AppDestination.director, 'Cinema'),
+    _StudioTab(AppDestination.contentFactory, 'Маркетинг'),
+    _StudioTab(AppDestination.workflows, 'Workflows'),
+    _StudioTab(AppDestination.browserHub, 'Браузер'),
+    _StudioTab(AppDestination.agents, 'Agents'),
+    _StudioTab(AppDestination.tools, 'Apps'),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    final items = const [
-      (
-        AppDestination.commandCenter,
-        Icons.dashboard_customize_outlined,
-        Icons.dashboard_customize_rounded,
-      ),
-      (AppDestination.tools, Icons.grid_view_outlined, Icons.grid_view_rounded),
-      (
-        AppDestination.agents,
-        Icons.smart_toy_outlined,
-        Icons.smart_toy_rounded,
-      ),
-      (AppDestination.workflows, Icons.schema_outlined, Icons.schema_rounded),
-      (
-        AppDestination.contentFactory,
-        Icons.factory_outlined,
-        Icons.factory_rounded,
-      ),
-      (AppDestination.useCases, Icons.map_outlined, Icons.map_rounded),
-      (
-        AppDestination.projects,
-        Icons.folder_open_outlined,
-        Icons.folder_rounded,
-      ),
-      (
-        AppDestination.favorites,
-        Icons.star_outline_rounded,
-        Icons.star_rounded,
-      ),
-      (AppDestination.settings, Icons.tune_rounded, Icons.tune_rounded),
-    ];
-
+    final compact = MediaQuery.sizeOf(context).width < 780;
     return Container(
-      width: 252,
+      height: compact ? 104 : 58,
+      padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 22),
       decoration: const BoxDecoration(
-        color: Color(0xFF070A0F),
-        border: Border(right: BorderSide(color: Color(0xFF243244))),
+        color: Color(0xE6000000),
+        border: Border(bottom: BorderSide(color: Color(0x12FFFFFF))),
       ),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const _BrandBlock(),
-              const SizedBox(height: 18),
-              Expanded(
-                child: ListView(
-                  children: [
-                    for (final item in items)
-                      _NavItem(
-                        key: ValueKey('nav-${item.$1.name}'),
-                        icon: item.$2,
-                        selectedIcon: item.$3,
-                        label: item.$1.label,
-                        selected: destination == item.$1,
-                        onTap: () => onSelect(item.$1),
-                      ),
-                  ],
-                ),
-              ),
-              const _StatusCard(),
-            ],
-          ),
-        ),
-      ),
+      child: compact ? _compactLayout(context) : _wideLayout(context),
     );
   }
-}
 
-class _BrandBlock extends StatelessWidget {
-  const _BrandBlock();
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _wideLayout(BuildContext context) {
     return Row(
       children: [
-        Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF6BE4C9), Color(0xFFFFB86B)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(12),
+        _Logo(onTap: () => onSelect(AppDestination.commandCenter)),
+        const SizedBox(width: 24),
+        Expanded(
+          child: _TabsScroller(
+            destination: destination,
+            tabs: _tabs,
+            onSelect: onSelect,
           ),
-          child: const Icon(Icons.blur_on_rounded, color: Color(0xFF07100F)),
         ),
+        const SizedBox(width: 16),
+        _BalancePill(),
         const SizedBox(width: 10),
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        _TopIconButton(
+          tooltip: 'Модели и провайдеры',
+          icon: Icons.hub_outlined,
+          onTap: () => onSelect(AppDestination.providers),
+        ),
+        _TopIconButton(
+          tooltip: 'Настройки',
+          icon: Icons.tune_rounded,
+          onTap: () => onSelect(AppDestination.settings),
+        ),
+      ],
+    );
+  }
+
+  Widget _compactLayout(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          height: 52,
+          child: Row(
             children: [
-              Text(
-                'AI Operator OS',
-                style: TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
+              _Logo(onTap: () => onSelect(AppDestination.commandCenter)),
+              const Spacer(),
+              _TopIconButton(
+                tooltip: 'Модели и провайдеры',
+                icon: Icons.hub_outlined,
+                onTap: () => onSelect(AppDestination.providers),
               ),
-              Text(
-                'центр управления',
-                style: TextStyle(color: Color(0xFF8B97A8), fontSize: 12),
+              _TopIconButton(
+                tooltip: 'Настройки',
+                icon: Icons.tune_rounded,
+                onTap: () => onSelect(AppDestination.settings),
               ),
             ],
+          ),
+        ),
+        SizedBox(
+          height: 48,
+          child: _TabsScroller(
+            destination: destination,
+            tabs: _tabs,
+            onSelect: onSelect,
           ),
         ),
       ],
@@ -248,94 +198,155 @@ class _BrandBlock extends StatelessWidget {
   }
 }
 
-class _NavItem extends StatelessWidget {
-  const _NavItem({
-    super.key,
-    required this.icon,
-    required this.selectedIcon,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
+class _StudioTab {
+  const _StudioTab(this.destination, this.label);
 
-  final IconData icon;
-  final IconData selectedIcon;
+  final AppDestination destination;
   final String label;
-  final bool selected;
+}
+
+class _Logo extends StatelessWidget {
+  const _Logo({required this.onTap});
+
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Material(
-        color: selected ? const Color(0xFF102A2A) : Colors.transparent,
-        borderRadius: BorderRadius.circular(8),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(8),
-          child: SizedBox(
-            height: 42,
-            child: Row(
-              children: [
-                const SizedBox(width: 10),
-                Icon(
-                  selected ? selectedIcon : icon,
-                  size: 20,
-                  color: selected
-                      ? const Color(0xFF6BE4C9)
-                      : const Color(0xFF8B97A8),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: selected
-                          ? const Color(0xFFE8EEF8)
-                          : const Color(0xFFA7B1C1),
-                      fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-              ],
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: const Icon(
+              Icons.layers_rounded,
+              color: Colors.black,
+              size: 20,
             ),
           ),
-        ),
+          const SizedBox(width: 9),
+          const Text(
+            'OpenGenerativeAI',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _StatusCard extends StatelessWidget {
-  const _StatusCard();
+class _TabsScroller extends StatelessWidget {
+  const _TabsScroller({
+    required this.destination,
+    required this.tabs,
+    required this.onSelect,
+  });
+
+  final AppDestination destination;
+  final List<_StudioTab> tabs;
+  final ValueChanged<AppDestination> onSelect;
 
   @override
   Widget build(BuildContext context) {
+    return ListView.separated(
+      scrollDirection: Axis.horizontal,
+      itemCount: tabs.length,
+      separatorBuilder: (_, _) => const SizedBox(width: 18),
+      itemBuilder: (context, index) {
+        final tab = tabs[index];
+        final selected = destination == tab.destination;
+        return InkWell(
+          onTap: () => onSelect(tab.destination),
+          child: SizedBox(
+            height: double.infinity,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  tab.label,
+                  style: TextStyle(
+                    color: selected ? const Color(0xFF22D3EE) : Colors.white54,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  height: 2,
+                  width: selected ? 34 : 0,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF22D3EE),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _BalancePill extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D111A),
-        border: Border.all(color: const Color(0xFF243244)),
-        borderRadius: BorderRadius.circular(8),
+        color: const Color(0x0FFFFFFF),
+        border: Border.all(color: const Color(0x12FFFFFF)),
+        borderRadius: BorderRadius.circular(999),
       ),
       child: const Row(
         children: [
-          Icon(Icons.circle, color: Color(0xFF6BE4C9), size: 10),
+          Icon(Icons.circle, color: Color(0xFF22C55E), size: 8),
           SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Локальный демо-режим',
-              style: TextStyle(
-                color: Color(0xFFC8D2E1),
-                fontWeight: FontWeight.w800,
-              ),
+          Text(
+            'Mock balance',
+            style: TextStyle(
+              color: Color(0xDFFFFFFF),
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TopIconButton extends StatelessWidget {
+  const _TopIconButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: IconButton(
+        onPressed: onTap,
+        icon: Icon(icon, size: 19),
+        color: Colors.white70,
       ),
     );
   }

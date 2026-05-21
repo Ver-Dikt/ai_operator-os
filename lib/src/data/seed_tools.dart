@@ -12,6 +12,7 @@ AiTool _tool({
   String? apiUrl,
   String free = 'Проверь текущий тариф перед production-использованием.',
   String limitations = 'Лимиты и цены могут меняться. Проверь перед запуском.',
+  String? description,
   List<ToolPlatform> platforms = const [ToolPlatform.web],
   double rating = 4.5,
   List<String> useCases = const [],
@@ -25,6 +26,7 @@ AiTool _tool({
     name: name,
     category: category,
     description:
+        description ??
         '$name помогает с задачами категории "${category.label.toLowerCase()}": $bestFor.',
     url: url,
     pricingType: pricing,
@@ -631,7 +633,10 @@ final seedTools = <AiTool>[
     category: ToolCategory.automation,
     url: 'https://n8n.io',
     pricing: PricingType.freemium,
-    bestFor: 'self-hosted планы автоматизации',
+    description:
+        'Локальный/облачный workflow-движок для автоматизации AI-процессов, webhook-сценариев и интеграций.',
+    bestFor:
+        'Автоматизация публикаций, цепочки AI-задач, webhook orchestration.',
     tags: ['automation', 'local', 'api'],
     platforms: [ToolPlatform.web, ToolPlatform.local],
     rating: 4.7,
@@ -642,7 +647,9 @@ final seedTools = <AiTool>[
     category: ToolCategory.automation,
     url: 'https://www.make.com/',
     pricing: PricingType.freemium,
-    bestFor: 'no-code сценарии автоматизации',
+    description:
+        'Облачная no-code автоматизация для интеграций и бизнес-процессов.',
+    bestFor: 'визуальные сценарии, интеграции сервисов и бизнес-процессы',
     tags: ['automation', 'api'],
     rating: 4.5,
   ),
@@ -652,7 +659,9 @@ final seedTools = <AiTool>[
     category: ToolCategory.automation,
     url: 'https://zapier.com',
     pricing: PricingType.freemium,
-    bestFor: 'SaaS-коннекторы автоматизации',
+    description:
+        'Автоматизация между сервисами, триггеры, действия и простые интеграции.',
+    bestFor: 'SaaS-коннекторы, триггеры, действия и быстрые интеграции',
     tags: ['automation', 'api'],
     rating: 4.4,
   ),

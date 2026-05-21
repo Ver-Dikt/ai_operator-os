@@ -9,15 +9,22 @@ enum OperatorMode { local, cloud, hybrid }
 extension OperatorModeLabel on OperatorMode {
   String get label {
     return switch (this) {
-      OperatorMode.local => 'Local — локально',
-      OperatorMode.cloud => 'Cloud — облачные сервисы',
-      OperatorMode.hybrid => 'Hybrid — смешанный режим',
+      OperatorMode.local => 'Local - локально',
+      OperatorMode.cloud => 'Cloud - облачные сервисы',
+      OperatorMode.hybrid => 'Hybrid - смешанный режим',
     };
   }
 }
 
 enum AppDestination {
   commandCenter,
+  images,
+  video,
+  director,
+  providers,
+  renderHistory,
+  socialIntelligence,
+  browserHub,
   tools,
   agents,
   workflows,
@@ -32,6 +39,13 @@ extension AppDestinationRoute on AppDestination {
   String get routePath {
     return switch (this) {
       AppDestination.commandCenter => '/',
+      AppDestination.images => '/images',
+      AppDestination.video => '/video',
+      AppDestination.director => '/director',
+      AppDestination.providers => '/providers',
+      AppDestination.renderHistory => '/history',
+      AppDestination.socialIntelligence => '/social',
+      AppDestination.browserHub => '/browser',
       AppDestination.tools => '/tools',
       AppDestination.agents => '/agents',
       AppDestination.workflows => '/workflows',
@@ -45,6 +59,13 @@ extension AppDestinationRoute on AppDestination {
 
   static AppDestination fromRoute(String? route) {
     return switch (route) {
+      '/images' || '/image' => AppDestination.images,
+      '/video' => AppDestination.video,
+      '/director' || '/cinema' => AppDestination.director,
+      '/providers' => AppDestination.providers,
+      '/history' || '/renders' => AppDestination.renderHistory,
+      '/social' || '/analytics' => AppDestination.socialIntelligence,
+      '/browser' || '/ai-browser' || '/hub' => AppDestination.browserHub,
       '/tools' || '/catalog' => AppDestination.tools,
       '/agents' => AppDestination.agents,
       '/workflows' => AppDestination.workflows,
@@ -62,11 +83,18 @@ extension AppDestinationRoute on AppDestination {
 
   String get label {
     return switch (this) {
-      AppDestination.commandCenter => 'Главная',
+      AppDestination.commandCenter => 'Пульт',
+      AppDestination.images => 'Изображения',
+      AppDestination.video => 'Видео',
+      AppDestination.director => 'Режиссёр',
+      AppDestination.providers => 'Провайдеры',
+      AppDestination.renderHistory => 'История',
+      AppDestination.socialIntelligence => 'Соцаналитика',
+      AppDestination.browserHub => 'Браузер нейронок',
       AppDestination.tools => 'Инструменты',
       AppDestination.agents => 'AI-помощники',
       AppDestination.workflows => 'Планы работы',
-      AppDestination.contentFactory => 'Фабрика',
+      AppDestination.contentFactory => 'Фабрики',
       AppDestination.useCases => 'Кейсы',
       AppDestination.projects => 'Проекты',
       AppDestination.favorites => 'Избранное',

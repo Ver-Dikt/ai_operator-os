@@ -37,7 +37,7 @@ class _AiOperatorAppState extends State<AiOperatorApp> {
           child: AnimatedBuilder(
             animation: _settings!,
             builder: (context, _) => MaterialApp(
-              title: 'AI Operator OS',
+              title: 'AI Studio',
               debugShowCheckedModeBanner: false,
               theme: AppTheme.light(),
               darkTheme: AppTheme.dark(),
