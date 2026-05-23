@@ -107,6 +107,7 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
           'Здесь можно собрать сценарий, промпт, структуру ролика или production prompt.',
     ),
   ];
+  final _events = <_SessionEvent>[];
 
   String _providerId = textAiProviders.first.id;
   bool _running = false;
@@ -154,7 +155,18 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
                     child: compact
                         ? Column(
                             children: [
-                              Expanded(child: _ChatPanel(messages: _messages)),
+                              Expanded(
+                                child: _ChatPanel(
+                                  messages: _messages,
+                                  onCopy: _copyText,
+                                  onOpenExternal: _openHandoffExternalFor,
+                                  onOpenInside: _openHandoffInsideFor,
+                                  onOpenHub: _openHandoffInBrowserHub,
+                                  onSaveManual: _saveManualHandoffFor,
+                                  onSendImage: _sendTextToImageStudio,
+                                  onSendVideo: _sendTextToVideoStudio,
+                                ),
+                              ),
                               const SizedBox(height: 12),
                               if (_handoff != null)
                                 _InlineHandoffPanel(
@@ -175,13 +187,27 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
                                   onVideoPrompt: _buildVideoPrompt,
                                   onCopy: _copyCurrentText,
                                   onBrowserHub: _openInBrowserHub,
+                                  onSendImage: _sendCurrentToImageStudio,
+                                  onSendVideo: _sendCurrentToVideoStudio,
+                                  events: _events,
                                 ),
                             ],
                           )
                         : Row(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
-                              Expanded(child: _ChatPanel(messages: _messages)),
+                              Expanded(
+                                child: _ChatPanel(
+                                  messages: _messages,
+                                  onCopy: _copyText,
+                                  onOpenExternal: _openHandoffExternalFor,
+                                  onOpenInside: _openHandoffInsideFor,
+                                  onOpenHub: _openHandoffInBrowserHub,
+                                  onSaveManual: _saveManualHandoffFor,
+                                  onSendImage: _sendTextToImageStudio,
+                                  onSendVideo: _sendTextToVideoStudio,
+                                ),
+                              ),
                               const SizedBox(width: 14),
                               SizedBox(
                                 width: 360,
@@ -203,6 +229,9 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
                                         onVideoPrompt: _buildVideoPrompt,
                                         onCopy: _copyCurrentText,
                                         onBrowserHub: _openInBrowserHub,
+                                        onSendImage: _sendCurrentToImageStudio,
+                                        onSendVideo: _sendCurrentToVideoStudio,
+                                        events: _events,
                                       ),
                               ),
                             ],
@@ -235,6 +264,7 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
         _showInlineWebViewPlaceholder = false;
       }
     });
+    _recordEvent('Выбран провайдер: ${_provider.name}');
   }
 
   Future<void> _send() async {
@@ -244,6 +274,7 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
       _messages.add(_ChatMessage(role: _MessageRole.user, text: prompt));
       _input.clear();
     });
+    _recordEvent('Сообщение отправлено в ${_provider.name}');
 
     switch (_provider.mode) {
       case TextRouteMode.localOllama:
@@ -252,18 +283,21 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
         await _prepareInlineHandoff(prompt);
       case TextRouteMode.apiPlaceholder:
         _addAssistant(
-          '${_provider.name}: API placeholder. Облачный API пока не подключен. Используйте Browser mode или Local Ollama.',
+          'API для этого провайдера пока не подключен. Используйте Browser route или Ollama.',
         );
+        _recordEvent('API placeholder: ${_provider.name}');
       case TextRouteMode.manual:
         await Clipboard.setData(ClipboardData(text: prompt));
         _addAssistant('Manual mode: промпт скопирован в буфер.');
         _showMessage('Промпт скопирован.');
+        _recordEvent('Manual prompt copied');
     }
   }
 
   Future<void> _runOllama(String prompt) async {
     final settings = AppSettingsScope.of(context);
     setState(() => _running = true);
+    _recordEvent('Ollama message sent');
     final result = await const OllamaExecutionService().generate(
       endpoint: settings.ollamaBaseUrl,
       model: settings.ollamaModel,
@@ -273,11 +307,13 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
     setState(() => _running = false);
     if (result.success && (result.response?.isNotEmpty ?? false)) {
       _addAssistant(result.response!);
+      _recordEvent('Ollama response received');
       return;
     }
     _addAssistant(
       'Локальная модель не отвечает. Запустите Ollama или выберите Browser mode.',
     );
+    _recordEvent('Ollama unavailable');
   }
 
   Future<void> _prepareInlineHandoff(String prompt) async {
@@ -294,6 +330,14 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
     setState(() {
       _handoff = _BrowserHandoff(tool: tool, prompt: prompt);
       _showInlineWebViewPlaceholder = false;
+      _messages.add(
+        _ChatMessage(
+          role: _MessageRole.assistant,
+          text: prompt,
+          kind: _MessageKind.browserHandoff,
+          handoff: _handoff,
+        ),
+      );
     });
     _addAssistant(
       'Browser handoff готов для ${tool.name}. API-ответ не имитируется: откройте сервис и вставьте промпт вручную.',
@@ -308,8 +352,14 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
       return;
     }
     final prompt =
-        'Image production prompt:\n$source\n\nVisual direction: cinematic composition, clear subject, controlled lighting, detailed environment, production-ready style, aspect ratio 16:9.';
-    _addAssistant(prompt);
+        'Image production prompt\n'
+        'Subject: $source\n'
+        'Style: cinematic AI creative studio, premium production look\n'
+        'Composition: clear focal subject, readable foreground/midground/background\n'
+        'Lighting: controlled cinematic light, soft contrast, practical highlights\n'
+        'Aspect ratio: 16:9 placeholder\n'
+        'Quality hint: high detail, clean edges, production-ready image';
+    _addPromptDraft(prompt, _PromptDraftTarget.image);
     Clipboard.setData(ClipboardData(text: prompt));
     _showMessage('Image Prompt собран и скопирован.');
   }
@@ -321,8 +371,15 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
       return;
     }
     final prompt =
-        'Video production prompt:\n$source\n\nStructure: opening frame, subject action, camera movement, pacing, lighting, final gesture. Add duration, aspect ratio, start frame and end frame before generation.';
-    _addAssistant(prompt);
+        'Video production prompt\n'
+        'Scene: $source\n'
+        'Camera movement: deliberate cinematic move, no random motion\n'
+        'Action: one clear action beat with readable blocking\n'
+        'Timing: opening frame, middle movement, final hold\n'
+        'Mood: cinematic, coherent light and atmosphere\n'
+        'Continuity: keep subject, style, lens and environment consistent\n'
+        'Final gesture: end on a clear visual payoff';
+    _addPromptDraft(prompt, _PromptDraftTarget.video);
     Clipboard.setData(ClipboardData(text: prompt));
     _showMessage('Video Prompt собран и скопирован.');
   }
@@ -344,6 +401,40 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
     await Clipboard.setData(ClipboardData(text: handoff.prompt));
     if (!mounted) return;
     _showMessage('Промпт скопирован.');
+  }
+
+  Future<void> _copyText(String text) async {
+    if (text.trim().isEmpty) {
+      _showMessage('Нет текста для копирования.');
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: text.trim()));
+    if (!mounted) return;
+    _showMessage('Скопировано.');
+    _recordEvent('Prompt copied');
+  }
+
+  Future<void> _openHandoffExternalFor(_BrowserHandoff handoff) async {
+    _handoff = handoff;
+    await _openHandoffExternal();
+    _recordEvent('External browser opened: ${handoff.tool.name}');
+  }
+
+  void _openHandoffInsideFor(_BrowserHandoff handoff) {
+    _handoff = handoff;
+    _openHandoffInside();
+    _recordEvent('Internal WebView placeholder shown: ${handoff.tool.name}');
+  }
+
+  void _saveManualHandoffFor(_BrowserHandoff handoff) {
+    _handoff = handoff;
+    _saveManualHandoff();
+    _recordEvent('Manual result note saved: ${handoff.tool.name}');
+  }
+
+  Future<void> _openHandoffInBrowserHub(_BrowserHandoff handoff) async {
+    _handoff = handoff;
+    await _openInBrowserHub();
   }
 
   Future<void> _openHandoffExternal() async {
@@ -374,6 +465,49 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
     _showMessage('Результат можно сохранить вручную после генерации.');
   }
 
+  Future<void> _sendCurrentToImageStudio() async {
+    await _sendTextToImageStudio(_currentText());
+  }
+
+  Future<void> _sendCurrentToVideoStudio() async {
+    await _sendTextToVideoStudio(_currentText());
+  }
+
+  Future<void> _sendTextToImageStudio(String text) async {
+    await _sendTextToStudio(
+      text: text,
+      destination: AppDestination.images,
+      studioName: 'Image Studio',
+      eventName: 'Sent to Image Studio',
+    );
+  }
+
+  Future<void> _sendTextToVideoStudio(String text) async {
+    await _sendTextToStudio(
+      text: text,
+      destination: AppDestination.video,
+      studioName: 'Video Studio',
+      eventName: 'Sent to Video Studio',
+    );
+  }
+
+  Future<void> _sendTextToStudio({
+    required String text,
+    required AppDestination destination,
+    required String studioName,
+    required String eventName,
+  }) async {
+    if (text.trim().isEmpty) {
+      _showMessage('Сначала подготовьте промпт.');
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: text.trim()));
+    if (!mounted) return;
+    _showMessage('Промпт скопирован. Вставьте его в $studioName.');
+    _recordEvent(eventName);
+    widget.onNavigate(destination);
+  }
+
   Future<void> _openInBrowserHub() async {
     final text = _handoff?.prompt ?? _currentText();
     if (text.trim().isEmpty) {
@@ -387,6 +521,26 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
     settings.setBrowserHandoff(prompt: text.trim(), toolId: tool?.id);
     _showMessage('Промпт скопирован. Открываю Browser Hub.');
     widget.onNavigate(AppDestination.browserHub);
+  }
+
+  void _addPromptDraft(String text, _PromptDraftTarget target) {
+    setState(() {
+      _messages.add(
+        _ChatMessage(
+          role: _MessageRole.assistant,
+          text: text,
+          kind: _MessageKind.promptDraft,
+          draftTarget: target,
+        ),
+      );
+    });
+  }
+
+  void _recordEvent(String label) {
+    setState(() {
+      _events.insert(0, _SessionEvent(label: label, createdAt: DateTime.now()));
+      if (_events.length > 12) _events.removeLast();
+    });
   }
 
   void _showAttachmentPlaceholder() {
@@ -431,11 +585,31 @@ class _BrowserHandoff {
 
 enum _MessageRole { user, assistant }
 
+enum _MessageKind { plain, promptDraft, browserHandoff }
+
+enum _PromptDraftTarget { image, video }
+
 class _ChatMessage {
-  const _ChatMessage({required this.role, required this.text});
+  const _ChatMessage({
+    required this.role,
+    required this.text,
+    this.kind = _MessageKind.plain,
+    this.handoff,
+    this.draftTarget,
+  });
 
   final _MessageRole role;
   final String text;
+  final _MessageKind kind;
+  final _BrowserHandoff? handoff;
+  final _PromptDraftTarget? draftTarget;
+}
+
+class _SessionEvent {
+  const _SessionEvent({required this.label, required this.createdAt});
+
+  final String label;
+  final DateTime createdAt;
 }
 
 class _Header extends StatelessWidget {
@@ -540,9 +714,25 @@ class _StatusCard extends StatelessWidget {
 }
 
 class _ChatPanel extends StatelessWidget {
-  const _ChatPanel({required this.messages});
+  const _ChatPanel({
+    required this.messages,
+    required this.onCopy,
+    required this.onOpenExternal,
+    required this.onOpenInside,
+    required this.onOpenHub,
+    required this.onSaveManual,
+    required this.onSendImage,
+    required this.onSendVideo,
+  });
 
   final List<_ChatMessage> messages;
+  final ValueChanged<String> onCopy;
+  final ValueChanged<_BrowserHandoff> onOpenExternal;
+  final ValueChanged<_BrowserHandoff> onOpenInside;
+  final ValueChanged<_BrowserHandoff> onOpenHub;
+  final ValueChanged<_BrowserHandoff> onSaveManual;
+  final ValueChanged<String> onSendImage;
+  final ValueChanged<String> onSendVideo;
 
   @override
   Widget build(BuildContext context) {
@@ -556,8 +746,192 @@ class _ChatPanel extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         itemCount: messages.length,
         separatorBuilder: (_, _) => const SizedBox(height: 12),
-        itemBuilder: (context, index) =>
-            _MessageBubble(message: messages[index]),
+        itemBuilder: (context, index) {
+          final message = messages[index];
+          if (message.kind == _MessageKind.browserHandoff &&
+              message.handoff != null) {
+            return _HandoffMessageCard(
+              handoff: message.handoff!,
+              onCopy: () => onCopy(message.handoff!.prompt),
+              onOpenExternal: () => onOpenExternal(message.handoff!),
+              onOpenInside: () => onOpenInside(message.handoff!),
+              onOpenHub: () => onOpenHub(message.handoff!),
+              onSaveManual: () => onSaveManual(message.handoff!),
+            );
+          }
+          if (message.kind == _MessageKind.promptDraft) {
+            return _PromptDraftCard(
+              message: message,
+              onCopy: () => onCopy(message.text),
+              onSendImage: () => onSendImage(message.text),
+              onSendVideo: () => onSendVideo(message.text),
+            );
+          }
+          return _MessageBubble(message: message);
+        },
+      ),
+    );
+  }
+}
+
+class _HandoffMessageCard extends StatelessWidget {
+  const _HandoffMessageCard({
+    required this.handoff,
+    required this.onCopy,
+    required this.onOpenExternal,
+    required this.onOpenInside,
+    required this.onOpenHub,
+    required this.onSaveManual,
+  });
+
+  final _BrowserHandoff handoff;
+  final VoidCallback onCopy;
+  final VoidCallback onOpenExternal;
+  final VoidCallback onOpenInside;
+  final VoidCallback onOpenHub;
+  final VoidCallback onSaveManual;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 760),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0x990B0F16),
+          border: Border.all(color: const Color(0x33C8FFF4)),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Browser handoff: ${handoff.tool.name}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 4),
+            SelectableText(
+              handoff.tool.url,
+              style: const TextStyle(color: Color(0xFF67E8F9), fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'API-ответ не имитируется. Скопируйте промпт, откройте сервис и вставьте вручную.',
+              style: TextStyle(color: Color(0xFFA7B1C1), height: 1.35),
+            ),
+            const SizedBox(height: 8),
+            SelectableText(
+              handoff.prompt,
+              style: const TextStyle(color: Color(0xFFE8EEF8), height: 1.35),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              children: [
+                FilledButton.icon(
+                  onPressed: onCopy,
+                  icon: const Icon(Icons.copy_rounded),
+                  label: const Text('Скопировать промпт'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: onOpenExternal,
+                  icon: const Icon(Icons.open_in_new_rounded),
+                  label: const Text('Открыть во внешнем браузере'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: onOpenInside,
+                  icon: const Icon(Icons.open_in_browser_rounded),
+                  label: const Text('Открыть внутри STUDIO'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: onSaveManual,
+                  icon: const Icon(Icons.save_alt_rounded),
+                  label: const Text('Сохранить результат вручную'),
+                ),
+                TextButton.icon(
+                  onPressed: onOpenHub,
+                  icon: const Icon(Icons.public_rounded),
+                  label: const Text('Открыть в Browser Hub'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PromptDraftCard extends StatelessWidget {
+  const _PromptDraftCard({
+    required this.message,
+    required this.onCopy,
+    required this.onSendImage,
+    required this.onSendVideo,
+  });
+
+  final _ChatMessage message;
+  final VoidCallback onCopy;
+  final VoidCallback onSendImage;
+  final VoidCallback onSendVideo;
+
+  @override
+  Widget build(BuildContext context) {
+    final isImage = message.draftTarget == _PromptDraftTarget.image;
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 760),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0x990B0F16),
+          border: Border.all(color: const Color(0x24FFFFFF)),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              isImage ? 'Prompt Draft · Image' : 'Prompt Draft · Video',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            SelectableText(
+              message.text,
+              style: const TextStyle(color: Color(0xFFE8EEF8), height: 1.45),
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 7,
+              runSpacing: 7,
+              children: [
+                FilledButton.icon(
+                  onPressed: onCopy,
+                  icon: const Icon(Icons.copy_rounded),
+                  label: const Text('Скопировать'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: onSendImage,
+                  icon: const Icon(Icons.image_outlined),
+                  label: const Text('Отправить в Image Studio'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: onSendVideo,
+                  icon: const Icon(Icons.movie_creation_outlined),
+                  label: const Text('Отправить в Video Studio'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -600,6 +974,9 @@ class _ControlPanel extends StatelessWidget {
     required this.onVideoPrompt,
     required this.onCopy,
     required this.onBrowserHub,
+    required this.onSendImage,
+    required this.onSendVideo,
+    required this.events,
   });
 
   final String providerId;
@@ -608,6 +985,9 @@ class _ControlPanel extends StatelessWidget {
   final VoidCallback onVideoPrompt;
   final VoidCallback onCopy;
   final VoidCallback onBrowserHub;
+  final VoidCallback onSendImage;
+  final VoidCallback onSendVideo;
+  final List<_SessionEvent> events;
 
   @override
   Widget build(BuildContext context) {
@@ -672,6 +1052,41 @@ class _ControlPanel extends StatelessWidget {
             icon: const Icon(Icons.public_rounded),
             label: const Text('Открыть в Browser Hub'),
           ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: onSendImage,
+            icon: const Icon(Icons.arrow_forward_rounded),
+            label: const Text('Отправить в Image Studio'),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: onSendVideo,
+            icon: const Icon(Icons.arrow_forward_rounded),
+            label: const Text('Отправить в Video Studio'),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Session events',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 8),
+          if (events.isEmpty)
+            const Text(
+              'Событий пока нет.',
+              style: TextStyle(color: Color(0xFF8B97A8)),
+            )
+          else
+            for (final event in events.take(6))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text(
+                  event.label,
+                  style: const TextStyle(
+                    color: Color(0xFFA7B1C1),
+                    fontSize: 12,
+                  ),
+                ),
+              ),
         ],
       ),
     );
