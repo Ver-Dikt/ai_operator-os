@@ -110,9 +110,24 @@ class _VideoGenerationScreenState extends State<VideoGenerationScreen> {
   }
 
   void _generate(GenerationRequest request) {
-    if (_providerType != GenerationProviderType.api &&
-        _providerType != GenerationProviderType.local) {
+    final provider = _registry.byId(request.providerId);
+    if (provider.type == GenerationProviderType.browser ||
+        provider.type == GenerationProviderType.externalLink) {
       _saveManualResult();
+      _showMessage(
+        'Промпт подготовлен. Скопируйте его и откройте сервис в browser handoff panel.',
+      );
+      return;
+    }
+    if (provider.type == GenerationProviderType.local) {
+      _showMessage('Локальный runtime будет подключён позже.');
+      return;
+    }
+    if (provider.type == GenerationProviderType.api &&
+        provider.requiresApiKey) {
+      _showMessage(
+        'API для этой модели пока не подключён. Используйте Browser route.',
+      );
       return;
     }
     final job = _mock.createMockJob(request);
@@ -120,6 +135,10 @@ class _VideoGenerationScreenState extends State<VideoGenerationScreen> {
       _jobs.insert(0, job);
       _selectedJob = job;
     });
+  }
+
+  void _showMessage(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
   List<GenerationProvider> _providersForCurrentMode() {
@@ -196,11 +215,11 @@ class _VideoWorkspace extends StatelessWidget {
           gradient: RadialGradient(
             center: Alignment.topRight,
             radius: 1.15,
-            colors: [Color(0xFF1B1726), Color(0xFF05070B)],
+            colors: [Color(0xFF15131D), Color(0xFF050609)],
           ),
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
+          padding: const EdgeInsets.fromLTRB(22, 18, 22, 20),
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 1320),
@@ -208,18 +227,18 @@ class _VideoWorkspace extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _WorkspaceHeader(modeSelector: modeSelector),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   Expanded(
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Expanded(child: canvas),
-                        const SizedBox(width: 14),
-                        SizedBox(width: 230, child: history),
+                        const SizedBox(width: 12),
+                        SizedBox(width: 220, child: history),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   Align(
                     alignment: Alignment.center,
                     child: ConstrainedBox(
@@ -239,7 +258,7 @@ class _VideoWorkspace extends StatelessWidget {
         gradient: RadialGradient(
           center: Alignment.topRight,
           radius: 1.15,
-          colors: [Color(0xFF1B1726), Color(0xFF05070B)],
+          colors: [Color(0xFF15131D), Color(0xFF050609)],
         ),
       ),
       child: SafeArea(
@@ -248,7 +267,7 @@ class _VideoWorkspace extends StatelessWidget {
             SliverPadding(
               padding: EdgeInsets.fromLTRB(
                 compact ? 16 : 28,
-                compact ? 18 : 28,
+                compact ? 14 : 20,
                 compact ? 16 : 28,
                 compact ? 96 : 28,
               ),
@@ -260,14 +279,14 @@ class _VideoWorkspace extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _WorkspaceHeader(modeSelector: modeSelector),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 14),
                         promptBar,
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 14),
                         if (compact)
                           Column(
                             children: [
                               canvas,
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 10),
                               SizedBox(height: 280, child: history),
                             ],
                           )
@@ -276,7 +295,7 @@ class _VideoWorkspace extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Expanded(child: canvas),
-                              const SizedBox(width: 14),
+                              const SizedBox(width: 12),
                               SizedBox(height: 520, child: history),
                             ],
                           ),

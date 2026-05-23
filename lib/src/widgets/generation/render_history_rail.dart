@@ -20,11 +20,11 @@ class RenderHistoryRail extends StatelessWidget {
     return Container(
       width: 230,
       decoration: BoxDecoration(
-        color: const Color(0x99070A0F),
-        border: Border.all(color: const Color(0x1FFFFFFF)),
-        borderRadius: BorderRadius.circular(16),
+        color: const Color(0x8C070A0F),
+        border: Border.all(color: const Color(0x24FFFFFF)),
+        borderRadius: BorderRadius.circular(12),
       ),
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -45,7 +45,7 @@ class RenderHistoryRail extends StatelessWidget {
             Expanded(
               child: ListView.separated(
                 itemCount: jobs.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 10),
+                separatorBuilder: (_, _) => const SizedBox(height: 7),
                 itemBuilder: (context, index) {
                   final job = jobs[index];
                   return _HistoryTile(
@@ -84,24 +84,24 @@ class _HistoryTile extends StatelessWidget {
     };
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(10),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.all(8),
+        padding: const EdgeInsets.all(7),
         decoration: BoxDecoration(
-          color: selected ? const Color(0x1722D3EE) : const Color(0xFF0D111A),
+          color: selected ? const Color(0x18C8FFF4) : const Color(0x8010151D),
           border: Border.all(
-            color: selected ? const Color(0xAA22D3EE) : const Color(0x1FFFFFFF),
+            color: selected ? const Color(0x80C8FFF4) : const Color(0x22FFFFFF),
           ),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
           children: [
             Container(
-              width: 54,
-              height: 54,
+              width: 48,
+              height: 48,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(9),
                 gradient: LinearGradient(
                   colors: video
                       ? const [Color(0xFF2A182C), Color(0xFF102A2A)]
@@ -115,7 +115,7 @@ class _HistoryTile extends StatelessWidget {
                 color: Colors.white,
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 8),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

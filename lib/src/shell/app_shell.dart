@@ -14,6 +14,7 @@ import '../screens/projects/projects_screen.dart';
 import '../screens/providers/providers_screen.dart';
 import '../screens/settings_screen.dart';
 import '../screens/social_intelligence/social_intelligence_screen.dart';
+import '../screens/text_workspace/text_workspace_screen.dart';
 import '../screens/tools/tools_screen.dart';
 import '../screens/use_cases/use_cases_screen.dart';
 import '../screens/workflows/workflows_screen.dart';
@@ -56,7 +57,7 @@ class _AppShellState extends State<AppShell> {
     final destination = widget.destination;
     return Scaffold(
       body: Container(
-        color: const Color(0xFF030303),
+        color: const Color(0xFF050609),
         child: SafeArea(
           bottom: false,
           child: Column(
@@ -82,6 +83,9 @@ class _AppShellState extends State<AppShell> {
   Widget _screenFor(BuildContext context, AppDestination destination) {
     return switch (destination) {
       AppDestination.commandCenter => CommandCenterScreen(
+        onNavigate: (value) => _goTo(context, value),
+      ),
+      AppDestination.textWorkspace => TextWorkspaceScreen(
         onNavigate: (value) => _goTo(context, value),
       ),
       AppDestination.images => const ImageGenerationScreen(),
@@ -110,6 +114,7 @@ class _StudioTopBar extends StatelessWidget {
   final ValueChanged<AppDestination> onSelect;
 
   static const _tabs = [
+    _StudioTab(AppDestination.textWorkspace, 'AI Чат'),
     _StudioTab(AppDestination.images, 'Изображения'),
     _StudioTab(AppDestination.video, 'Видео'),
     _StudioTab(AppDestination.director, 'Cinema'),
@@ -124,11 +129,11 @@ class _StudioTopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < 780;
     return Container(
-      height: compact ? 104 : 58,
-      padding: EdgeInsets.symmetric(horizontal: compact ? 12 : 22),
+      height: compact ? 94 : 50,
+      padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 18),
       decoration: const BoxDecoration(
-        color: Color(0xE6000000),
-        border: Border(bottom: BorderSide(color: Color(0x12FFFFFF))),
+        color: Color(0xE6050609),
+        border: Border(bottom: BorderSide(color: Color(0x1FFFFFFF))),
       ),
       child: compact ? _compactLayout(context) : _wideLayout(context),
     );
@@ -138,7 +143,7 @@ class _StudioTopBar extends StatelessWidget {
     return Row(
       children: [
         _Logo(onTap: () => onSelect(AppDestination.commandCenter)),
-        const SizedBox(width: 24),
+        const SizedBox(width: 18),
         Expanded(
           child: _TabsScroller(
             destination: destination,
@@ -146,7 +151,7 @@ class _StudioTopBar extends StatelessWidget {
             onSelect: onSelect,
           ),
         ),
-        const SizedBox(width: 16),
+        const SizedBox(width: 12),
         _BalancePill(),
         const SizedBox(width: 10),
         _TopIconButton(
@@ -167,7 +172,7 @@ class _StudioTopBar extends StatelessWidget {
     return Column(
       children: [
         SizedBox(
-          height: 52,
+          height: 47,
           child: Row(
             children: [
               _Logo(onTap: () => onSelect(AppDestination.commandCenter)),
@@ -186,7 +191,7 @@ class _StudioTopBar extends StatelessWidget {
           ),
         ),
         SizedBox(
-          height: 48,
+          height: 43,
           child: _TabsScroller(
             destination: destination,
             tabs: _tabs,
@@ -214,29 +219,29 @@ class _Logo extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(9),
       child: Row(
         children: [
           Container(
-            width: 32,
-            height: 32,
+            width: 28,
+            height: 28,
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(9),
+              color: const Color(0xFFE7F7F4),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(
               Icons.layers_rounded,
               color: Colors.black,
-              size: 20,
+              size: 17,
             ),
           ),
-          const SizedBox(width: 9),
+          const SizedBox(width: 8),
           const Text(
             'OpenGenerativeAI',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 14,
-              fontWeight: FontWeight.w900,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
               letterSpacing: 0,
             ),
           ),
@@ -262,7 +267,7 @@ class _TabsScroller extends StatelessWidget {
     return ListView.separated(
       scrollDirection: Axis.horizontal,
       itemCount: tabs.length,
-      separatorBuilder: (_, _) => const SizedBox(width: 18),
+      separatorBuilder: (_, _) => const SizedBox(width: 12),
       itemBuilder: (context, index) {
         final tab = tabs[index];
         final selected = destination == tab.destination;
@@ -276,18 +281,20 @@ class _TabsScroller extends StatelessWidget {
                 Text(
                   tab.label,
                   style: TextStyle(
-                    color: selected ? const Color(0xFF22D3EE) : Colors.white54,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
+                    color: selected
+                        ? const Color(0xFFC8FFF4)
+                        : const Color(0x99FFFFFF),
+                    fontSize: 12,
+                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
                   ),
                 ),
-                const SizedBox(height: 7),
+                const SizedBox(height: 5),
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 160),
                   height: 2,
-                  width: selected ? 34 : 0,
+                  width: selected ? 26 : 0,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF22D3EE),
+                    color: const Color(0xFFC8FFF4),
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
@@ -304,10 +311,10 @@ class _BalancePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: const Color(0x0FFFFFFF),
-        border: Border.all(color: const Color(0x12FFFFFF)),
+        color: const Color(0x0AFFFFFF),
+        border: Border.all(color: const Color(0x1FFFFFFF)),
         borderRadius: BorderRadius.circular(999),
       ),
       child: const Row(
@@ -318,8 +325,8 @@ class _BalancePill extends StatelessWidget {
             'Mock balance',
             style: TextStyle(
               color: Color(0xDFFFFFFF),
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -345,8 +352,8 @@ class _TopIconButton extends StatelessWidget {
       message: tooltip,
       child: IconButton(
         onPressed: onTap,
-        icon: Icon(icon, size: 19),
-        color: Colors.white70,
+        icon: Icon(icon, size: 18),
+        color: const Color(0xBFFFFFFF),
       ),
     );
   }

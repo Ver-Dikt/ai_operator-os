@@ -34,6 +34,16 @@ class _ContentFactoryScreenState extends State<ContentFactoryScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const OsCard(
+            child: ListTile(
+              leading: Icon(Icons.construction_rounded),
+              title: Text('Раздел в подготовке'),
+              subtitle: Text(
+                'Контент-фабрика будет подключена после стабилизации основного generation workflow. Сейчас доступна локальная демо-сборка плана.',
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
           OsCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

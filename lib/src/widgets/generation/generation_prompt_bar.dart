@@ -67,17 +67,22 @@ class _GenerationPromptBarState extends State<GenerationPromptBar> {
   @override
   Widget build(BuildContext context) {
     final compact = MediaQuery.sizeOf(context).width < 720;
+    final selectedProvider = widget.providers.firstWhere(
+      (provider) => provider.id == widget.selectedProviderId,
+      orElse: () => widget.providers.first,
+    );
+    final actionLabel = _actionLabelFor(selectedProvider);
     return Container(
-      padding: EdgeInsets.all(compact ? 12 : 16),
+      padding: EdgeInsets.all(compact ? 11 : 13),
       decoration: BoxDecoration(
-        color: const Color(0xE60B0F16),
-        border: Border.all(color: const Color(0x26FFFFFF)),
-        borderRadius: BorderRadius.circular(compact ? 18 : 24),
+        color: const Color(0xB80B0F16),
+        border: Border.all(color: const Color(0x24FFFFFF)),
+        borderRadius: BorderRadius.circular(compact ? 14 : 16),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x66000000),
-            blurRadius: 34,
-            offset: Offset(0, 20),
+            color: Color(0x26000000),
+            blurRadius: 20,
+            offset: Offset(0, 10),
           ),
         ],
       ),
@@ -89,7 +94,9 @@ class _GenerationPromptBarState extends State<GenerationPromptBar> {
             available: widget.availableProviderTypes,
             onChanged: widget.onProviderTypeChanged,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
+          _SelectedProviderPanel(provider: selectedProvider),
+          const SizedBox(height: 10),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -102,7 +109,7 @@ class _GenerationPromptBarState extends State<GenerationPromptBar> {
                   videoMode: widget.showDuration,
                 ),
               ),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -115,14 +122,14 @@ class _GenerationPromptBarState extends State<GenerationPromptBar> {
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 4),
                     TextField(
                       controller: _prompt,
                       minLines: compact ? 3 : 2,
                       maxLines: compact ? 6 : 8,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 17,
+                        fontSize: 15,
                         height: 1.35,
                         fontWeight: FontWeight.w600,
                       ),
@@ -140,20 +147,20 @@ class _GenerationPromptBarState extends State<GenerationPromptBar> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 8),
           Text(
             widget.selectedProviderType.description,
             style: const TextStyle(color: Color(0xFF8B97A8), fontSize: 12),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
           Container(height: 1, color: const Color(0x14FFFFFF)),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           LayoutBuilder(
             builder: (context, constraints) {
               final narrow = constraints.maxWidth < 760;
               final controls = [
                 SizedBox(
-                  width: narrow ? double.infinity : 270,
+                  width: narrow ? double.infinity : 255,
                   child: ProviderSelector(
                     providers: widget.providers,
                     selectedProviderId: widget.selectedProviderId,
@@ -193,9 +200,9 @@ class _GenerationPromptBarState extends State<GenerationPromptBar> {
                   children: [
                     for (final control in controls) ...[
                       control,
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 8),
                     ],
-                    _GenerateButton(onPressed: _submit),
+                    _GenerateButton(label: actionLabel, onPressed: _submit),
                   ],
                 );
               }
@@ -204,14 +211,14 @@ class _GenerationPromptBarState extends State<GenerationPromptBar> {
                   Expanded(
                     child: Wrap(spacing: 8, runSpacing: 8, children: controls),
                   ),
-                  const SizedBox(width: 12),
-                  _GenerateButton(onPressed: _submit),
+                  const SizedBox(width: 10),
+                  _GenerateButton(label: actionLabel, onPressed: _submit),
                 ],
               );
             },
           ),
           if (_showAdvanced) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             const _AdvancedStrip(),
           ],
         ],
@@ -234,6 +241,16 @@ class _GenerationPromptBarState extends State<GenerationPromptBar> {
     );
   }
 
+  String _actionLabelFor(GenerationProvider provider) {
+    return switch (provider.type) {
+      GenerationProviderType.browser ||
+      GenerationProviderType.externalLink => 'Подготовить запуск',
+      GenerationProviderType.local => 'Проверить local',
+      GenerationProviderType.api =>
+        provider.requiresApiKey ? 'API placeholder' : 'Генерировать',
+    };
+  }
+
   String _hintFor(GenerationCapability capability) {
     return switch (capability) {
       GenerationCapability.textToImage =>
@@ -250,9 +267,109 @@ class _GenerationPromptBarState extends State<GenerationPromptBar> {
   }
 }
 
-class _GenerateButton extends StatelessWidget {
-  const _GenerateButton({required this.onPressed});
+class _SelectedProviderPanel extends StatelessWidget {
+  const _SelectedProviderPanel({required this.provider});
 
+  final GenerationProvider provider;
+
+  @override
+  Widget build(BuildContext context) {
+    final url = provider.launchUrl ?? provider.localEndpoint;
+    final isActionRoute =
+        provider.type == GenerationProviderType.browser ||
+        provider.type == GenerationProviderType.externalLink;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0x8C070A0F),
+        border: Border.all(color: const Color(0x24FFFFFF)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 7,
+            runSpacing: 6,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              const Icon(
+                Icons.auto_awesome_motion_rounded,
+                color: Color(0xFF22D3EE),
+                size: 18,
+              ),
+              Text(
+                'Выбрано: ${provider.name}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              _ProviderPill(provider.type.label),
+              _ProviderPill(provider.statusLabel),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            provider.description,
+            style: const TextStyle(color: Color(0xFFA7B1C1), fontSize: 12),
+          ),
+          if (url != null) ...[
+            const SizedBox(height: 6),
+            SelectableText(
+              url,
+              style: const TextStyle(
+                color: Color(0xFF7DD3FC),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+          if (isActionRoute) ...[
+            const SizedBox(height: 6),
+            const Text(
+              'Browser route: скопируйте production prompt, откройте сервис и сохраните результат вручную.',
+              style: TextStyle(color: Color(0xFF8B97A8), fontSize: 12),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ProviderPill extends StatelessWidget {
+  const _ProviderPill(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0x0AFFFFFF),
+        border: Border.all(color: const Color(0x22FFFFFF)),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFFDDE6F3),
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _GenerateButton extends StatelessWidget {
+  const _GenerateButton({required this.label, required this.onPressed});
+
+  final String label;
   final VoidCallback onPressed;
 
   @override
@@ -260,12 +377,12 @@ class _GenerateButton extends StatelessWidget {
     return FilledButton.icon(
       onPressed: onPressed,
       icon: const Icon(Icons.auto_awesome_rounded),
-      label: const Text('Генерировать'),
+      label: Text(label),
       style: FilledButton.styleFrom(
-        backgroundColor: const Color(0xFF22D3EE),
-        foregroundColor: const Color(0xFF031014),
-        fixedSize: const Size.fromHeight(44),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        backgroundColor: const Color(0xFFE7F7F4),
+        foregroundColor: const Color(0xFF050609),
+        fixedSize: const Size.fromHeight(38),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -285,8 +402,8 @@ class _ModeSwitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      spacing: 6,
+      runSpacing: 6,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         const Text(
@@ -331,13 +448,13 @@ class _ModeChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 140),
-          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFF22D3EE) : const Color(0x0FFFFFFF),
+            color: selected ? const Color(0xFFE7F7F4) : const Color(0x0AFFFFFF),
             border: Border.all(
               color: selected
-                  ? const Color(0xFF22D3EE)
-                  : const Color(0x1FFFFFFF),
+                  ? const Color(0xFFE7F7F4)
+                  : const Color(0x22FFFFFF),
             ),
             borderRadius: BorderRadius.circular(999),
           ),
@@ -350,7 +467,7 @@ class _ModeChip extends StatelessWidget {
                   ? Colors.white70
                   : Colors.white24,
               fontSize: 11,
-              fontWeight: FontWeight.w900,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w700,
             ),
           ),
         ),
@@ -377,9 +494,9 @@ class _GhostButton extends StatelessWidget {
       icon: Icon(icon, size: 18),
       label: Text(label),
       style: OutlinedButton.styleFrom(
-        fixedSize: const Size.fromHeight(44),
-        side: const BorderSide(color: Color(0x1FFFFFFF)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        fixedSize: const Size.fromHeight(38),
+        side: const BorderSide(color: Color(0x24FFFFFF)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }
@@ -401,13 +518,13 @@ class _MenuField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 132,
-      height: 44,
+      width: 124,
+      height: 38,
       padding: const EdgeInsets.only(left: 10, right: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF11161F),
-        border: Border.all(color: const Color(0x1FFFFFFF)),
-        borderRadius: BorderRadius.circular(12),
+        color: const Color(0x8011161F),
+        border: Border.all(color: const Color(0x24FFFFFF)),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         children: [
@@ -422,7 +539,8 @@ class _MenuField extends StatelessWidget {
                 iconEnabledColor: const Color(0xFF7D8798),
                 style: const TextStyle(
                   color: Color(0xFFE8EEF8),
-                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
                 ),
                 items: [
                   for (final item in values)
@@ -447,11 +565,11 @@ class _AdvancedStrip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: const Color(0x99070A0F),
-        border: Border.all(color: const Color(0x14FFFFFF)),
-        borderRadius: BorderRadius.circular(14),
+        color: const Color(0x80070A0F),
+        border: Border.all(color: const Color(0x1FFFFFFF)),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: const Wrap(
         spacing: 8,

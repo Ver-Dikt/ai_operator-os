@@ -28,7 +28,7 @@ class ProviderSelector extends StatelessWidget {
           DropdownMenuItem(
             value: provider.id,
             child: Text(
-              '${provider.name} · ${provider.type.label}',
+              '${provider.name} · ${provider.type.label} · ${provider.statusLabel}',
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -56,12 +56,12 @@ class _StudioDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 44,
+      height: 38,
       padding: const EdgeInsets.only(left: 10, right: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF11161F),
-        border: Border.all(color: const Color(0x1FFFFFFF)),
-        borderRadius: BorderRadius.circular(12),
+        color: const Color(0x8011161F),
+        border: Border.all(color: const Color(0x24FFFFFF)),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         children: [
@@ -76,7 +76,8 @@ class _StudioDropdown extends StatelessWidget {
                 iconEnabledColor: const Color(0xFF7D8798),
                 style: const TextStyle(
                   color: Color(0xFFE8EEF8),
-                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
                 ),
                 items: items,
                 onChanged: onChanged,

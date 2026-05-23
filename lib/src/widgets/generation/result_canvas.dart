@@ -14,12 +14,12 @@ class ResultCanvas extends StatelessWidget {
       width: double.infinity,
       constraints: const BoxConstraints(minHeight: 430),
       decoration: BoxDecoration(
-        color: const Color(0xFF070A0F),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0x1FFFFFFF)),
+        color: const Color(0xE6070A0F),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0x24FFFFFF)),
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(14),
         child: job == null ? const _EmptyStage() : _GeneratedStage(job: job!),
       ),
     );
@@ -41,7 +41,7 @@ class _GeneratedStage extends StatelessWidget {
         ),
         Positioned.fill(
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             child: Column(
               children: [
                 Expanded(
@@ -51,8 +51,8 @@ class _GeneratedStage extends StatelessWidget {
                       child: Container(
                         constraints: const BoxConstraints(maxWidth: 780),
                         decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(color: const Color(0x33FFFFFF)),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0x2BFFFFFF)),
                           gradient: LinearGradient(
                             colors: video
                                 ? const [Color(0xFF191322), Color(0xFF06151A)]
@@ -63,8 +63,8 @@ class _GeneratedStage extends StatelessWidget {
                           boxShadow: const [
                             BoxShadow(
                               color: Color(0x80000000),
-                              blurRadius: 44,
-                              offset: Offset(0, 24),
+                              blurRadius: 30,
+                              offset: Offset(0, 16),
                             ),
                           ],
                         ),
@@ -90,7 +90,7 @@ class _GeneratedStage extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 14),
                 _ResultDetails(job: job),
               ],
             ),
@@ -128,15 +128,15 @@ class _ResultDetails extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(11),
       decoration: BoxDecoration(
-        color: const Color(0xCC090D13),
-        border: Border.all(color: const Color(0x1FFFFFFF)),
-        borderRadius: BorderRadius.circular(14),
+        color: const Color(0xB8090D13),
+        border: Border.all(color: const Color(0x24FFFFFF)),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Wrap(
-        spacing: 12,
-        runSpacing: 10,
+        spacing: 8,
+        runSpacing: 8,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           ConstrainedBox(
@@ -151,8 +151,8 @@ class _ResultDetails extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -201,7 +201,7 @@ class _EmptyStage extends StatelessWidget {
             children: [
               Icon(
                 Icons.movie_filter_outlined,
-                size: 66,
+                size: 56,
                 color: Color(0xFF566175),
               ),
               SizedBox(height: 14),
@@ -209,8 +209,8 @@ class _EmptyStage extends StatelessWidget {
                 'Результат появится здесь',
                 style: TextStyle(
                   color: Color(0xFFE8EEF8),
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
               SizedBox(height: 6),

@@ -210,6 +210,13 @@ class _StudioGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final cards = [
       _StudioCardData(
+        'AI Чат',
+        'Текстовая модель, сценарии, prompt builder и подготовка production prompts.',
+        Icons.chat_bubble_outline_rounded,
+        AppDestination.textWorkspace,
+        const Color(0xFF67E8F9),
+      ),
+      _StudioCardData(
         'Image Studio',
         'Промпт, референсы, формат, модель и история рендеров.',
         Icons.image_outlined,

@@ -17,8 +17,8 @@ class ReferencePicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      spacing: 6,
+      runSpacing: 6,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         Tooltip(
@@ -27,20 +27,20 @@ class ReferencePicker extends StatelessWidget {
               : 'Добавить изображение-референс',
           child: InkWell(
             onTap: onAddMock,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
             child: Container(
-              width: 44,
-              height: 44,
+              width: 38,
+              height: 38,
               decoration: BoxDecoration(
-                color: const Color(0xFF11161F),
-                border: Border.all(color: const Color(0x26FFFFFF)),
-                borderRadius: BorderRadius.circular(12),
+                color: const Color(0x8011161F),
+                border: Border.all(color: const Color(0x24FFFFFF)),
+                borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
                 videoMode
                     ? Icons.video_file_outlined
                     : Icons.add_photo_alternate_outlined,
-                color: const Color(0xFF22D3EE),
+                color: const Color(0xFFC8FFF4),
               ),
             ),
           ),
@@ -68,27 +68,27 @@ class _ReferenceChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 44,
+      height: 38,
       padding: const EdgeInsets.only(left: 8, right: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFF11161F),
-        border: Border.all(color: const Color(0x3322D3EE)),
-        borderRadius: BorderRadius.circular(12),
+        color: const Color(0x8011161F),
+        border: Border.all(color: const Color(0x33C8FFF4)),
+        borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            width: 28,
-            height: 28,
+            width: 24,
+            height: 24,
             decoration: BoxDecoration(
-              color: const Color(0x1722D3EE),
-              borderRadius: BorderRadius.circular(8),
+              color: const Color(0x18C8FFF4),
+              borderRadius: BorderRadius.circular(7),
             ),
             child: Icon(
               videoMode ? Icons.movie_creation_outlined : Icons.image_outlined,
               size: 16,
-              color: const Color(0xFF22D3EE),
+              color: const Color(0xFFC8FFF4),
             ),
           ),
           const SizedBox(width: 8),
@@ -100,7 +100,7 @@ class _ReferenceChip extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Color(0xFFE8EEF8),
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w700,
                 fontSize: 12,
               ),
             ),

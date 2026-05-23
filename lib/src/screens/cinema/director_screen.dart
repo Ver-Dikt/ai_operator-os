@@ -35,6 +35,16 @@ class _DirectorScreenState extends State<DirectorScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const OsCard(
+            child: ListTile(
+              leading: Icon(Icons.movie_creation_outlined),
+              title: Text('Режиссёрская студия в подготовке'),
+              subtitle: Text(
+                'Здесь будут shot logic, pacing, camera, continuity. Сейчас доступны локальные cinematic presets и сборка промпта.',
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
           TextField(
             controller: _prompt,
             minLines: 2,

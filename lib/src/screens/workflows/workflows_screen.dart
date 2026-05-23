@@ -43,6 +43,8 @@ class _WorkflowsScreenState extends State<WorkflowsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _Header(onCreate: _openNewWorkflow),
+                      const SizedBox(height: 16),
+                      const _DraftNotice(),
                       const SizedBox(height: 26),
                       _WorkflowTabs(
                         value: _tab,
@@ -74,6 +76,34 @@ class _WorkflowsScreenState extends State<WorkflowsScreen> {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => WorkflowRunScreen(workflow: workflow),
+      ),
+    );
+  }
+}
+
+class _DraftNotice extends StatelessWidget {
+  const _DraftNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B1118),
+        border: Border.all(color: const Color(0x1FFFFFFF)),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: const ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(Icons.route_rounded, color: Color(0xFF22D3EE)),
+        title: Text(
+          'Workflow templates are drafts.',
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+        subtitle: Text(
+          'Execution will be connected later. Сейчас это библиотека production-шаблонов и стартовых сценариев.',
+        ),
       ),
     );
   }

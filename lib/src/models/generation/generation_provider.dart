@@ -30,13 +30,13 @@ extension GenerationProviderTypeLabel on GenerationProviderType {
   String get description {
     return switch (this) {
       GenerationProviderType.api =>
-        'STUDIO запускает mock/API-генерацию и показывает результат в холсте.',
+        'API-маршрут. Если API не подключён, STUDIO покажет честный placeholder.',
       GenerationProviderType.browser =>
-        'STUDIO готовит промпт и параметры, затем открывает браузерный сервис.',
+        'Browser handoff: STUDIO готовит prompt, вы открываете внешний сервис и вставляете вручную.',
       GenerationProviderType.local =>
-        'STUDIO отправит задачу в локальный runtime, когда он будет подключен.',
+        'Локальный runtime. Используется только когда локальный движок подключён.',
       GenerationProviderType.externalLink =>
-        'STUDIO сохраняет промпт и настройки, а результат возвращается вручную.',
+        'Внешняя ссылка: prompt и настройки остаются в STUDIO, результат возвращается вручную.',
     };
   }
 }

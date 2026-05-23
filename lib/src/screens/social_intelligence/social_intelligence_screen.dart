@@ -19,28 +19,43 @@ class SocialIntelligenceScreen extends StatelessWidget {
         'Remake suggestions',
         'Как пересобрать идею под Reels, Shorts и TikTok.',
       ),
-      ('Trend radar', 'Плейсхолдер для будущего анализа трендов и ниш.'),
+      ('Trend radar', 'Будущий анализ трендов и ниш.'),
     ];
     return ResponsivePage(
       title: 'Соцаналитика',
       subtitle:
           'Архитектура для Reels analysis, hooks, retention и рекомендаций по ремейкам.',
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 12,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          for (final module in modules)
-            SizedBox(
-              width: 340,
-              child: OsCard(
-                child: ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.query_stats_rounded),
-                  title: Text(module.$1),
-                  subtitle: Text(module.$2),
-                ),
+          const OsCard(
+            child: ListTile(
+              leading: Icon(Icons.construction_rounded),
+              title: Text('Раздел в подготовке'),
+              subtitle: Text(
+                'Будет подключён после основного generation workflow. Сейчас это карта будущих модулей без анализа файлов или соцсетей.',
               ),
             ),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              for (final module in modules)
+                SizedBox(
+                  width: 340,
+                  child: OsCard(
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: const Icon(Icons.query_stats_rounded),
+                      title: Text(module.$1),
+                      subtitle: Text(module.$2),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );

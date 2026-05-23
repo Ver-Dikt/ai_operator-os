@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../ai_operator_app.dart';
 import '../../data/seed_browser_ai_tools.dart';
 import '../../models/browser_ai_tool.dart';
 
@@ -22,6 +23,7 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
 
   BrowserAiCategory? _category;
   late BrowserAiTool _selectedTool;
+  bool _handoffLoaded = false;
   bool _showInternalPlaceholder = false;
   String _statusText =
       'Сервис выбран. Можно открыть сайт во внешнем браузере или подготовить prompt handoff.';
@@ -40,13 +42,43 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_handoffLoaded) return;
+    _handoffLoaded = true;
+    final settings = AppSettingsScope.of(context);
+    final prompt = settings.pendingBrowserPrompt;
+    if (prompt == null || prompt.trim().isEmpty) return;
+    final toolId = settings.pendingBrowserToolId;
+    final tool = _toolById(toolId);
+    setState(() {
+      _promptController.text = prompt;
+      if (tool != null) _selectedTool = tool;
+      _showInternalPlaceholder = false;
+      _statusText =
+          'Промпт получен из AI Чата. Можно открыть сайт во внешнем браузере или подготовить prompt handoff.';
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) settings.clearBrowserHandoff();
+    });
+  }
+
+  BrowserAiTool? _toolById(String? id) {
+    if (id == null) return null;
+    for (final tool in browserAiTools) {
+      if (tool.id == id) return tool;
+    }
+    return null;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: const BoxDecoration(
         gradient: RadialGradient(
           center: Alignment.topRight,
           radius: 1.2,
-          colors: [Color(0xFF121A22), Color(0xFF030405)],
+          colors: [Color(0xFF101821), Color(0xFF050609)],
         ),
       ),
       child: LayoutBuilder(
@@ -74,30 +106,30 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
 
           if (compact) {
             return ListView(
-              padding: const EdgeInsets.fromLTRB(16, 18, 16, 96),
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 96),
               children: [
                 const _HubHeader(),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 SizedBox(height: 560, child: workspace),
-                const SizedBox(height: 14),
+                const SizedBox(height: 12),
                 SizedBox(height: 720, child: toolsPanel),
               ],
             );
           }
 
           return Padding(
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const _HubHeader(),
-                const SizedBox(height: 18),
+                const SizedBox(height: 14),
                 Expanded(
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      SizedBox(width: 390, child: toolsPanel),
-                      const SizedBox(width: 16),
+                      SizedBox(width: 366, child: toolsPanel),
+                      const SizedBox(width: 12),
                       Expanded(child: workspace),
                     ],
                   ),
@@ -199,18 +231,18 @@ class _HubHeader extends StatelessWidget {
       width: 44,
       height: 44,
       decoration: BoxDecoration(
-        color: const Color(0xFF22D3EE),
-        borderRadius: BorderRadius.circular(14),
+        color: const Color(0xFFE7F7F4),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: const Icon(Icons.public_rounded, color: Colors.black),
     );
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xCC070A0F),
-        border: Border.all(color: const Color(0x1FFFFFFF)),
-        borderRadius: BorderRadius.circular(18),
+        color: const Color(0xA6070A0F),
+        border: Border.all(color: const Color(0x24FFFFFF)),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: compact
           ? Column(
@@ -240,7 +272,7 @@ class _DesktopBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: const Color(0x1422D3EE),
         border: Border.all(color: const Color(0x4422D3EE)),
@@ -286,11 +318,11 @@ class _ToolsPanel extends StatelessWidget {
         }).toList();
 
         return Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xCC080B10),
-            border: Border.all(color: const Color(0x1FFFFFFF)),
-            borderRadius: BorderRadius.circular(18),
+            color: const Color(0xA6080B10),
+            border: Border.all(color: const Color(0x24FFFFFF)),
+            borderRadius: BorderRadius.circular(12),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -370,24 +402,24 @@ class _ToolCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accent = selected ? const Color(0xFF22D3EE) : const Color(0x22FFFFFF);
+    final accent = selected ? const Color(0xFFC8FFF4) : const Color(0x22FFFFFF);
     return InkWell(
       onTap: onSelect,
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(12),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: selected ? const Color(0x1814B8A6) : const Color(0xFF0B0F16),
+          color: selected ? const Color(0x18C8FFF4) : const Color(0x990B0F16),
           border: Border.all(color: accent),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                Icon(tool.category.icon, color: const Color(0xFF22D3EE)),
+                Icon(tool.category.icon, color: const Color(0xFFC8FFF4)),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -403,7 +435,7 @@ class _ToolCard extends StatelessWidget {
                   selected
                       ? Icons.radio_button_checked_rounded
                       : Icons.radio_button_unchecked_rounded,
-                  color: selected ? const Color(0xFF22D3EE) : Colors.white38,
+                  color: selected ? const Color(0xFFC8FFF4) : Colors.white38,
                   size: 19,
                 ),
               ],
@@ -478,11 +510,11 @@ class _BrowserWorkspace extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xDD05070B),
         border: Border.all(color: const Color(0x1FFFFFFF)),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -491,7 +523,7 @@ class _BrowserWorkspace extends StatelessWidget {
             children: [
               Icon(
                 tool.category.icon,
-                color: const Color(0xFF22D3EE),
+                color: const Color(0xFFC8FFF4),
                 size: 30,
               ),
               const SizedBox(width: 12),
@@ -530,7 +562,7 @@ class _BrowserWorkspace extends StatelessWidget {
               decoration: BoxDecoration(
                 color: const Color(0xFF080B10),
                 border: Border.all(color: const Color(0x22FFFFFF)),
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: Stack(
                 children: [
@@ -541,7 +573,7 @@ class _BrowserWorkspace extends StatelessWidget {
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 620),
                       child: Padding(
-                        padding: const EdgeInsets.all(22),
+                        padding: const EdgeInsets.all(16),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -640,11 +672,11 @@ class _StatusPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFF0B0F16),
-        border: Border.all(color: const Color(0x22FFFFFF)),
-        borderRadius: BorderRadius.circular(16),
+        color: const Color(0x990B0F16),
+        border: Border.all(color: const Color(0x24FFFFFF)),
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
@@ -654,7 +686,7 @@ class _StatusPanel extends StatelessWidget {
                 : Icons.info_outline_rounded,
             color: isWarning
                 ? const Color(0xFFFFB86B)
-                : const Color(0xFF22D3EE),
+                : const Color(0xFFC8FFF4),
           ),
           const SizedBox(width: 10),
           Expanded(

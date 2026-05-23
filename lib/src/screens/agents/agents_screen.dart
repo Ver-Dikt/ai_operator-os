@@ -18,27 +18,42 @@ class AgentsScreen extends StatelessWidget {
       title: 'AI-помощники',
       subtitle:
           'Специализированные демо AI-помощники для планирования, маршрутизации, промптов, автоматизации и QA. Backend пока не подключён.',
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final columns = constraints.maxWidth >= 1100
-              ? 3
-              : constraints.maxWidth >= 720
-              ? 2
-              : 1;
-          return GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: seedAgents.length,
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: columns,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              mainAxisExtent: 336,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const OsCard(
+            child: ListTile(
+              leading: Icon(Icons.smart_toy_outlined),
+              title: Text('Agents are role cards for future orchestration'),
+              subtitle: Text(
+                'Real agent execution later. Сейчас карточки помогают понять будущие роли, routing и production-задачи.',
+              ),
             ),
-            itemBuilder: (context, index) =>
-                _AgentCard(agent: seedAgents[index]),
-          );
-        },
+          ),
+          const SizedBox(height: 14),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = constraints.maxWidth >= 1100
+                  ? 3
+                  : constraints.maxWidth >= 720
+                  ? 2
+                  : 1;
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: seedAgents.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: columns,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  mainAxisExtent: 336,
+                ),
+                itemBuilder: (context, index) =>
+                    _AgentCard(agent: seedAgents[index]),
+              );
+            },
+          ),
+        ],
       ),
     );
   }

@@ -18,6 +18,7 @@ extension OperatorModeLabel on OperatorMode {
 
 enum AppDestination {
   commandCenter,
+  textWorkspace,
   images,
   video,
   director,
@@ -39,6 +40,7 @@ extension AppDestinationRoute on AppDestination {
   String get routePath {
     return switch (this) {
       AppDestination.commandCenter => '/',
+      AppDestination.textWorkspace => '/text',
       AppDestination.images => '/images',
       AppDestination.video => '/video',
       AppDestination.director => '/director',
@@ -59,6 +61,7 @@ extension AppDestinationRoute on AppDestination {
 
   static AppDestination fromRoute(String? route) {
     return switch (route) {
+      '/text' || '/chat' || '/prompt-builder' => AppDestination.textWorkspace,
       '/images' || '/image' => AppDestination.images,
       '/video' => AppDestination.video,
       '/director' || '/cinema' => AppDestination.director,
@@ -84,6 +87,7 @@ extension AppDestinationRoute on AppDestination {
   String get label {
     return switch (this) {
       AppDestination.commandCenter => 'Пульт',
+      AppDestination.textWorkspace => 'AI Чат',
       AppDestination.images => 'Изображения',
       AppDestination.video => 'Видео',
       AppDestination.director => 'Режиссёр',
@@ -173,6 +177,8 @@ class AppSettings extends ChangeNotifier {
   bool darkMode = true;
   AppDestination startupDestination = AppDestination.commandCenter;
   AppDestination currentDestination = AppDestination.commandCenter;
+  String? pendingBrowserPrompt;
+  String? pendingBrowserToolId;
 
   Set<String> get favoriteIds => Set.unmodifiable(_favoriteIds);
   Set<String> get favoriteAgentIds => Set.unmodifiable(_favoriteAgentIds);
@@ -210,6 +216,18 @@ class AppSettings extends ChangeNotifier {
 
   void setDestination(AppDestination value) {
     currentDestination = value;
+    notifyListeners();
+  }
+
+  void setBrowserHandoff({required String prompt, String? toolId}) {
+    pendingBrowserPrompt = prompt;
+    pendingBrowserToolId = toolId;
+    notifyListeners();
+  }
+
+  void clearBrowserHandoff() {
+    pendingBrowserPrompt = null;
+    pendingBrowserToolId = null;
     notifyListeners();
   }
 
