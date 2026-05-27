@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../ai_operator_app.dart';
 import '../../data/seed_browser_ai_tools.dart';
 import '../../models/browser_ai_tool.dart';
+import '../../widgets/current_session_strip.dart';
 
 class BrowserHubScreen extends StatefulWidget {
   const BrowserHubScreen({super.key});
@@ -25,6 +28,7 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
   late BrowserAiTool _selectedTool;
   bool _handoffLoaded = false;
   bool _showInternalPlaceholder = false;
+  bool _runtimeWorkspaceOpened = false;
   String _statusText =
       'Сервис выбран. Можно открыть сайт во внешнем браузере или подготовить prompt handoff.';
 
@@ -44,6 +48,12 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (!_runtimeWorkspaceOpened) {
+      _runtimeWorkspaceOpened = true;
+      unawaited(
+        FlutenRuntimeScope.read(context).updateCurrentWorkspace('browser'),
+      );
+    }
     if (_handoffLoaded) return;
     _handoffLoaded = true;
     final settings = AppSettingsScope.of(context);
@@ -58,6 +68,15 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
       _statusText =
           'Промпт получен из AI Чата. Можно открыть сайт во внешнем браузере или подготовить prompt handoff.';
     });
+    unawaited(FlutenRuntimeScope.read(context).setActivePromptDraft(prompt));
+    if (tool != null) {
+      unawaited(
+        FlutenRuntimeScope.read(context).setActiveProvider(
+          tool.id,
+          route: 'browser',
+        ),
+      );
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) settings.clearBrowserHandoff();
     });
@@ -110,6 +129,8 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
               children: [
                 const _HubHeader(),
                 const SizedBox(height: 12),
+                const CurrentSessionStrip(),
+                const SizedBox(height: 12),
                 SizedBox(height: 560, child: workspace),
                 const SizedBox(height: 12),
                 SizedBox(height: 720, child: toolsPanel),
@@ -123,6 +144,8 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const _HubHeader(),
+                const SizedBox(height: 14),
+                const CurrentSessionStrip(),
                 const SizedBox(height: 14),
                 Expanded(
                   child: Row(
@@ -149,6 +172,12 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
       _statusText =
           'Сервис выбран. Можно открыть сайт во внешнем браузере или подготовить prompt handoff.';
     });
+    unawaited(
+      FlutenRuntimeScope.read(context).setActiveProvider(
+        tool.id,
+        route: 'browser',
+      ),
+    );
     _showMessage('${tool.name}: сервис выбран.');
   }
 
@@ -171,6 +200,13 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
     );
     if (!mounted) return;
     if (opened) {
+      unawaited(
+        FlutenRuntimeScope.read(context).addEvent(
+          type: 'browser',
+          title: 'External site opened',
+          detail: tool.name,
+        ),
+      );
       setState(() => _statusText = '${tool.name} открыт во внешнем браузере.');
       _showMessage('${tool.name} открыт во внешнем браузере.');
       return;
@@ -192,6 +228,15 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
   }
 
   void _saveManualResult() {
+    unawaited(
+      FlutenRuntimeScope.read(context).addAsset(
+        type: 'manual',
+        title: '${_selectedTool.name} manual result',
+        description: _promptController.text.trim(),
+        sourceProvider: _selectedTool.id,
+        url: _selectedTool.url,
+      ),
+    );
     _showMessage('Результат можно сохранить вручную после генерации.');
   }
 

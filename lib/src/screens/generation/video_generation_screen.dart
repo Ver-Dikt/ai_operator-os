@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../../ai_operator_app.dart';
 import '../../models/generation/generation_job.dart';
 import '../../models/generation/generation_provider.dart';
 import '../../models/generation/generation_request.dart';
@@ -9,6 +12,7 @@ import '../../widgets/generation/browser_workspace_panel.dart';
 import '../../widgets/generation/generation_prompt_bar.dart';
 import '../../widgets/generation/render_history_rail.dart';
 import '../../widgets/generation/result_canvas.dart';
+import '../../widgets/current_session_strip.dart';
 
 class VideoGenerationScreen extends StatefulWidget {
   const VideoGenerationScreen({super.key});
@@ -26,12 +30,49 @@ class _VideoGenerationScreenState extends State<VideoGenerationScreen> {
   GenerationProviderType _providerType = GenerationProviderType.api;
   late String _providerId;
   String _currentPrompt = '';
+  String _initialPrompt = '';
+  int _promptSeed = 0;
+  bool _promptReceivedFromChat = false;
+  bool _runtimeWorkspaceOpened = false;
   GenerationJob? _selectedJob;
 
   @override
   void initState() {
     super.initState();
     _providerId = _providersForCurrentMode().first.id;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_runtimeWorkspaceOpened) {
+      _runtimeWorkspaceOpened = true;
+      unawaited(
+        FlutenRuntimeScope.read(context).updateCurrentWorkspace('video'),
+      );
+    }
+    final settings = AppSettingsScope.of(context);
+    final draft = settings.pendingVideoPromptDraft;
+    if (draft == null || draft.trim().isEmpty) return;
+    setState(() {
+      _initialPrompt = draft.trim();
+      _currentPrompt = draft.trim();
+      _promptSeed++;
+      _promptReceivedFromChat = true;
+    });
+    unawaited(
+      FlutenRuntimeScope.read(context).setActivePromptDraft(draft.trim()),
+    );
+    unawaited(
+      FlutenRuntimeScope.read(context).addEvent(
+        type: 'video',
+        title: 'Prompt received from AI Chat',
+        detail: 'Video Studio',
+      ),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) settings.clearVideoPromptDraft();
+    });
   }
 
   @override
@@ -68,21 +109,33 @@ class _VideoGenerationScreenState extends State<VideoGenerationScreen> {
           _references.clear();
         }),
       ),
-      promptBar: GenerationPromptBar(
-        key: ValueKey(_capability),
-        capability: _capability,
-        providers: providers,
-        selectedProviderId: _providerId,
-        onProviderChanged: (value) => setState(() => _providerId = value),
-        selectedProviderType: _providerType,
-        availableProviderTypes: allProviders.map((item) => item.type).toSet(),
-        onProviderTypeChanged: _changeProviderType,
-        references: _references,
-        onAddReference: _addReference,
-        onClearReferences: () => setState(_references.clear),
-        onGenerate: _generate,
-        onPromptChanged: (value) => setState(() => _currentPrompt = value),
-        showDuration: true,
+      promptBar: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_promptReceivedFromChat) ...[
+            const _ChatPromptNotice(),
+            const SizedBox(height: 8),
+          ],
+          GenerationPromptBar(
+            key: ValueKey('$_capability-$_promptSeed'),
+            capability: _capability,
+            providers: providers,
+            selectedProviderId: _providerId,
+            onProviderChanged: (value) => setState(() => _providerId = value),
+            selectedProviderType: _providerType,
+            availableProviderTypes: allProviders
+                .map((item) => item.type)
+                .toSet(),
+            onProviderTypeChanged: _changeProviderType,
+            references: _references,
+            onAddReference: _addReference,
+            onClearReferences: () => setState(_references.clear),
+            onGenerate: _generate,
+            onPromptChanged: (value) => setState(() => _currentPrompt = value),
+            initialPrompt: _initialPrompt,
+            showDuration: true,
+          ),
+        ],
       ),
       canvas: browserLike
           ? BrowserWorkspacePanel(
@@ -113,7 +166,7 @@ class _VideoGenerationScreenState extends State<VideoGenerationScreen> {
     final provider = _registry.byId(request.providerId);
     if (provider.type == GenerationProviderType.browser ||
         provider.type == GenerationProviderType.externalLink) {
-      _saveManualResult();
+      _saveManualResult(saveAsset: false);
       _showMessage(
         'Промпт подготовлен. Скопируйте его и откройте сервис в browser handoff panel.',
       );
@@ -135,6 +188,17 @@ class _VideoGenerationScreenState extends State<VideoGenerationScreen> {
       _jobs.insert(0, job);
       _selectedJob = job;
     });
+    unawaited(
+      FlutenRuntimeScope.read(context).addGenerationJob(
+        workspaceType: 'video',
+        providerId: provider.id,
+        routeType: 'mock',
+        prompt: request.prompt,
+        status: 'completed',
+        resultLabel: job.title,
+        resultUrl: job.outputUrl,
+      ),
+    );
   }
 
   void _showMessage(String text) {
@@ -174,7 +238,7 @@ class _VideoGenerationScreenState extends State<VideoGenerationScreen> {
     });
   }
 
-  void _saveManualResult() {
+  void _saveManualResult({bool saveAsset = true}) {
     final request = GenerationRequest(
       prompt: _currentPrompt.trim(),
       providerId: _providerId,
@@ -190,6 +254,34 @@ class _VideoGenerationScreenState extends State<VideoGenerationScreen> {
       _jobs.insert(0, job);
       _selectedJob = job;
     });
+    final provider = _registry.byId(_providerId);
+    final route = provider.type == GenerationProviderType.externalLink
+        ? 'external'
+        : provider.type == GenerationProviderType.browser
+        ? 'browser'
+        : 'manual';
+    unawaited(
+      FlutenRuntimeScope.read(context).addGenerationJob(
+        workspaceType: 'video',
+        providerId: provider.id,
+        routeType: route,
+        prompt: request.prompt,
+        status: saveAsset ? 'manual' : 'prepared',
+        resultLabel: saveAsset ? 'Manual video result' : 'Video route prepared',
+        resultUrl: provider.launchUrl,
+      ),
+    );
+    if (saveAsset) {
+      unawaited(
+        FlutenRuntimeScope.read(context).addAsset(
+          type: 'manual',
+          title: 'Manual video result',
+          description: request.prompt,
+          sourceProvider: provider.id,
+          url: provider.launchUrl,
+        ),
+      );
+    }
   }
 }
 
@@ -227,6 +319,8 @@ class _VideoWorkspace extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _WorkspaceHeader(modeSelector: modeSelector),
+                  const SizedBox(height: 14),
+                  const CurrentSessionStrip(),
                   const SizedBox(height: 14),
                   Expanded(
                     child: Row(
@@ -280,6 +374,8 @@ class _VideoWorkspace extends StatelessWidget {
                       children: [
                         _WorkspaceHeader(modeSelector: modeSelector),
                         const SizedBox(height: 14),
+                        const CurrentSessionStrip(),
+                        const SizedBox(height: 14),
                         promptBar,
                         const SizedBox(height: 14),
                         if (compact)
@@ -306,6 +402,31 @@ class _VideoWorkspace extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ChatPromptNotice extends StatelessWidget {
+  const _ChatPromptNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0x18C8FFF4),
+        border: Border.all(color: const Color(0x33C8FFF4)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Text(
+        'Промпт получен из AI Chat',
+        style: TextStyle(
+          color: Color(0xFFC8FFF4),
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
         ),
       ),
     );

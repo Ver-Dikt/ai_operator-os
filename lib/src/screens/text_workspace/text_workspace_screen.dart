@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -7,6 +9,7 @@ import '../../data/seed_browser_ai_tools.dart';
 import '../../models/browser_ai_tool.dart';
 import '../../services/ollama_execution_service.dart';
 import '../../state/app_settings.dart';
+import '../../widgets/current_session_strip.dart';
 
 enum TextRouteMode { localOllama, browser, apiPlaceholder, manual }
 
@@ -113,9 +116,18 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
   bool _running = false;
   _BrowserHandoff? _handoff;
   bool _showInlineWebViewPlaceholder = false;
+  bool _runtimeWorkspaceOpened = false;
 
   TextAiProvider get _provider =>
       textAiProviders.firstWhere((item) => item.id == _providerId);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_runtimeWorkspaceOpened) return;
+    _runtimeWorkspaceOpened = true;
+    unawaited(FlutenRuntimeScope.read(context).updateCurrentWorkspace('text'));
+  }
 
   @override
   void dispose() {
@@ -151,6 +163,8 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
                 children: [
                   _Header(provider: _provider, settings: settings),
                   const SizedBox(height: 16),
+                  const CurrentSessionStrip(),
+                  const SizedBox(height: 12),
                   Expanded(
                     child: compact
                         ? Column(
@@ -264,6 +278,12 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
         _showInlineWebViewPlaceholder = false;
       }
     });
+    unawaited(
+      FlutenRuntimeScope.read(context).setActiveProvider(
+        _provider.id,
+        route: _provider.mode.name,
+      ),
+    );
     _recordEvent('Выбран провайдер: ${_provider.name}');
   }
 
@@ -274,6 +294,7 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
       _messages.add(_ChatMessage(role: _MessageRole.user, text: prompt));
       _input.clear();
     });
+    unawaited(FlutenRuntimeScope.read(context).setActivePromptDraft(prompt));
     _recordEvent('Сообщение отправлено в ${_provider.name}');
 
     switch (_provider.mode) {
@@ -320,13 +341,16 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
     final tool = _browserToolForProvider(_provider);
     if (tool == null) {
       await Clipboard.setData(ClipboardData(text: prompt));
+      if (!mounted) return;
       _addAssistant(
         'Browser handoff подготовлен, но сервис не найден. Промпт скопирован.',
       );
       _showMessage('Промпт скопирован.');
       return;
     }
+    final runtime = FlutenRuntimeScope.read(context);
     await Clipboard.setData(ClipboardData(text: prompt));
+    if (!mounted) return;
     setState(() {
       _handoff = _BrowserHandoff(tool: tool, prompt: prompt);
       _showInlineWebViewPlaceholder = false;
@@ -339,6 +363,17 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
         ),
       );
     });
+    unawaited(
+      runtime.addGenerationJob(
+        workspaceType: 'browser',
+        providerId: tool.id,
+        routeType: 'browser',
+        prompt: prompt,
+        status: 'prepared',
+        resultLabel: 'Browser handoff prepared',
+        resultUrl: tool.url,
+      ),
+    );
     _addAssistant(
       'Browser handoff готов для ${tool.name}. API-ответ не имитируется: откройте сервис и вставьте промпт вручную.',
     );
@@ -346,40 +381,46 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
   }
 
   void _buildImagePrompt() {
-    final source = _currentText();
-    if (source.trim().isEmpty) {
-      _showMessage('Сначала введите текст для промпта.');
+    final builderSource = getPromptBuilderSource();
+    if (builderSource == null) {
+      _requestPromptBuilderSource();
       return;
     }
+    final source = builderSource.text;
     final prompt =
         'Image production prompt\n'
         'Subject: $source\n'
         'Style: cinematic AI creative studio, premium production look\n'
         'Composition: clear focal subject, readable foreground/midground/background\n'
         'Lighting: controlled cinematic light, soft contrast, practical highlights\n'
+        'Mood: atmospheric, polished, emotionally clear\n'
         'Aspect ratio: 16:9 placeholder\n'
-        'Quality hint: high detail, clean edges, production-ready image';
-    _addPromptDraft(prompt, _PromptDraftTarget.image);
+        'Quality hint: high detail, clean edges, production-ready image\n'
+        'Negative prompt: low quality, blurry, distorted anatomy, unreadable text, artifacts';
+    _addPromptDraft(prompt, _PromptDraftTarget.image, builderSource.label);
+    unawaited(FlutenRuntimeScope.read(context).setActivePromptDraft(prompt));
     Clipboard.setData(ClipboardData(text: prompt));
     _showMessage('Image Prompt собран и скопирован.');
   }
 
   void _buildVideoPrompt() {
-    final source = _currentText();
-    if (source.trim().isEmpty) {
-      _showMessage('Сначала введите текст для промпта.');
+    final builderSource = getPromptBuilderSource();
+    if (builderSource == null) {
+      _requestPromptBuilderSource();
       return;
     }
+    final source = builderSource.text;
     final prompt =
         'Video production prompt\n'
         'Scene: $source\n'
         'Camera movement: deliberate cinematic move, no random motion\n'
         'Action: one clear action beat with readable blocking\n'
-        'Timing: opening frame, middle movement, final hold\n'
+        'Duration / shot structure: 5-8 sec, opening frame, middle movement, final hold\n'
         'Mood: cinematic, coherent light and atmosphere\n'
         'Continuity: keep subject, style, lens and environment consistent\n'
         'Final gesture: end on a clear visual payoff';
-    _addPromptDraft(prompt, _PromptDraftTarget.video);
+    _addPromptDraft(prompt, _PromptDraftTarget.video, builderSource.label);
+    unawaited(FlutenRuntimeScope.read(context).setActivePromptDraft(prompt));
     Clipboard.setData(ClipboardData(text: prompt));
     _showMessage('Video Prompt собран и скопирован.');
   }
@@ -440,6 +481,12 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
   Future<void> _openHandoffExternal() async {
     final handoff = _handoff;
     if (handoff == null) return;
+    unawaited(
+      FlutenRuntimeScope.read(context).setActiveProvider(
+        handoff.tool.id,
+        route: 'browser',
+      ),
+    );
     final opened = await launchUrl(
       Uri.parse(handoff.tool.url),
       mode: LaunchMode.externalApplication,
@@ -462,6 +509,18 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
   }
 
   void _saveManualHandoff() {
+    final handoff = _handoff;
+    if (handoff != null) {
+      unawaited(
+        FlutenRuntimeScope.read(context).addAsset(
+          type: 'manual',
+          title: '${handoff.tool.name} manual result',
+          description: handoff.prompt,
+          sourceProvider: handoff.tool.id,
+          url: handoff.tool.url,
+        ),
+      );
+    }
     _showMessage('Результат можно сохранить вручную после генерации.');
   }
 
@@ -479,6 +538,8 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
       destination: AppDestination.images,
       studioName: 'Image Studio',
       eventName: 'Sent to Image Studio',
+      setDraft: AppSettingsScope.of(context).setImagePromptDraft,
+      sentMessage: 'Промпт отправлен в Image Studio',
     );
   }
 
@@ -488,6 +549,8 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
       destination: AppDestination.video,
       studioName: 'Video Studio',
       eventName: 'Sent to Video Studio',
+      setDraft: AppSettingsScope.of(context).setVideoPromptDraft,
+      sentMessage: 'Промпт отправлен в Video Studio',
     );
   }
 
@@ -496,14 +559,26 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
     required AppDestination destination,
     required String studioName,
     required String eventName,
+    required ValueChanged<String> setDraft,
+    required String sentMessage,
   }) async {
     if (text.trim().isEmpty) {
       _showMessage('Сначала подготовьте промпт.');
       return;
     }
+    setDraft(text.trim());
+    unawaited(FlutenRuntimeScope.read(context).setActivePromptDraft(text.trim()));
     await Clipboard.setData(ClipboardData(text: text.trim()));
     if (!mounted) return;
-    _showMessage('Промпт скопирован. Вставьте его в $studioName.');
+
+    _showMessage(sentMessage);
+    unawaited(
+      FlutenRuntimeScope.read(context).addEvent(
+        type: 'handoff',
+        title: eventName,
+        detail: studioName,
+      ),
+    );
     _recordEvent(eventName);
     widget.onNavigate(destination);
   }
@@ -519,11 +594,26 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
     final settings = AppSettingsScope.of(context);
     final tool = _handoff?.tool ?? _browserToolForProvider(_provider);
     settings.setBrowserHandoff(prompt: text.trim(), toolId: tool?.id);
+    unawaited(
+      FlutenRuntimeScope.read(context).addGenerationJob(
+        workspaceType: 'browser',
+        providerId: tool?.id,
+        routeType: 'browser',
+        prompt: text.trim(),
+        status: 'prepared',
+        resultLabel: 'Browser Hub handoff',
+        resultUrl: tool?.url,
+      ),
+    );
     _showMessage('Промпт скопирован. Открываю Browser Hub.');
     widget.onNavigate(AppDestination.browserHub);
   }
 
-  void _addPromptDraft(String text, _PromptDraftTarget target) {
+  void _addPromptDraft(
+    String text,
+    _PromptDraftTarget target,
+    String sourceLabel,
+  ) {
     setState(() {
       _messages.add(
         _ChatMessage(
@@ -531,6 +621,7 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
           text: text,
           kind: _MessageKind.promptDraft,
           draftTarget: target,
+          sourceLabel: sourceLabel,
         ),
       );
     });
@@ -541,6 +632,9 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
       _events.insert(0, _SessionEvent(label: label, createdAt: DateTime.now()));
       if (_events.length > 12) _events.removeLast();
     });
+    unawaited(
+      FlutenRuntimeScope.read(context).addEvent(type: 'text', title: label),
+    );
   }
 
   void _showAttachmentPlaceholder() {
@@ -557,9 +651,52 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
     final input = _input.text.trim();
     if (input.isNotEmpty) return input;
     for (final message in _messages.reversed) {
-      if (message.text.trim().isNotEmpty) return message.text;
+      if (message.role == _MessageRole.user && message.text.trim().isNotEmpty) {
+        return message.text;
+      }
+    }
+    for (final message in _messages.reversed) {
+      if (message.kind == _MessageKind.promptDraft &&
+          message.text.trim().isNotEmpty) {
+        return message.text;
+      }
     }
     return '';
+  }
+
+  _PromptBuilderSource? getPromptBuilderSource() {
+    final input = _input.text.trim();
+    if (input.isNotEmpty) {
+      return _PromptBuilderSource(
+        text: input,
+        label: 'Источник: текущий ввод',
+      );
+    }
+    for (final message in _messages.reversed) {
+      if (message.role == _MessageRole.user && message.text.trim().isNotEmpty) {
+        return _PromptBuilderSource(
+          text: message.text.trim(),
+          label: 'Источник: последнее сообщение пользователя',
+        );
+      }
+    }
+    for (final message in _messages.reversed) {
+      if (message.kind == _MessageKind.promptDraft &&
+          message.text.trim().isNotEmpty) {
+        return _PromptBuilderSource(
+          text: message.text.trim(),
+          label: 'Источник: выбранный draft',
+        );
+      }
+    }
+    return null;
+  }
+
+  void _requestPromptBuilderSource() {
+    const message =
+        'Опиши идею, сцену или задачу, и я соберу production prompt.';
+    _addAssistant(message);
+    _showMessage(message);
   }
 
   BrowserAiTool? _browserToolForProvider(TextAiProvider provider) {
@@ -596,6 +733,7 @@ class _ChatMessage {
     this.kind = _MessageKind.plain,
     this.handoff,
     this.draftTarget,
+    this.sourceLabel,
   });
 
   final _MessageRole role;
@@ -603,6 +741,7 @@ class _ChatMessage {
   final _MessageKind kind;
   final _BrowserHandoff? handoff;
   final _PromptDraftTarget? draftTarget;
+  final String? sourceLabel;
 }
 
 class _SessionEvent {
@@ -610,6 +749,13 @@ class _SessionEvent {
 
   final String label;
   final DateTime createdAt;
+}
+
+class _PromptBuilderSource {
+  const _PromptBuilderSource({required this.text, required this.label});
+
+  final String text;
+  final String label;
 }
 
 class _Header extends StatelessWidget {
@@ -903,6 +1049,17 @@ class _PromptDraftCard extends StatelessWidget {
                 fontWeight: FontWeight.w800,
               ),
             ),
+            if (message.sourceLabel != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                message.sourceLabel!,
+                style: const TextStyle(
+                  color: Color(0xFF8B97A8),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
             const SizedBox(height: 8),
             SelectableText(
               message.text,
