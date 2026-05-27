@@ -197,8 +197,10 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
                                 _ControlPanel(
                                   providerId: _providerId,
                                   onProviderChanged: _setProvider,
-                                  onImagePrompt: _buildImagePrompt,
-                                  onVideoPrompt: _buildVideoPrompt,
+                                  onImagePrompt: () =>
+                                      unawaited(_buildImagePrompt()),
+                                  onVideoPrompt: () =>
+                                      unawaited(_buildVideoPrompt()),
                                   onCopy: _copyCurrentText,
                                   onBrowserHub: _openInBrowserHub,
                                   onSendImage: _sendCurrentToImageStudio,
@@ -239,8 +241,10 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
                                     : _ControlPanel(
                                         providerId: _providerId,
                                         onProviderChanged: _setProvider,
-                                        onImagePrompt: _buildImagePrompt,
-                                        onVideoPrompt: _buildVideoPrompt,
+                                        onImagePrompt: () =>
+                                            unawaited(_buildImagePrompt()),
+                                        onVideoPrompt: () =>
+                                            unawaited(_buildVideoPrompt()),
                                         onCopy: _copyCurrentText,
                                         onBrowserHub: _openInBrowserHub,
                                         onSendImage: _sendCurrentToImageStudio,
@@ -258,8 +262,8 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
                     provider: _provider,
                     onSend: _send,
                     onAttach: _showAttachmentPlaceholder,
-                    onImage: _buildImagePrompt,
-                    onVideo: _buildVideoPrompt,
+                    onImage: () => unawaited(_buildImagePrompt()),
+                    onVideo: () => unawaited(_buildVideoPrompt()),
                   ),
                 ],
               ),
@@ -380,49 +384,224 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
     _showMessage('Промпт скопирован. Handoff panel обновлена.');
   }
 
-  void _buildImagePrompt() {
+  Future<void> _buildImagePrompt() async {
     final builderSource = getPromptBuilderSource();
     if (builderSource == null) {
       _requestPromptBuilderSource();
       return;
     }
-    final source = builderSource.text;
-    final prompt =
-        'Image production prompt\n'
-        'Subject: $source\n'
-        'Style: cinematic AI creative studio, premium production look\n'
-        'Composition: clear focal subject, readable foreground/midground/background\n'
-        'Lighting: controlled cinematic light, soft contrast, practical highlights\n'
-        'Mood: atmospheric, polished, emotionally clear\n'
-        'Aspect ratio: 16:9 placeholder\n'
-        'Quality hint: high detail, clean edges, production-ready image\n'
-        'Negative prompt: low quality, blurry, distorted anatomy, unreadable text, artifacts';
+    _recordEvent('Prompt source selected: ${builderSource.label}');
+    if (_provider.mode == TextRouteMode.browser) {
+      await _preparePromptBuilderHandoff(
+        source: builderSource.text,
+        target: _PromptDraftTarget.image,
+      );
+      return;
+    }
+    final prompt = await _buildPromptWithBestAvailableRoute(
+      source: builderSource.text,
+      target: _PromptDraftTarget.image,
+    );
+    if (!mounted) return;
     _addPromptDraft(prompt, _PromptDraftTarget.image, builderSource.label);
     unawaited(FlutenRuntimeScope.read(context).setActivePromptDraft(prompt));
-    Clipboard.setData(ClipboardData(text: prompt));
+    await Clipboard.setData(ClipboardData(text: prompt));
+    if (!mounted) return;
+    _recordEvent('Image prompt generated');
     _showMessage('Image Prompt собран и скопирован.');
   }
 
-  void _buildVideoPrompt() {
+  Future<void> _buildVideoPrompt() async {
     final builderSource = getPromptBuilderSource();
     if (builderSource == null) {
       _requestPromptBuilderSource();
       return;
     }
-    final source = builderSource.text;
-    final prompt =
-        'Video production prompt\n'
-        'Scene: $source\n'
-        'Camera movement: deliberate cinematic move, no random motion\n'
-        'Action: one clear action beat with readable blocking\n'
-        'Duration / shot structure: 5-8 sec, opening frame, middle movement, final hold\n'
-        'Mood: cinematic, coherent light and atmosphere\n'
-        'Continuity: keep subject, style, lens and environment consistent\n'
-        'Final gesture: end on a clear visual payoff';
+    _recordEvent('Prompt source selected: ${builderSource.label}');
+    if (_provider.mode == TextRouteMode.browser) {
+      await _preparePromptBuilderHandoff(
+        source: builderSource.text,
+        target: _PromptDraftTarget.video,
+      );
+      return;
+    }
+    final prompt = await _buildPromptWithBestAvailableRoute(
+      source: builderSource.text,
+      target: _PromptDraftTarget.video,
+    );
+    if (!mounted) return;
     _addPromptDraft(prompt, _PromptDraftTarget.video, builderSource.label);
     unawaited(FlutenRuntimeScope.read(context).setActivePromptDraft(prompt));
-    Clipboard.setData(ClipboardData(text: prompt));
+    await Clipboard.setData(ClipboardData(text: prompt));
+    if (!mounted) return;
+    _recordEvent('Video prompt generated');
     _showMessage('Video Prompt собран и скопирован.');
+  }
+
+  Future<String> _buildPromptWithBestAvailableRoute({
+    required String source,
+    required _PromptDraftTarget target,
+  }) async {
+    final ollamaPrompt = await _tryBuildPromptWithOllama(
+      source: source,
+      target: target,
+    );
+    if (!mounted) {
+      return target == _PromptDraftTarget.image
+          ? _buildLocalImagePrompt(source)
+          : _buildLocalVideoPrompt(source);
+    }
+    if (ollamaPrompt != null && ollamaPrompt.trim().isNotEmpty) {
+      _recordEvent('Ollama prompt builder used');
+      return ollamaPrompt.trim();
+    }
+
+    _recordEvent('Fallback template used');
+    _addAssistant(
+      'Собрано локальным шаблоном. Для более сильной сборки включите Ollama.',
+    );
+    return target == _PromptDraftTarget.image
+        ? _buildLocalImagePrompt(source)
+        : _buildLocalVideoPrompt(source);
+  }
+
+  Future<String?> _tryBuildPromptWithOllama({
+    required String source,
+    required _PromptDraftTarget target,
+  }) async {
+    if (_provider.mode != TextRouteMode.localOllama) return null;
+    final settings = AppSettingsScope.of(context);
+    final instruction = target == _PromptDraftTarget.image
+        ? _imagePromptBuilderInstruction(source)
+        : _videoPromptBuilderInstruction(source);
+
+    setState(() => _running = true);
+    final result = await const OllamaExecutionService().generate(
+      endpoint: settings.ollamaBaseUrl,
+      model: settings.ollamaModel,
+      prompt: instruction,
+    );
+    if (!mounted) return null;
+    setState(() => _running = false);
+    if (!result.success || (result.response?.trim().isEmpty ?? true)) {
+      return null;
+    }
+    return result.response!.trim();
+  }
+
+  Future<void> _preparePromptBuilderHandoff({
+    required String source,
+    required _PromptDraftTarget target,
+  }) async {
+    final tool = _browserToolForProvider(_provider);
+    if (tool == null) {
+      _showMessage('Сервис для browser handoff не найден.');
+      return;
+    }
+    final instruction = target == _PromptDraftTarget.image
+        ? _imagePromptBuilderInstruction(source)
+        : _videoPromptBuilderInstruction(source);
+    await Clipboard.setData(ClipboardData(text: instruction));
+    if (!mounted) return;
+    setState(() {
+      _handoff = _BrowserHandoff(tool: tool, prompt: instruction);
+      _showInlineWebViewPlaceholder = false;
+      _messages.add(
+        _ChatMessage(
+          role: _MessageRole.assistant,
+          text: instruction,
+          kind: _MessageKind.browserHandoff,
+          handoff: _handoff,
+        ),
+      );
+    });
+    _recordEvent(
+      target == _PromptDraftTarget.image
+          ? 'Image prompt builder browser handoff prepared'
+          : 'Video prompt builder browser handoff prepared',
+    );
+    _showMessage('Browser handoff подготовлен. Промпт скопирован.');
+  }
+
+  String _imagePromptBuilderInstruction(String source) {
+    return '''
+You are FLUTEN Visual Engine. Build a production-ready image generation prompt from this user idea:
+$source
+
+Return a structured prompt with:
+- subject
+- environment
+- visual style
+- composition
+- lighting
+- mood
+- camera/framing
+- quality/detail
+- optional negative prompt
+- final clean prompt
+
+Do not invent a different idea. Make the result specific, cinematic, and directly usable in an image model.
+''';
+  }
+
+  String _videoPromptBuilderInstruction(String source) {
+    return '''
+You are FLUTEN Director Engine. Build a cinematic video generation prompt from this user idea:
+$source
+
+Return a structured prompt with:
+- scene
+- action
+- camera movement
+- shot duration
+- pacing
+- lighting
+- mood
+- continuity
+- final gesture / ending beat
+- final clean prompt
+
+Use these principles:
+- camera movement only with dramatic reason
+- blocking stronger than prompting
+- depth stronger than chaos
+- emotional rhythm controls attention
+- final gesture redefines the scene
+
+Do not invent a different idea. Make the result specific and directly usable in a video model.
+''';
+  }
+
+  String _buildLocalImagePrompt(String source) {
+    return '''
+Image production prompt
+Subject: $source
+Environment: cinematic urban or story-relevant space with readable foreground, midground, and background
+Visual style: cinematic AI creative studio, premium production look, grounded detail
+Composition: clear focal subject, strong silhouette, layered depth, no visual clutter
+Lighting: controlled cinematic light, soft contrast, practical highlights, motivated shadows
+Mood: atmospheric, polished, emotionally clear
+Camera / framing: intentional frame, subject readable, lens-like perspective, stable composition
+Quality / detail: high detail, clean edges, coherent anatomy, production-ready image
+Negative prompt: low quality, blurry, distorted anatomy, unreadable text, artifacts, random objects
+Final clean prompt: $source, cinematic production still, layered depth, motivated lighting, clear subject, premium detail, coherent composition
+''';
+  }
+
+  String _buildLocalVideoPrompt(String source) {
+    return '''
+Video production prompt
+Scene: $source
+Action: one clear action beat with readable blocking and a motivated change in the scene
+Camera movement: deliberate cinematic move only if it reveals emotion, space, or story
+Shot duration: 5-8 seconds, opening frame, middle movement, final hold
+Pacing: calm setup, controlled movement, clear ending beat
+Lighting: coherent cinematic light, motivated shadows, readable subject separation
+Mood: cinematic, emotionally focused, atmospheric without chaos
+Continuity: keep subject, style, lens, environment, wardrobe, and lighting consistent
+Final gesture / ending beat: a small action or reveal that redefines the moment
+Final clean prompt: $source, cinematic short video shot, strong blocking, layered depth, motivated camera movement, emotional rhythm, coherent continuity, final gesture
+''';
   }
 
   Future<void> _copyCurrentText() async {
@@ -642,8 +821,9 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
   }
 
   void _addAssistant(String text) {
+    final displayText = _normalizeUiMessage(text);
     setState(() {
-      _messages.add(_ChatMessage(role: _MessageRole.assistant, text: text));
+      _messages.add(_ChatMessage(role: _MessageRole.assistant, text: displayText));
     });
   }
 
@@ -666,30 +846,53 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
 
   _PromptBuilderSource? getPromptBuilderSource() {
     final input = _input.text.trim();
-    if (input.isNotEmpty) {
+    if (_isValidPromptBuilderSource(input)) {
       return _PromptBuilderSource(
         text: input,
         label: 'Источник: текущий ввод',
       );
     }
     for (final message in _messages.reversed) {
-      if (message.role == _MessageRole.user && message.text.trim().isNotEmpty) {
+      final text = message.text.trim();
+      if (message.role == _MessageRole.user &&
+          _isValidPromptBuilderSource(text)) {
         return _PromptBuilderSource(
-          text: message.text.trim(),
+          text: text,
           label: 'Источник: последнее сообщение пользователя',
         );
       }
     }
     for (final message in _messages.reversed) {
+      final text = message.text.trim();
       if (message.kind == _MessageKind.promptDraft &&
-          message.text.trim().isNotEmpty) {
+          message.draftTarget != null &&
+          _isValidPromptBuilderSource(text)) {
         return _PromptBuilderSource(
-          text: message.text.trim(),
+          text: text,
           label: 'Источник: выбранный draft',
         );
       }
     }
     return null;
+  }
+
+  bool _isValidPromptBuilderSource(String value) {
+    final text = value.trim();
+    if (text.isEmpty) return false;
+    final normalized = text.toLowerCase();
+    const blocked = [
+      'browser handoff',
+      'api placeholder',
+      'manual mode',
+      'ollama unavailable',
+      'runtime',
+      'placeholder',
+      'опиши идею',
+      'промпт получен',
+      'сервис выбран',
+      'prompt copied',
+    ];
+    return !blocked.any(normalized.contains);
   }
 
   void _requestPromptBuilderSource() {
@@ -709,7 +912,16 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
   }
 
   void _showMessage(String text) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(_normalizeUiMessage(text))));
+  }
+
+  String _normalizeUiMessage(String text) {
+    if (text.contains('production prompt') && text.contains('РћРї')) {
+      return 'Опиши идею, сцену или задачу, и я соберу production prompt.';
+    }
+    return text;
   }
 }
 
@@ -1029,6 +1241,7 @@ class _PromptDraftCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isImage = message.draftTarget == _PromptDraftTarget.image;
+    final sourceLabel = _readableSourceLabel(message.sourceLabel);
     return Align(
       alignment: Alignment.centerLeft,
       child: Container(
@@ -1043,16 +1256,16 @@ class _PromptDraftCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              isImage ? 'Prompt Draft · Image' : 'Prompt Draft · Video',
+              isImage ? 'Image Prompt' : 'Video Prompt',
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w800,
               ),
             ),
-            if (message.sourceLabel != null) ...[
+            if (sourceLabel != null) ...[
               const SizedBox(height: 4),
               Text(
-                message.sourceLabel!,
+                sourceLabel,
                 style: const TextStyle(
                   color: Color(0xFF8B97A8),
                   fontSize: 12,
@@ -1092,6 +1305,16 @@ class _PromptDraftCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String? _readableSourceLabel(String? value) {
+  if (value == null) return null;
+  if (value.contains('draft')) return 'РСЃС‚РѕС‡РЅРёРє: РІС‹Р±СЂР°РЅРЅС‹Р№ draft';
+  if (value.contains('Р Р†Р Р†')) return 'РСЃС‚РѕС‡РЅРёРє: С‚РµРєСѓС‰РёР№ РІРІРѕРґ';
+  if (value.contains('Р С—Р С•РЎРѓ')) {
+    return 'РСЃС‚РѕС‡РЅРёРє: РїРѕСЃР»РµРґРЅРµРµ СЃРѕРѕР±С‰РµРЅРёРµ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ';
+  }
+  return value;
 }
 
 class _MessageBubble extends StatelessWidget {
