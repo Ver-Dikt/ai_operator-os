@@ -102,6 +102,11 @@ class TextWorkspaceScreen extends StatefulWidget {
 }
 
 class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
+  static final List<_ChatMessage> _cachedMessages = [];
+  static final List<_SessionEvent> _cachedEvents = [];
+  static String _cachedInputText = '';
+  static String _cachedProviderId = textAiProviders.first.id;
+
   final _input = TextEditingController();
   final _messages = <_ChatMessage>[
     const _ChatMessage(
@@ -122,6 +127,20 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
       textAiProviders.firstWhere((item) => item.id == _providerId);
 
   @override
+  void initState() {
+    super.initState();
+    if (_cachedMessages.isNotEmpty) {
+      _messages
+        ..clear()
+        ..addAll(_cachedMessages);
+    }
+    _events.addAll(_cachedEvents);
+    _providerId = _cachedProviderId;
+    _input.text = _cachedInputText;
+    _input.addListener(_persistSession);
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_runtimeWorkspaceOpened) return;
@@ -131,8 +150,21 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
 
   @override
   void dispose() {
+    _persistSession();
+    _input.removeListener(_persistSession);
     _input.dispose();
     super.dispose();
+  }
+
+  void _persistSession() {
+    _cachedMessages
+      ..clear()
+      ..addAll(_messages);
+    _cachedEvents
+      ..clear()
+      ..addAll(_events);
+    _cachedInputText = _input.text;
+    _cachedProviderId = _providerId;
   }
 
   @override
@@ -282,11 +314,11 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
         _showInlineWebViewPlaceholder = false;
       }
     });
+    _persistSession();
     unawaited(
-      FlutenRuntimeScope.read(context).setActiveProvider(
-        _provider.id,
-        route: _provider.mode.name,
-      ),
+      FlutenRuntimeScope.read(
+        context,
+      ).setActiveProvider(_provider.id, route: _provider.mode.name),
     );
     _recordEvent('Выбран провайдер: ${_provider.name}');
   }
@@ -298,6 +330,7 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
       _messages.add(_ChatMessage(role: _MessageRole.user, text: prompt));
       _input.clear();
     });
+    _persistSession();
     unawaited(FlutenRuntimeScope.read(context).setActivePromptDraft(prompt));
     _recordEvent('Сообщение отправлено в ${_provider.name}');
 
@@ -661,10 +694,9 @@ Final clean prompt: $source, cinematic short video shot, strong blocking, layere
     final handoff = _handoff;
     if (handoff == null) return;
     unawaited(
-      FlutenRuntimeScope.read(context).setActiveProvider(
-        handoff.tool.id,
-        route: 'browser',
-      ),
+      FlutenRuntimeScope.read(
+        context,
+      ).setActiveProvider(handoff.tool.id, route: 'browser'),
     );
     final opened = await launchUrl(
       Uri.parse(handoff.tool.url),
@@ -716,7 +748,7 @@ Final clean prompt: $source, cinematic short video shot, strong blocking, layere
       text: text,
       destination: AppDestination.images,
       studioName: 'Image Studio',
-      eventName: 'Sent to Image Studio',
+      eventName: 'AI Chat image prompt sent to Image Studio',
       setDraft: AppSettingsScope.of(context).setImagePromptDraft,
       sentMessage: 'Промпт отправлен в Image Studio',
     );
@@ -727,7 +759,7 @@ Final clean prompt: $source, cinematic short video shot, strong blocking, layere
       text: text,
       destination: AppDestination.video,
       studioName: 'Video Studio',
-      eventName: 'Sent to Video Studio',
+      eventName: 'AI Chat video prompt sent to Video Studio',
       setDraft: AppSettingsScope.of(context).setVideoPromptDraft,
       sentMessage: 'Промпт отправлен в Video Studio',
     );
@@ -746,17 +778,16 @@ Final clean prompt: $source, cinematic short video shot, strong blocking, layere
       return;
     }
     setDraft(text.trim());
-    unawaited(FlutenRuntimeScope.read(context).setActivePromptDraft(text.trim()));
-    await Clipboard.setData(ClipboardData(text: text.trim()));
-    if (!mounted) return;
+    unawaited(
+      FlutenRuntimeScope.read(context).setActivePromptDraft(text.trim()),
+    );
+    unawaited(Clipboard.setData(ClipboardData(text: text.trim())));
 
     _showMessage(sentMessage);
     unawaited(
-      FlutenRuntimeScope.read(context).addEvent(
-        type: 'handoff',
-        title: eventName,
-        detail: studioName,
-      ),
+      FlutenRuntimeScope.read(
+        context,
+      ).addEvent(type: 'handoff', title: eventName, detail: studioName),
     );
     _recordEvent(eventName);
     widget.onNavigate(destination);
@@ -804,6 +835,7 @@ Final clean prompt: $source, cinematic short video shot, strong blocking, layere
         ),
       );
     });
+    _persistSession();
   }
 
   void _recordEvent(String label) {
@@ -811,6 +843,7 @@ Final clean prompt: $source, cinematic short video shot, strong blocking, layere
       _events.insert(0, _SessionEvent(label: label, createdAt: DateTime.now()));
       if (_events.length > 12) _events.removeLast();
     });
+    _persistSession();
     unawaited(
       FlutenRuntimeScope.read(context).addEvent(type: 'text', title: label),
     );
@@ -823,8 +856,11 @@ Final clean prompt: $source, cinematic short video shot, strong blocking, layere
   void _addAssistant(String text) {
     final displayText = _normalizeUiMessage(text);
     setState(() {
-      _messages.add(_ChatMessage(role: _MessageRole.assistant, text: displayText));
+      _messages.add(
+        _ChatMessage(role: _MessageRole.assistant, text: displayText),
+      );
     });
+    _persistSession();
   }
 
   String _currentText() {
@@ -847,10 +883,7 @@ Final clean prompt: $source, cinematic short video shot, strong blocking, layere
   _PromptBuilderSource? getPromptBuilderSource() {
     final input = _input.text.trim();
     if (_isValidPromptBuilderSource(input)) {
-      return _PromptBuilderSource(
-        text: input,
-        label: 'Источник: текущий ввод',
-      );
+      return _PromptBuilderSource(text: input, label: 'Источник: текущий ввод');
     }
     for (final message in _messages.reversed) {
       final text = message.text.trim();
@@ -1309,8 +1342,12 @@ class _PromptDraftCard extends StatelessWidget {
 
 String? _readableSourceLabel(String? value) {
   if (value == null) return null;
-  if (value.contains('draft')) return 'РСЃС‚РѕС‡РЅРёРє: РІС‹Р±СЂР°РЅРЅС‹Р№ draft';
-  if (value.contains('Р Р†Р Р†')) return 'РСЃС‚РѕС‡РЅРёРє: С‚РµРєСѓС‰РёР№ РІРІРѕРґ';
+  if (value.contains('draft')) {
+    return 'РСЃС‚РѕС‡РЅРёРє: РІС‹Р±СЂР°РЅРЅС‹Р№ draft';
+  }
+  if (value.contains('Р Р†Р Р†')) {
+    return 'РСЃС‚РѕС‡РЅРёРє: С‚РµРєСѓС‰РёР№ РІРІРѕРґ';
+  }
   if (value.contains('Р С—Р С•РЎРѓ')) {
     return 'РСЃС‚РѕС‡РЅРёРє: РїРѕСЃР»РµРґРЅРµРµ СЃРѕРѕР±С‰РµРЅРёРµ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ';
   }

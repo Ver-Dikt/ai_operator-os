@@ -119,10 +119,10 @@ class _StudioTopBar extends StatelessWidget {
     _StudioTab(AppDestination.video, 'Видео'),
     _StudioTab(AppDestination.director, 'Cinema'),
     _StudioTab(AppDestination.contentFactory, 'Маркетинг'),
-    _StudioTab(AppDestination.workflows, 'Workflows'),
+    _StudioTab(AppDestination.workflows, 'Workflows', enabled: false),
     _StudioTab(AppDestination.browserHub, 'Браузер'),
-    _StudioTab(AppDestination.agents, 'Agents'),
-    _StudioTab(AppDestination.tools, 'Apps'),
+    _StudioTab(AppDestination.agents, 'Agents', enabled: false),
+    _StudioTab(AppDestination.tools, 'Apps', enabled: false),
   ];
 
   @override
@@ -204,10 +204,11 @@ class _StudioTopBar extends StatelessWidget {
 }
 
 class _StudioTab {
-  const _StudioTab(this.destination, this.label);
+  const _StudioTab(this.destination, this.label, {this.enabled = true});
 
   final AppDestination destination;
   final String label;
+  final bool enabled;
 }
 
 class _Logo extends StatelessWidget {
@@ -271,34 +272,49 @@ class _TabsScroller extends StatelessWidget {
       itemBuilder: (context, index) {
         final tab = tabs[index];
         final selected = destination == tab.destination;
-        return InkWell(
-          onTap: () => onSelect(tab.destination),
-          child: SizedBox(
-            height: double.infinity,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  tab.label,
-                  style: TextStyle(
-                    color: selected
-                        ? const Color(0xFFC8FFF4)
-                        : const Color(0x99FFFFFF),
-                    fontSize: 12,
-                    fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+        final activeDestination = {
+          AppDestination.textWorkspace,
+          AppDestination.images,
+          AppDestination.video,
+          AppDestination.director,
+          AppDestination.browserHub,
+        }.contains(tab.destination);
+        final enabled = tab.enabled && activeDestination;
+        return Tooltip(
+          message: enabled
+              ? tab.label
+              : 'Раздел будет подключен следующим этапом.',
+          child: InkWell(
+            onTap: enabled ? () => onSelect(tab.destination) : null,
+            child: SizedBox(
+              height: double.infinity,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    enabled ? tab.label : '${tab.label} · Скоро',
+                    style: TextStyle(
+                      color: !enabled
+                          ? const Color(0x55FFFFFF)
+                          : selected
+                          ? const Color(0xFFC8FFF4)
+                          : const Color(0x99FFFFFF),
+                      fontSize: enabled ? 12 : 11,
+                      fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 5),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 160),
-                  height: 2,
-                  width: selected ? 26 : 0,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFC8FFF4),
-                    borderRadius: BorderRadius.circular(999),
+                  const SizedBox(height: 5),
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 160),
+                    height: 2,
+                    width: selected ? 26 : 0,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFC8FFF4),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         );

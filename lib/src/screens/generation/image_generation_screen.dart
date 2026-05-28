@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../ai_operator_app.dart';
 import '../../models/generation/generation_job.dart';
@@ -22,6 +24,9 @@ class ImageGenerationScreen extends StatefulWidget {
 }
 
 class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
+  static final List<GenerationJob> _cachedJobs = [];
+  static String? _cachedSelectedJobId;
+
   final _registry = const GenerationProviderRegistry();
   final _mock = const MockGenerationService();
   final List<GenerationJob> _jobs = [];
@@ -40,6 +45,15 @@ class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
   void initState() {
     super.initState();
     _providerId = _providersForCurrentMode().first.id;
+    _jobs.addAll(_cachedJobs);
+    if (_cachedSelectedJobId != null) {
+      for (final job in _jobs) {
+        if (job.id == _cachedSelectedJobId) {
+          _selectedJob = job;
+          break;
+        }
+      }
+    }
   }
 
   @override
@@ -112,7 +126,7 @@ class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (_promptReceivedFromChat) ...[
-            const _ChatPromptNotice(),
+            const _ImagePromptNotice(),
             const SizedBox(height: 8),
           ],
           GenerationPromptBar(
@@ -133,6 +147,14 @@ class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
             onPromptChanged: (value) => setState(() => _currentPrompt = value),
             initialPrompt: _initialPrompt,
           ),
+          const SizedBox(height: 8),
+          _ImageStudioActions(
+            onImprove: _improvePromptLocally,
+            onPrepare: _prepareImagePrompt,
+            onCopy: _copyImagePrompt,
+            onOpen: _openSelectedProvider,
+            onClear: _clearPrompt,
+          ),
         ],
       ),
       canvas: browserLike
@@ -146,7 +168,10 @@ class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
       history: RenderHistoryRail(
         jobs: _jobs,
         selectedJobId: _selectedJob?.id,
-        onSelect: (job) => setState(() => _selectedJob = job),
+        onSelect: (job) {
+          setState(() => _selectedJob = job);
+          _persistHistory();
+        },
       ),
     );
   }
@@ -181,6 +206,7 @@ class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
       _jobs.insert(0, job);
       _selectedJob = job;
     });
+    _persistHistory();
     unawaited(
       FlutenRuntimeScope.read(context).addGenerationJob(
         workspaceType: 'image',
@@ -192,6 +218,87 @@ class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
         resultUrl: job.outputUrl,
       ),
     );
+  }
+
+  String get _composedImagePrompt {
+    final base = _currentPrompt.trim().isEmpty
+        ? 'Напиши, что хочешь создать, или используй prompt из AI Chat.'
+        : _currentPrompt.trim();
+    return '''
+Image production prompt
+Base prompt: $base
+Composition: clear subject, readable foreground/midground/background
+Lighting: motivated cinematic light, controlled contrast
+Style: premium visual, coherent details, production-ready image
+Execution note: prompt preparation only; open the selected service and paste manually.
+''';
+  }
+
+  void _improvePromptLocally() {
+    final source = _currentPrompt.trim();
+    if (source.isEmpty) {
+      _showMessage('Сначала напишите prompt в Image Studio.');
+      return;
+    }
+    final improved =
+        'Subject: $source\n'
+        'Environment: cinematic space with readable depth.\n'
+        'Composition: strong focal subject, clean silhouette, balanced frame.\n'
+        'Lighting: motivated cinematic light, soft contrast, premium highlights.\n'
+        'Mood/style: polished, atmospheric, production-ready.\n'
+        'Negative prompt: blurry, low quality, distorted anatomy, random artifacts.';
+    setState(() {
+      _currentPrompt = improved;
+      _initialPrompt = improved;
+      _promptSeed++;
+    });
+    unawaited(FlutenRuntimeScope.read(context).setActivePromptDraft(improved));
+    _showMessage('Prompt улучшен без API. Это не генерация изображения.');
+  }
+
+  Future<void> _prepareImagePrompt() async {
+    final prompt = _composedImagePrompt.trim();
+    await Clipboard.setData(ClipboardData(text: prompt));
+    if (!mounted) return;
+    _saveManualResult(saveAsset: false);
+    _showMessage(
+      'Prompt подготовлен и скопирован. Откройте выбранный сервис и вставьте его вручную.',
+    );
+  }
+
+  Future<void> _copyImagePrompt() async {
+    await Clipboard.setData(ClipboardData(text: _composedImagePrompt.trim()));
+    if (!mounted) return;
+    _showMessage('Prompt скопирован.');
+  }
+
+  Future<void> _openSelectedProvider() async {
+    final provider = _registry.byId(_providerId);
+    final url = provider.launchUrl;
+    if (url == null) {
+      _showMessage('У выбранного провайдера пока нет сайта для открытия.');
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: _composedImagePrompt.trim()));
+    final opened = await launchUrl(
+      Uri.parse(url),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!mounted) return;
+    _showMessage(
+      opened
+          ? 'Prompt скопирован. Сайт провайдера открыт.'
+          : 'Prompt скопирован. Не удалось открыть сайт провайдера.',
+    );
+  }
+
+  void _clearPrompt() {
+    setState(() {
+      _currentPrompt = '';
+      _initialPrompt = '';
+      _promptSeed++;
+      _promptReceivedFromChat = false;
+    });
   }
 
   void _showMessage(String text) {
@@ -246,6 +353,7 @@ class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
       _jobs.insert(0, job);
       _selectedJob = job;
     });
+    _persistHistory();
     final provider = _registry.byId(_providerId);
     final route = provider.type == GenerationProviderType.externalLink
         ? 'external'
@@ -274,6 +382,13 @@ class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
         ),
       );
     }
+  }
+
+  void _persistHistory() {
+    _cachedJobs
+      ..clear()
+      ..addAll(_jobs);
+    _cachedSelectedJobId = _selectedJob?.id;
   }
 }
 
@@ -329,18 +444,15 @@ class _StudioWorkspace extends StatelessWidget {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        SizedBox(
+                          width: 390,
+                          child: SingleChildScrollView(child: promptBar),
+                        ),
+                        const SizedBox(width: 12),
                         Expanded(child: canvas),
                         const SizedBox(width: 12),
                         SizedBox(width: 220, child: history),
                       ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Align(
-                    alignment: Alignment.center,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 960),
-                      child: promptBar,
                     ),
                   ),
                 ],
@@ -416,6 +528,107 @@ class _StudioWorkspace extends StatelessWidget {
   }
 }
 
+class _ImagePromptNotice extends StatelessWidget {
+  const _ImagePromptNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0x18C8FFF4),
+        border: Border.all(color: const Color(0x33C8FFF4)),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: const Text(
+        'Источник: AI Chat / Image Prompt',
+        style: TextStyle(
+          color: Color(0xFFC8FFF4),
+          fontSize: 12,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _ImageStudioActions extends StatelessWidget {
+  const _ImageStudioActions({
+    required this.onImprove,
+    required this.onPrepare,
+    required this.onCopy,
+    required this.onOpen,
+    required this.onClear,
+  });
+
+  final VoidCallback onImprove;
+  final VoidCallback onPrepare;
+  final VoidCallback onCopy;
+  final VoidCallback onOpen;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0x990B0F16),
+        border: Border.all(color: const Color(0x24FFFFFF)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Напиши, что хочешь создать, или используй prompt из AI Chat.',
+            style: TextStyle(color: Color(0xFFA7B1C1), fontSize: 12),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Пока генерация работает через выбранный сервис: скопируйте prompt и откройте сайт провайдера. API/локальный запуск подключим отдельным этапом.',
+            style: TextStyle(color: Color(0xFF8B97A8), fontSize: 12),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                onPressed: onPrepare,
+                icon: const Icon(Icons.send_rounded),
+                label: const Text('Подготовить prompt для генерации'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onImprove,
+                icon: const Icon(Icons.auto_fix_high_rounded),
+                label: const Text('Улучшить prompt без API'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onCopy,
+                icon: const Icon(Icons.copy_rounded),
+                label: const Text('Скопировать prompt'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onOpen,
+                icon: const Icon(Icons.open_in_new_rounded),
+                label: const Text('Открыть выбранный сервис'),
+              ),
+              TextButton.icon(
+                onPressed: onClear,
+                icon: const Icon(Icons.clear_rounded),
+                label: const Text('Очистить'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ignore: unused_element
 class _ChatPromptNotice extends StatelessWidget {
   const _ChatPromptNotice();
 
