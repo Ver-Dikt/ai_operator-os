@@ -129,17 +129,23 @@ class _DirectorScreenState extends State<DirectorScreen> {
     final session = FlutenRuntimeScope.read(context).getCurrentSession();
     final draft = session.activePromptDraft?.trim();
     if (draft == null || draft.isEmpty) {
-      _showMessage('В текущей сессии пока нет активной идеи.');
+      _showMessage(
+        'Р’ С‚РµРєСѓС‰РµР№ СЃРµСЃСЃРёРё РїРѕРєР° РЅРµС‚ Р°РєС‚РёРІРЅРѕР№ РёРґРµРё.',
+      );
       return;
     }
     setState(() => _idea.text = draft);
-    _showMessage('Текущая идея из сессии загружена.');
+    _showMessage(
+      'РўРµРєСѓС‰Р°СЏ РёРґРµСЏ РёР· СЃРµСЃСЃРёРё Р·Р°РіСЂСѓР¶РµРЅР°.',
+    );
   }
 
   void _generatePlan() {
     final source = _idea.text.trim();
     if (source.isEmpty) {
-      _showMessage('Опишите идею или концепт для Director Engine.');
+      _showMessage(
+        'РћРїРёС€РёС‚Рµ РёРґРµСЋ РёР»Рё РєРѕРЅС†РµРїС‚ РґР»СЏ Director Engine.',
+      );
       return;
     }
     final plan = _buildDirectorPlan(source);
@@ -364,9 +370,7 @@ Negative guidance: random zooms, chaotic camera, flat lighting, incoherent hands
     if (!mounted) return;
     setState(() => _improving = false);
     if (!result.success || (result.response?.trim().isEmpty ?? true)) {
-      _showMessage(
-        'Можно улучшить через Ollama после подключения локальной модели.',
-      );
+      _showMessage('Ollama не отвечает. Используется локальный план.');
       return;
     }
     final improved = plan.copyWith(productionPrompt: result.response!.trim());
@@ -376,6 +380,7 @@ Negative guidance: random zooms, chaotic camera, flat lighting, incoherent hands
         context,
       ).setActivePromptDraft(improved.productionPrompt),
     );
+    _showMessage('План улучшен через Ollama');
   }
 
   void _showMessage(String text) {
@@ -510,12 +515,14 @@ class _InputPanel extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onUseSessionIdea,
                 icon: const Icon(Icons.history_rounded),
-                label: const Text('Использовать текущую идею из сессии'),
+                label: const Text(
+                  'РСЃРїРѕР»СЊР·РѕРІР°С‚СЊ С‚РµРєСѓС‰СѓСЋ РёРґРµСЋ РёР· СЃРµСЃСЃРёРё',
+                ),
               ),
               FilledButton.icon(
                 onPressed: onGenerate,
                 icon: const Icon(Icons.movie_creation_outlined),
-                label: const Text('Собрать Director Plan'),
+                label: const Text('РЎРѕР±СЂР°С‚СЊ Director Plan'),
               ),
             ],
           ),
@@ -584,7 +591,7 @@ class _DirectorPlanView extends StatelessWidget {
               FilledButton.icon(
                 onPressed: onSendVideo,
                 icon: const Icon(Icons.send_rounded),
-                label: const Text('Отправить в Video Studio'),
+                label: const Text('РћС‚РїСЂР°РІРёС‚СЊ РІ Video Studio'),
               ),
               OutlinedButton.icon(
                 onPressed: onCopy,
@@ -600,7 +607,7 @@ class _DirectorPlanView extends StatelessWidget {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.auto_fix_high_rounded),
-                label: const Text('Улучшить через Ollama'),
+                label: const Text('РЈР»СѓС‡С€РёС‚СЊ С‡РµСЂРµР· Ollama'),
               ),
             ],
           ),
@@ -721,7 +728,7 @@ class _ShotCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Shot ${shot.number} · ${shot.duration}',
+            'Shot ${shot.number} В· ${shot.duration}',
             style: const TextStyle(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 6),

@@ -150,7 +150,7 @@ class _BrowserWorkspacePanelState extends State<BrowserWorkspacePanel> {
               OutlinedButton.icon(
                 onPressed: _openInside,
                 icon: const Icon(Icons.open_in_browser_rounded),
-                label: const Text('Открыть внутри STUDIO'),
+                label: const Text('Встроенный браузер: скоро'),
               ),
               OutlinedButton.icon(
                 onPressed: _preparePaste,
@@ -208,7 +208,7 @@ class _BrowserWorkspacePanelState extends State<BrowserWorkspacePanel> {
   void _openInside() {
     final message = kIsWeb
         ? 'В web-версии встроенный браузер ограничен. Используйте desktop-версию STUDIO или откройте сайт во внешнем браузере.'
-        : 'Встроенный браузер будет доступен после подключения desktop WebView runtime.';
+        : 'Встроенный браузер пока не подключен. Сейчас используйте внешний сайт провайдера.';
     setState(() {
       _showInternalPlaceholder = true;
       _statusText = message;
@@ -272,7 +272,7 @@ class _PromptPreview extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             showInternalPlaceholder
-                ? 'WebView runtime пока не подключён. Используйте внешний браузер.\n${url ?? 'URL провайдера не задан'}'
+                ? 'Встроенный браузер пока не подключен. Сейчас используйте внешний сайт провайдера.\n${url ?? 'URL провайдера не задан'}'
                 : 'Production prompt виден ниже. Его можно скопировать, открыть сервис и вставить вручную.\n${url ?? 'URL провайдера не задан'}',
             style: const TextStyle(color: Color(0xFF9AA6B8), height: 1.4),
           ),

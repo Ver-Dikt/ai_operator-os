@@ -179,6 +179,8 @@ class AppSettings extends ChangeNotifier {
   AppDestination currentDestination = AppDestination.commandCenter;
   String? pendingBrowserPrompt;
   String? pendingBrowserToolId;
+  String? pendingImagePromptDraft;
+  String? pendingVideoPromptDraft;
 
   Set<String> get favoriteIds => Set.unmodifiable(_favoriteIds);
   Set<String> get favoriteAgentIds => Set.unmodifiable(_favoriteAgentIds);
@@ -228,6 +230,26 @@ class AppSettings extends ChangeNotifier {
   void clearBrowserHandoff() {
     pendingBrowserPrompt = null;
     pendingBrowserToolId = null;
+    notifyListeners();
+  }
+
+  void setImagePromptDraft(String prompt) {
+    pendingImagePromptDraft = prompt;
+    notifyListeners();
+  }
+
+  void setVideoPromptDraft(String prompt) {
+    pendingVideoPromptDraft = prompt;
+    notifyListeners();
+  }
+
+  void clearImagePromptDraft() {
+    pendingImagePromptDraft = null;
+    notifyListeners();
+  }
+
+  void clearVideoPromptDraft() {
+    pendingVideoPromptDraft = null;
     notifyListeners();
   }
 
