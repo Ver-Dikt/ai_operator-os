@@ -7,7 +7,9 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../ai_operator_app.dart';
 import '../../data/seed_browser_ai_tools.dart';
 import '../../models/browser_ai_tool.dart';
+import '../../models/execution_job.dart';
 import '../../services/ollama_execution_service.dart';
+import '../../services/ollama_prompt_brain_service.dart';
 import '../../state/app_settings.dart';
 import '../../widgets/current_session_strip.dart';
 
@@ -354,10 +356,22 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
 
   Future<void> _runOllama(String prompt) async {
     final settings = AppSettingsScope.of(context);
+    if (!settings.isLocalProviderEnabled('ollama')) {
+      _addAssistant(
+        'Ollama не включена в настройках запуска. Включите локальный провайдер Ollama или выберите Browser route.',
+      );
+      _recordEvent('Ollama unavailable');
+      return;
+    }
+    if (settings.ollamaModel.trim().isEmpty) {
+      _addAssistant('Выберите модель Ollama в настройках запуска.');
+      _recordEvent('Ollama model missing');
+      return;
+    }
     setState(() => _running = true);
     _recordEvent('Ollama message sent');
     final result = await const OllamaExecutionService().generate(
-      endpoint: settings.ollamaBaseUrl,
+      endpoint: settings.localEndpoint('ollama', fallback: settings.ollamaBaseUrl),
       model: settings.ollamaModel,
       prompt: prompt,
     );
@@ -475,51 +489,42 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
     required String source,
     required _PromptDraftTarget target,
   }) async {
-    final ollamaPrompt = await _tryBuildPromptWithOllama(
-      source: source,
-      target: target,
-    );
-    if (!mounted) {
-      return target == _PromptDraftTarget.image
-          ? _buildLocalImagePrompt(source)
-          : _buildLocalVideoPrompt(source);
-    }
-    if (ollamaPrompt != null && ollamaPrompt.trim().isNotEmpty) {
-      _recordEvent('Ollama prompt builder used');
-      return ollamaPrompt.trim();
-    }
-
-    _recordEvent('Fallback template used');
-    _addAssistant(
-      'Собрано локальным шаблоном. Для более сильной сборки включите Ollama.',
-    );
-    return target == _PromptDraftTarget.image
+    final fallback = target == _PromptDraftTarget.image
         ? _buildLocalImagePrompt(source)
         : _buildLocalVideoPrompt(source);
-  }
-
-  Future<String?> _tryBuildPromptWithOllama({
-    required String source,
-    required _PromptDraftTarget target,
-  }) async {
-    if (_provider.mode != TextRouteMode.localOllama) return null;
+    if (_provider.mode != TextRouteMode.localOllama) {
+      _recordEvent('Fallback template used');
+      _addAssistant(
+        'Собрано локальным шаблоном. Для более сильной сборки включите Ollama.',
+      );
+      return fallback;
+    }
     final settings = AppSettingsScope.of(context);
     final instruction = target == _PromptDraftTarget.image
         ? _imagePromptBuilderInstruction(source)
         : _videoPromptBuilderInstruction(source);
 
     setState(() => _running = true);
-    final result = await const OllamaExecutionService().generate(
-      endpoint: settings.ollamaBaseUrl,
-      model: settings.ollamaModel,
-      prompt: instruction,
+    final result = await const OllamaPromptBrainService().improve(
+      settings: settings,
+      workspace: ExecutionJobWorkspace.text,
+      source: source,
+      instruction: instruction,
+      fallback: fallback,
+      capability: target == _PromptDraftTarget.image
+          ? 'promptBuilder.image'
+          : 'promptBuilder.video',
     );
-    if (!mounted) return null;
+    if (!mounted) return fallback;
     setState(() => _running = false);
-    if (!result.success || (result.response?.trim().isEmpty ?? true)) {
-      return null;
+    if (result.usedOllama) {
+      _recordEvent('Ollama prompt builder used');
+      _addAssistant('Prompt улучшен через Ollama');
+    } else {
+      _recordEvent('Fallback template used');
+      _addAssistant(result.message);
     }
-    return result.response!.trim();
+    return result.text.trim();
   }
 
   Future<void> _preparePromptBuilderHandoff({

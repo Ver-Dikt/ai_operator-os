@@ -10,6 +10,7 @@ import '../../models/generation/generation_provider.dart';
 import '../../models/generation/generation_request.dart';
 import '../../services/generation/generation_provider_registry.dart';
 import '../../services/generation/mock_generation_service.dart';
+import '../../services/ollama_prompt_brain_service.dart';
 import '../../services/provider_executor.dart';
 import '../../widgets/generation/browser_workspace_panel.dart';
 import '../../widgets/generation/render_history_rail.dart';
@@ -349,12 +350,16 @@ Execution note: copy/paste handoff only; no API generation is claimed.
   }
 
   void _improveLocally() {
+    unawaited(_improvePromptWithBrain());
+  }
+
+  Future<void> _improvePromptWithBrain() async {
     final source = _currentPrompt.trim();
     if (source.isEmpty) {
       _showMessage('Add a scene idea first.');
       return;
     }
-    final improved =
+    final fallback =
         'Scene: $source\n'
         'Subject/action: one readable subject performs one motivated action.\n'
         'Environment: layered foreground, midground, and background with cinematic depth.\n'
@@ -363,6 +368,32 @@ Execution note: copy/paste handoff only; no API generation is claimed.
         'Mood: emotionally focused, cinematic, coherent.\n'
         'Pacing: $_pacing rhythm, opening clarity, controlled middle movement, final hold.\n'
         'Final gesture: ${_extractFinalGesture(source)}';
+    final instruction = '''
+You are FLUTEN Director Engine. Improve this video generation prompt.
+Use scene, action, camera movement with dramatic reason, duration, pacing, lighting, mood, continuity, and final gesture.
+Keep the user's idea intact. Do not claim generation. Return a production-ready video prompt only.
+
+Prompt:
+$source
+
+Current controls:
+Duration: $_duration
+Aspect ratio: $_aspectRatio
+Motion intensity: $_motionIntensity
+Camera style: $_cameraStyle
+Pacing: $_pacing
+Output quality: $_quality
+''';
+    final result = await const OllamaPromptBrainService().improve(
+      settings: AppSettingsScope.of(context),
+      workspace: ExecutionJobWorkspace.video,
+      source: source,
+      instruction: instruction,
+      fallback: fallback,
+      capability: 'videoPromptImprove',
+    );
+    if (!mounted) return;
+    final improved = result.text;
     setState(() {
       _currentPrompt = improved;
       _promptController.text = improved;
@@ -370,9 +401,16 @@ Execution note: copy/paste handoff only; no API generation is claimed.
         offset: improved.length,
       );
     });
-    unawaited(FlutenRuntimeScope.read(context).setActivePromptDraft(improved));
-    _recordEvent('Local video prompt improved');
+    final runtime = FlutenRuntimeScope.read(context);
+    unawaited(runtime.setActivePromptDraft(improved));
+    _recordEvent(
+      result.usedOllama
+          ? 'Video prompt improved through Ollama'
+          : 'Fallback template used',
+      detail: result.message,
+    );
     _recordEvent('Video prompt edited');
+    _showMessage(result.message);
   }
 
   void _buildShotPlan() {
@@ -893,7 +931,7 @@ class _CinematicVideoPanel extends StatelessWidget {
               FilledButton.icon(
                 onPressed: onImprove,
                 icon: const Icon(Icons.auto_fix_high_rounded),
-                label: const Text('Улучшить prompt без API'),
+                label: const Text('Улучшить prompt'),
               ),
               OutlinedButton.icon(
                 onPressed: onBuildShots,

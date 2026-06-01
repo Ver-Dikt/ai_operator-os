@@ -7,6 +7,7 @@ import '../../ai_operator_app.dart';
 import '../../data/seed_browser_ai_tools.dart';
 import '../../models/browser_ai_tool.dart';
 import '../../models/execution_job.dart';
+import '../../services/ollama_prompt_brain_service.dart';
 import '../../services/provider_executor.dart';
 import '../../widgets/current_session_strip.dart';
 
@@ -278,7 +279,7 @@ class _AudioGenerationScreenState extends State<AudioGenerationScreen> {
       _showMessage('Сначала опиши трек, голос или звук.');
       return;
     }
-    final improved = switch (_mode) {
+    final fallback = switch (_mode) {
       _AudioMode.music =>
         'Production music prompt: $_prompt. Build a $_genre track with $_mood mood, $_tempo tempo, $_vocals vocals, $_structure structure, clean mix, memorable hook, clear emotional rise, duration $_musicDuration.',
       _AudioMode.voice =>
@@ -286,16 +287,40 @@ class _AudioGenerationScreenState extends State<AudioGenerationScreen> {
       _AudioMode.soundDesign =>
         'Production sound design prompt: $_prompt. Create $_soundType for $_environment, $_intensity intensity, $_texture texture, designed for $_useCase, duration $_soundDuration, clean start and controlled tail.',
     };
+    final instruction = '''
+You are FLUTEN Audio Engine. Improve this audio generation prompt.
+Keep the user's idea intact and make it production-ready. Do not claim audio generation.
+
+Prompt:
+$_prompt
+
+Mode: ${_mode.label}
+Music controls: genre $_genre, mood $_mood, tempo $_tempo, duration $_musicDuration, vocals $_vocals, structure $_structure.
+Voice controls: type $_voiceType, emotion $_emotion, language $_language, pacing $_pacing, style $_voiceStyle.
+Sound design controls: type $_soundType, environment $_environment, intensity $_intensity, duration $_soundDuration, texture $_texture, use case $_useCase.
+''';
+    final result = await const OllamaPromptBrainService().improve(
+      settings: AppSettingsScope.of(context),
+      workspace: ExecutionJobWorkspace.audio,
+      source: _prompt,
+      instruction: instruction,
+      fallback: fallback,
+      capability: 'audioPromptImprove',
+    );
+    if (!mounted) return;
+    final improved = result.text;
     final runtime = FlutenRuntimeScope.read(context);
     setState(() => _promptController.text = improved);
     await runtime.setActivePromptDraft(improved);
     await runtime.addEvent(
       type: 'audio',
-      title: 'Audio prompt improved locally',
-      detail: _preview(improved),
+      title: result.usedOllama
+          ? 'Audio prompt improved through Ollama'
+          : 'Fallback template used',
+      detail: result.message,
     );
     _addHistory('Prompt improved', improved);
-    _showMessage('Prompt улучшен без API.');
+    _showMessage(result.message);
   }
 
   Future<void> _preparePrompt() async {
@@ -656,7 +681,7 @@ class _LeftPanel extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onImprove,
                 icon: const Icon(Icons.auto_fix_high_rounded),
-                label: const Text('Улучшить prompt без API'),
+                label: const Text('Улучшить prompt'),
               ),
               OutlinedButton.icon(
                 onPressed: onCopy,

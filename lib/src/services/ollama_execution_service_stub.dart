@@ -10,8 +10,27 @@ class OllamaExecutionResult {
   final String? error;
 }
 
+class OllamaHealthResult {
+  const OllamaHealthResult({
+    required this.available,
+    this.models = const [],
+    this.error,
+  });
+
+  final bool available;
+  final List<String> models;
+  final String? error;
+}
+
 class OllamaExecutionService {
   const OllamaExecutionService();
+
+  Future<OllamaHealthResult> checkHealth({required String endpoint}) async {
+    return const OllamaHealthResult(
+      available: false,
+      error: 'Ollama unavailable',
+    );
+  }
 
   Future<OllamaExecutionResult> generate({
     required String endpoint,

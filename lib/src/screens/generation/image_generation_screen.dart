@@ -10,6 +10,7 @@ import '../../models/generation/generation_provider.dart';
 import '../../models/generation/generation_request.dart';
 import '../../services/generation/generation_provider_registry.dart';
 import '../../services/generation/mock_generation_service.dart';
+import '../../services/ollama_prompt_brain_service.dart';
 import '../../services/provider_executor.dart';
 import '../../widgets/generation/render_history_rail.dart';
 import '../../widgets/current_session_strip.dart';
@@ -284,16 +285,16 @@ Execution note: prompt preparation only. Open the selected image service and pas
   }
 
   void _improvePromptLocally() {
+    unawaited(_improvePromptWithBrain());
+  }
+
+  Future<void> _improvePromptWithBrain() async {
     final source = _currentPrompt.trim();
     if (source.isEmpty) {
       _showMessage('Сначала опиши изображение.');
       return;
     }
-    if (source.isEmpty) {
-      _showMessage('Сначала напишите prompt в Image Studio.');
-      return;
-    }
-    final improved =
+    final fallback =
         'Subject: $source\n'
         'Environment: detailed scene with clear foreground, midground, and background.\n'
         'Visual style: $_style, production-ready visual language.\n'
@@ -303,6 +304,32 @@ Execution note: prompt preparation only. Open the selected image service and pas
         'Camera / lens: $_lens perspective.\n'
         'Detail / quality: $_quality quality, crisp details, coherent anatomy.\n'
         'Negative prompt: ${_negativeController.text.trim().isEmpty ? 'blurry, low quality, distorted anatomy, random artifacts' : _negativeController.text.trim()}.';
+    final instruction = '''
+You are FLUTEN Visual Engine. Improve this image generation prompt.
+Use subject, environment, visual style, composition, lighting, mood, camera/lens, detail/quality, and negative prompt.
+Keep the user's idea intact. Return a production-ready image prompt only.
+
+Prompt:
+$source
+
+Current controls:
+Style: $_style
+Lighting: $_lighting
+Composition: $_composition
+Lens: $_lens
+Color mood: $_colorMood
+Quality: $_quality
+''';
+    final result = await const OllamaPromptBrainService().improve(
+      settings: AppSettingsScope.of(context),
+      workspace: ExecutionJobWorkspace.image,
+      source: source,
+      instruction: instruction,
+      fallback: fallback,
+      capability: 'imagePromptImprove',
+    );
+    if (!mounted) return;
+    final improved = result.text;
     setState(() {
       _currentPrompt = improved;
       _promptController.text = improved;
@@ -311,10 +338,18 @@ Execution note: prompt preparation only. Open the selected image service and pas
       );
       _promptSource = _ImagePromptSource.imageStudio;
     });
-    unawaited(FlutenRuntimeScope.read(context).setActivePromptDraft(improved));
-    _showMessage(
-      'Prompt улучшен без API. Это не генерация изображения.',
+    final runtime = FlutenRuntimeScope.read(context);
+    unawaited(runtime.setActivePromptDraft(improved));
+    unawaited(
+      runtime.addEvent(
+        type: 'image',
+        title: result.usedOllama
+            ? 'Prompt improved through Ollama'
+            : 'Fallback template used',
+        detail: result.message,
+      ),
     );
+    _showMessage(result.message);
   }
 
   Future<void> _prepareImagePrompt() async {
@@ -677,7 +712,7 @@ class _ImagePromptComposer extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onImprove,
                 icon: const Icon(Icons.auto_fix_high_rounded),
-                label: const Text('Улучшить prompt без API'),
+                label: const Text('Улучшить prompt'),
               ),
               OutlinedButton.icon(
                 onPressed: onCopy,
@@ -1469,7 +1504,7 @@ class _ImageStudioActions extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onImprove,
                 icon: const Icon(Icons.auto_fix_high_rounded),
-                label: const Text('Улучшить prompt без API'),
+                label: const Text('Улучшить prompt'),
               ),
               OutlinedButton.icon(
                 onPressed: onCopy,

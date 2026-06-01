@@ -4,7 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../ai_operator_app.dart';
-import '../../services/ollama_execution_service.dart';
+import '../../models/execution_job.dart';
+import '../../services/ollama_prompt_brain_service.dart';
 import '../../widgets/cards/os_card.dart';
 import '../../widgets/current_session_strip.dart';
 import '../../widgets/responsive_page.dart';
@@ -361,24 +362,41 @@ Negative guidance: random zooms, chaotic camera, flat lighting, incoherent hands
     if (plan == null) return;
     final settings = AppSettingsScope.of(context);
     setState(() => _improving = true);
-    final result = await const OllamaExecutionService().generate(
-      endpoint: settings.ollamaBaseUrl,
-      model: settings.ollamaModel,
-      prompt:
+    final result = await const OllamaPromptBrainService().improve(
+      settings: settings,
+      workspace: ExecutionJobWorkspace.director,
+      source: plan.toText(),
+      instruction:
           'Improve this FLUTEN Director Plan. Keep the same structure, make camera logic, blocking, pacing, emotional arc, and final gesture stronger. Do not add fake API claims.\n\n${plan.toText()}',
+      fallback: plan.productionPrompt,
+      capability: 'directorPlanImprove',
     );
     if (!mounted) return;
     setState(() => _improving = false);
-    if (!result.success || (result.response?.trim().isEmpty ?? true)) {
+    if (!result.usedOllama) {
+      unawaited(
+        FlutenRuntimeScope.read(context).addEvent(
+          type: 'director',
+          title: 'Fallback template used',
+          detail: result.message,
+        ),
+      );
       _showMessage('Ollama не отвечает. Используется локальный план.');
       return;
     }
-    final improved = plan.copyWith(productionPrompt: result.response!.trim());
+    final improved = plan.copyWith(productionPrompt: result.text.trim());
     setState(() => _plan = improved);
     unawaited(
       FlutenRuntimeScope.read(
         context,
       ).setActivePromptDraft(improved.productionPrompt),
+    );
+    unawaited(
+      FlutenRuntimeScope.read(context).addEvent(
+        type: 'director',
+        title: 'Director plan improved through Ollama',
+        detail: result.message,
+      ),
     );
     _showMessage('План улучшен через Ollama');
   }

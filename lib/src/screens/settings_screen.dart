@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../ai_operator_app.dart';
 import '../models/ai_provider.dart';
+import '../services/ollama_execution_service.dart';
 import '../services/provider_registry.dart';
 import '../state/app_settings.dart';
 import '../widgets/cards/os_card.dart';
@@ -25,6 +26,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final Map<String, TextEditingController> _endpointControllers = {};
   final Map<String, bool> _apiEnabled = {};
   final Map<String, bool> _localEnabled = {};
+  final Map<String, String> _localStatus = {};
+  final Map<String, List<String>> _localModels = {};
+  final Set<String> _checkingLocal = <String>{};
   bool _hydrated = false;
   bool _openedEventSent = false;
 
@@ -84,6 +88,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _endpointControllers[provider.id] = TextEditingController(
         text: settings.localEndpoint(provider.id, fallback: endpoint),
       );
+      if (provider.id == 'ollama') {
+        _modelControllers[provider.id] = TextEditingController(
+          text: settings.ollamaModel,
+        );
+        _localStatus[provider.id] = 'Не проверено';
+      }
     }
   }
 
@@ -132,9 +142,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             providers: _localProviders,
             enabled: _localEnabled,
             endpointControllers: _endpointControllers,
+            modelControllers: _modelControllers,
+            statuses: _localStatus,
+            models: _localModels,
+            checking: _checkingLocal,
             onToggle: (provider, value) =>
                 setState(() => _localEnabled[provider.id] = value),
             onSave: _saveLocalProvider,
+            onCheck: _checkLocalProvider,
+            onModelSelected: _selectLocalModel,
           ),
           const SizedBox(height: 18),
           const _BrowserManualSettings(),
@@ -191,6 +207,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       enabled: _localEnabled[provider.id] ?? false,
       endpoint: endpoint,
     );
+    if (provider.id == 'ollama') {
+      await settings.setOllamaModel(
+        _modelControllers[provider.id]?.text.trim() ?? '',
+      );
+    }
     if (!mounted) return;
     unawaited(
       FlutenRuntimeScope.read(context).addEvent(
@@ -200,6 +221,77 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
     _showMessage('${provider.name}: endpoint сохранён.');
+  }
+
+  Future<void> _checkLocalProvider(AiProvider provider) async {
+    if (provider.id != 'ollama') {
+      _showMessage('Проверка будет подключена следующим этапом.');
+      return;
+    }
+    final endpoint =
+        _endpointControllers[provider.id]?.text.trim() ??
+        _defaultEndpointFor(provider);
+    final runtime = FlutenRuntimeScope.read(context);
+    setState(() {
+      _checkingLocal.add(provider.id);
+      _localStatus[provider.id] = 'Проверяется...';
+    });
+    unawaited(
+      runtime.addEvent(
+        type: 'settings',
+        title: 'Ollama health check started',
+        detail: endpoint,
+      ),
+    );
+    final result = await const OllamaExecutionService().checkHealth(
+      endpoint: endpoint,
+    );
+    if (!mounted) return;
+    setState(() {
+      _checkingLocal.remove(provider.id);
+      _localStatus[provider.id] = result.available
+          ? 'Ollama доступна'
+          : 'Ollama не отвечает';
+      _localModels[provider.id] = result.models;
+    });
+    if (result.available) {
+      unawaited(
+        runtime.addEvent(
+          type: 'settings',
+          title: 'Ollama available',
+          detail: result.models.isEmpty
+              ? 'No models listed'
+              : result.models.join(', '),
+        ),
+      );
+      _showMessage('Ollama доступна.');
+      return;
+    }
+    unawaited(
+      runtime.addEvent(
+        type: 'settings',
+        title: 'Ollama unavailable',
+        detail: result.error ?? endpoint,
+      ),
+    );
+    _showMessage(
+      'Ollama не отвечает. Проверьте, что она запущена на localhost:11434.',
+    );
+  }
+
+  Future<void> _selectLocalModel(AiProvider provider, String model) async {
+    _modelControllers[provider.id]?.text = model;
+    final settings = AppSettingsScope.of(context);
+    await settings.setOllamaModel(model);
+    if (!mounted) return;
+    unawaited(
+      FlutenRuntimeScope.read(context).addEvent(
+        type: 'settings',
+        title: 'Ollama model selected',
+        detail: model,
+      ),
+    );
+    _showMessage('Ollama model selected: $model');
   }
 
   void _showMessage(String text) {
@@ -508,15 +600,27 @@ class _LocalProviderSettings extends StatelessWidget {
     required this.providers,
     required this.enabled,
     required this.endpointControllers,
+    required this.modelControllers,
+    required this.statuses,
+    required this.models,
+    required this.checking,
     required this.onToggle,
     required this.onSave,
+    required this.onCheck,
+    required this.onModelSelected,
   });
 
   final List<AiProvider> providers;
   final Map<String, bool> enabled;
   final Map<String, TextEditingController> endpointControllers;
+  final Map<String, TextEditingController> modelControllers;
+  final Map<String, String> statuses;
+  final Map<String, List<String>> models;
+  final Set<String> checking;
   final void Function(AiProvider provider, bool value) onToggle;
   final ValueChanged<AiProvider> onSave;
+  final ValueChanged<AiProvider> onCheck;
+  final void Function(AiProvider provider, String model) onModelSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -545,8 +649,15 @@ class _LocalProviderSettings extends StatelessWidget {
                         provider: provider,
                         enabled: enabled[provider.id] ?? false,
                         endpointController: endpointControllers[provider.id]!,
+                        modelController: modelControllers[provider.id],
+                        status: statuses[provider.id],
+                        models: models[provider.id] ?? const [],
+                        checking: checking.contains(provider.id),
                         onToggle: (value) => onToggle(provider, value),
                         onSave: () => onSave(provider),
+                        onCheck: () => onCheck(provider),
+                        onModelSelected: (model) =>
+                            onModelSelected(provider, model),
                       ),
                     ),
                 ],
@@ -564,15 +675,27 @@ class _LocalProviderCard extends StatelessWidget {
     required this.provider,
     required this.enabled,
     required this.endpointController,
+    required this.modelController,
+    required this.status,
+    required this.models,
+    required this.checking,
     required this.onToggle,
     required this.onSave,
+    required this.onCheck,
+    required this.onModelSelected,
   });
 
   final AiProvider provider;
   final bool enabled;
   final TextEditingController endpointController;
+  final TextEditingController? modelController;
+  final String? status;
+  final List<String> models;
+  final bool checking;
   final ValueChanged<bool> onToggle;
   final VoidCallback onSave;
+  final VoidCallback onCheck;
+  final ValueChanged<String> onModelSelected;
 
   @override
   Widget build(BuildContext context) {
@@ -591,6 +714,34 @@ class _LocalProviderCard extends StatelessWidget {
             controller: endpointController,
             decoration: const InputDecoration(labelText: 'Endpoint URL'),
           ),
+          if (provider.id == 'ollama') ...[
+            const SizedBox(height: 8),
+            if (models.isEmpty)
+              TextField(
+                controller: modelController,
+                decoration: const InputDecoration(
+                  labelText: 'Ollama model',
+                  helperText:
+                      'Если список моделей недоступен, впишите имя вручную.',
+                ),
+              )
+            else
+              DropdownButtonFormField<String>(
+                initialValue: models.contains(modelController?.text)
+                    ? modelController?.text
+                    : null,
+                decoration: const InputDecoration(labelText: 'Ollama model'),
+                items: [
+                  for (final model in models)
+                    DropdownMenuItem(value: model, child: Text(model)),
+                ],
+                onChanged: (value) {
+                  if (value != null) onModelSelected(value);
+                },
+              ),
+            const SizedBox(height: 8),
+            _InfoChip(status ?? 'Не проверено'),
+          ],
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
@@ -602,9 +753,9 @@ class _LocalProviderCard extends StatelessWidget {
                 label: const Text('Сохранить'),
               ),
               OutlinedButton.icon(
-                onPressed: null,
+                onPressed: checking ? null : onCheck,
                 icon: const Icon(Icons.cable_rounded),
-                label: const Text('Проверка будет подключена следующим этапом'),
+                label: Text(checking ? 'Проверяем...' : 'Проверить Ollama'),
               ),
             ],
           ),
