@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../ai_operator_app.dart';
+import '../../models/execution_job.dart';
 import '../../models/fluten_runtime.dart';
+import '../../services/execution_queue.dart';
 import '../../services/fluten_runtime_store.dart';
 import '../../state/app_settings.dart';
 import '../../widgets/cards/os_card.dart';
@@ -68,8 +70,20 @@ class _RenderHistoryScreenState extends State<RenderHistoryScreen> {
 
   List<_HistoryEntry> _buildEntries(FlutenRuntimeStore runtime) {
     final entries = <_HistoryEntry>[];
+    final runtimeJobs = runtime.getRecentJobs(limit: 80);
 
-    for (final job in runtime.getRecentJobs(limit: 80)) {
+    for (final job in ExecutionQueue.instance.listJobs()) {
+      final alreadyRecorded = runtimeJobs.any(
+        (stored) =>
+            stored.providerId == job.providerId &&
+            stored.routeType == job.executionMode.name &&
+            stored.status == job.status.name &&
+            stored.prompt == job.composedPrompt,
+      );
+      if (!alreadyRecorded) entries.add(_entryForExecutionJob(job));
+    }
+
+    for (final job in runtimeJobs) {
       entries.add(
         _HistoryEntry(
           id: job.id,
@@ -110,11 +124,42 @@ class _RenderHistoryScreenState extends State<RenderHistoryScreen> {
     return entries;
   }
 
+  _HistoryEntry _entryForExecutionJob(ExecutionJob job) {
+    return _HistoryEntry(
+      id: job.id,
+      type: _typeForExecutionJob(job),
+      workspace: job.workspace.name,
+      title: '${job.providerName}: ${job.status.label}',
+      preview: job.errorMessage ?? job.composedPrompt,
+      provider: job.providerName,
+      prompt: job.composedPrompt,
+      url: job.metadata['url'],
+      createdAt: job.updatedAt,
+    );
+  }
+
+  _HistoryEntryType _typeForExecutionJob(ExecutionJob job) {
+    return switch (job.status) {
+      ExecutionJobStatus.manualOnly ||
+      ExecutionJobStatus.prepared ||
+      ExecutionJobStatus.requiresApiKey ||
+      ExecutionJobStatus.localUnavailable ||
+      ExecutionJobStatus.failed => _HistoryEntryType.providerHandoff,
+      ExecutionJobStatus.completed => _HistoryEntryType.manualResult,
+      _ => _HistoryEntryType.promptDraft,
+    };
+  }
+
   _HistoryEntryType _typeForJob(FlutenGenerationJob job) {
     if (job.status == 'manual' || job.status == 'saved') {
       return _HistoryEntryType.manualResult;
     }
-    if (job.routeType == 'browser' || job.routeType == 'external') {
+    if (job.routeType == 'browser' ||
+        job.routeType == 'external' ||
+        job.status == 'requiresApiKey' ||
+        job.status == 'localUnavailable' ||
+        job.status == 'manualOnly' ||
+        job.status == 'failed') {
       return _HistoryEntryType.providerHandoff;
     }
     return _HistoryEntryType.promptDraft;

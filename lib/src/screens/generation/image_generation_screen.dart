@@ -2,14 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../ai_operator_app.dart';
+import '../../models/execution_job.dart';
 import '../../models/generation/generation_job.dart';
 import '../../models/generation/generation_provider.dart';
 import '../../models/generation/generation_request.dart';
 import '../../services/generation/generation_provider_registry.dart';
 import '../../services/generation/mock_generation_service.dart';
+import '../../services/provider_executor.dart';
 import '../../widgets/generation/render_history_rail.dart';
 import '../../widgets/current_session_strip.dart';
 
@@ -317,16 +318,18 @@ Execution note: prompt preparation only. Open the selected image service and pas
   }
 
   Future<void> _prepareImagePrompt() async {
-    final prompt = _composedImagePrompt.trim();
-    await Clipboard.setData(ClipboardData(text: prompt));
+    final provider = _registry.byId(_providerId);
+    final job = await const ProviderExecutionService().prepare(
+      workspace: ExecutionJobWorkspace.image,
+      provider: ExecutionProviderRef.fromGenerationProvider(provider),
+      capability: _capability.name,
+      inputPrompt: _currentPrompt.trim(),
+      composedPrompt: _composedImagePrompt.trim(),
+      settings: AppSettingsScope.of(context),
+    );
     if (!mounted) return;
-    _saveManualResult(saveAsset: false);
-    _showMessage(
-      'Prompt подготовлен и скопирован. Откройте выбранный сервис и вставьте его вручную.',
-    );
-    _showMessage(
-      'Prompt подготовлен и скопирован. Откройте выбранный сервис и вставьте его вручную.',
-    );
+    _recordExecutionJob(job);
+    _showMessage(_messageForExecutionJob(job));
   }
 
   Future<void> _copyImagePrompt() async {
@@ -360,29 +363,17 @@ Execution note: prompt preparation only. Open the selected image service and pas
 
   Future<void> _openSelectedProvider() async {
     final provider = _registry.byId(_providerId);
-    final url = provider.launchUrl;
-    if (url == null) {
-      _showMessage(
-        'У выбранного провайдера пока нет сайта для открытия.',
-      );
-      return;
-    }
-    await Clipboard.setData(ClipboardData(text: _composedImagePrompt.trim()));
-    final opened = await launchUrl(
-      Uri.parse(url),
-      mode: LaunchMode.externalApplication,
+    final job = await const ProviderExecutionService().start(
+      workspace: ExecutionJobWorkspace.image,
+      provider: ExecutionProviderRef.fromGenerationProvider(provider),
+      capability: _capability.name,
+      inputPrompt: _currentPrompt.trim(),
+      composedPrompt: _composedImagePrompt.trim(),
+      settings: AppSettingsScope.of(context),
     );
     if (!mounted) return;
-    _showMessage(
-      opened
-          ? 'Сервис открыт во внешнем браузере'
-          : 'Не удалось открыть сайт. Prompt скопирован.',
-    );
-    _showMessage(
-      opened
-          ? 'Prompt скопирован. Сайт провайдера открыт.'
-          : 'Prompt скопирован. Не удалось открыть сайт провайдера.',
-    );
+    _recordExecutionJob(job);
+    _showMessage(_messageForExecutionJob(job));
   }
 
   void _clearPrompt() {
@@ -455,6 +446,34 @@ Execution note: prompt preparation only. Open the selected image service and pas
         detail: provider.name,
       ),
     );
+  }
+
+  void _recordExecutionJob(ExecutionJob job) {
+    unawaited(
+      FlutenRuntimeScope.read(context).addGenerationJob(
+        workspaceType: job.workspace.name,
+        providerId: job.providerId,
+        routeType: job.executionMode.name,
+        prompt: job.composedPrompt,
+        status: job.status.name,
+        resultLabel: '${job.providerName}: ${job.status.label}',
+        resultUrl: job.metadata['url'],
+      ),
+    );
+  }
+
+  String _messageForExecutionJob(ExecutionJob job) {
+    return switch (job.status) {
+      ExecutionJobStatus.requiresApiKey => 'Нужен API-ключ ${job.providerName}.',
+      ExecutionJobStatus.localUnavailable =>
+        'Локальная ${job.providerName} не подключена.',
+      ExecutionJobStatus.manualOnly =>
+        'Prompt подготовлен. Откройте ${job.providerName} и вставьте его вручную.',
+      ExecutionJobStatus.prepared =>
+        'Prompt подготовлен. Откройте ${job.providerName} и вставьте его вручную.',
+      ExecutionJobStatus.failed => job.errorMessage ?? 'Execution не выполнен.',
+      _ => 'Задача добавлена в очередь подготовки.',
+    };
   }
 
   void _saveManualResult({bool saveAsset = true}) {

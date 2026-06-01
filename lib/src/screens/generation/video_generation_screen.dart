@@ -2,14 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../ai_operator_app.dart';
+import '../../models/execution_job.dart';
 import '../../models/generation/generation_job.dart';
 import '../../models/generation/generation_provider.dart';
 import '../../models/generation/generation_request.dart';
 import '../../services/generation/generation_provider_registry.dart';
 import '../../services/generation/mock_generation_service.dart';
+import '../../services/provider_executor.dart';
 import '../../widgets/generation/browser_workspace_panel.dart';
 import '../../widgets/generation/render_history_rail.dart';
 import '../../widgets/generation/result_canvas.dart';
@@ -476,35 +477,34 @@ Execution note: copy/paste handoff only; no API generation is claimed.
 
   Future<void> _prepareProviderHandoff() async {
     final provider = _registry.byId(_providerId);
-    final prompt = _composedPrompt.trim();
-    await Clipboard.setData(ClipboardData(text: prompt));
-    if (!mounted) return;
-    _saveManualResult(saveAsset: false, promptOverride: prompt);
-    _showMessage(
-      'Prompt подготовлен и скопирован. Откройте выбранный сервис и вставьте его вручную.',
+    final job = await const ProviderExecutionService().prepare(
+      workspace: ExecutionJobWorkspace.video,
+      provider: ExecutionProviderRef.fromGenerationProvider(provider),
+      capability: _capability.name,
+      inputPrompt: _currentPrompt.trim(),
+      composedPrompt: _composedPrompt.trim(),
+      settings: AppSettingsScope.of(context),
     );
+    if (!mounted) return;
+    _recordExecutionJob(job);
+    _showMessage(_messageForExecutionJob(job));
     _recordEvent('Video provider handoff prepared', detail: provider.name);
   }
 
   Future<void> _openProviderSite() async {
     final provider = _registry.byId(_providerId);
-    final url = provider.launchUrl;
-    if (url == null) {
-      _showMessage('This provider has no launch URL yet.');
-      return;
-    }
-    await Clipboard.setData(ClipboardData(text: _composedPrompt.trim()));
-    final opened = await launchUrl(
-      Uri.parse(url),
-      mode: LaunchMode.externalApplication,
+    final job = await const ProviderExecutionService().start(
+      workspace: ExecutionJobWorkspace.video,
+      provider: ExecutionProviderRef.fromGenerationProvider(provider),
+      capability: _capability.name,
+      inputPrompt: _currentPrompt.trim(),
+      composedPrompt: _composedPrompt.trim(),
+      settings: AppSettingsScope.of(context),
     );
     if (!mounted) return;
+    _recordExecutionJob(job);
     _recordEvent('Video provider site opened', detail: provider.name);
-    _showMessage(
-      opened
-          ? 'Prompt скопирован. Сайт провайдера открыт.'
-          : 'Prompt скопирован. Не удалось открыть сайт провайдера.',
-    );
+    _showMessage(_messageForExecutionJob(job));
   }
 
   void _recordEvent(String title, {String? detail}) {
@@ -570,6 +570,34 @@ Execution note: copy/paste handoff only; no API generation is claimed.
       ),
     );
     _recordEvent('Video provider selected', detail: provider.name);
+  }
+
+  void _recordExecutionJob(ExecutionJob job) {
+    unawaited(
+      FlutenRuntimeScope.read(context).addGenerationJob(
+        workspaceType: job.workspace.name,
+        providerId: job.providerId,
+        routeType: job.executionMode.name,
+        prompt: job.composedPrompt,
+        status: job.status.name,
+        resultLabel: '${job.providerName}: ${job.status.label}',
+        resultUrl: job.metadata['url'],
+      ),
+    );
+  }
+
+  String _messageForExecutionJob(ExecutionJob job) {
+    return switch (job.status) {
+      ExecutionJobStatus.requiresApiKey => 'Нужен API-ключ ${job.providerName}.',
+      ExecutionJobStatus.localUnavailable =>
+        'Локальная ${job.providerName} не подключена.',
+      ExecutionJobStatus.manualOnly =>
+        'Prompt подготовлен. Откройте ${job.providerName} и вставьте его вручную.',
+      ExecutionJobStatus.prepared =>
+        'Prompt подготовлен. Откройте ${job.providerName} и вставьте его вручную.',
+      ExecutionJobStatus.failed => job.errorMessage ?? 'Execution не выполнен.',
+      _ => 'Задача добавлена в очередь подготовки.',
+    };
   }
 
   void _saveManualResult({bool saveAsset = true, String? promptOverride}) {

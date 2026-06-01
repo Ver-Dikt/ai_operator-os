@@ -2,11 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../ai_operator_app.dart';
 import '../../data/seed_browser_ai_tools.dart';
 import '../../models/browser_ai_tool.dart';
+import '../../models/execution_job.dart';
+import '../../services/provider_executor.dart';
 import '../../widgets/current_session_strip.dart';
 
 enum _AudioMode { music, voice, soundDesign }
@@ -303,21 +304,44 @@ class _AudioGenerationScreenState extends State<AudioGenerationScreen> {
       return;
     }
     final prompt = _composedPrompt;
-    final runtime = FlutenRuntimeScope.read(context);
-    await Clipboard.setData(ClipboardData(text: prompt));
-    await runtime.addGenerationJob(
-      workspaceType: 'audio',
-      routeType: _provider.executionMode.name,
-      prompt: prompt,
-      status: 'prepared',
-      providerId: _provider.id,
-      resultLabel: 'Audio prompt prepared',
-      resultUrl: _provider.url,
+    final job = await const ProviderExecutionService().prepare(
+      workspace: ExecutionJobWorkspace.audio,
+      provider: ExecutionProviderRef.fromBrowserTool(_provider),
+      capability: _mode.name,
+      inputPrompt: _prompt,
+      composedPrompt: prompt,
+      settings: AppSettingsScope.of(context),
     );
-    _addHistory('Prompt prepared', prompt);
-    _showMessage(
-      'Prompt подготовлен и скопирован. Откройте audio-сервис и вставьте его вручную.',
+    if (!mounted) return;
+    await _recordExecutionJob(job);
+    _addHistory(job.status.label, prompt);
+    _showMessage(_messageForExecutionJob(job));
+  }
+
+  Future<void> _recordExecutionJob(ExecutionJob job) async {
+    await FlutenRuntimeScope.read(context).addGenerationJob(
+      workspaceType: job.workspace.name,
+      routeType: job.executionMode.name,
+      prompt: job.composedPrompt,
+      status: job.status.name,
+      providerId: job.providerId,
+      resultLabel: '${job.providerName}: ${job.status.label}',
+      resultUrl: job.metadata['url'],
     );
+  }
+
+  String _messageForExecutionJob(ExecutionJob job) {
+    return switch (job.status) {
+      ExecutionJobStatus.requiresApiKey => 'Нужен API-ключ ${job.providerName}.',
+      ExecutionJobStatus.localUnavailable =>
+        'Локальная модель ${job.providerName} не подключена.',
+      ExecutionJobStatus.manualOnly =>
+        'Prompt подготовлен и скопирован. Вставьте его в ${job.providerName} вручную.',
+      ExecutionJobStatus.prepared =>
+        'Prompt подготовлен. Откройте ${job.providerName} и вставьте его вручную.',
+      ExecutionJobStatus.failed => job.errorMessage ?? 'Execution не выполнен.',
+      _ => 'Задача добавлена в очередь подготовки.',
+    };
   }
 
   Future<void> _copyPrompt() async {
@@ -339,24 +363,25 @@ class _AudioGenerationScreenState extends State<AudioGenerationScreen> {
   }
 
   Future<void> _openProvider() async {
-    final opened = await launchUrl(
-      Uri.parse(_provider.url),
-      mode: LaunchMode.externalApplication,
+    final prompt = _prompt.isEmpty ? _provider.url : _composedPrompt;
+    final runtime = FlutenRuntimeScope.read(context);
+    final job = await const ProviderExecutionService().start(
+      workspace: ExecutionJobWorkspace.audio,
+      provider: ExecutionProviderRef.fromBrowserTool(_provider),
+      capability: _mode.name,
+      inputPrompt: _prompt,
+      composedPrompt: prompt,
+      settings: AppSettingsScope.of(context),
     );
     if (!mounted) return;
-    if (opened) {
-      await FlutenRuntimeScope.read(context).addEvent(
-        type: 'audio',
-        title: 'Audio provider site opened',
-        detail: _provider.name,
-      );
-      _addHistory('Provider opened', _provider.url);
-      _showMessage('Сервис открыт во внешнем браузере.');
-      return;
-    }
-    await Clipboard.setData(ClipboardData(text: _provider.url));
-    if (!mounted) return;
-    _showMessage('Не удалось открыть сайт. Ссылка скопирована.');
+    await _recordExecutionJob(job);
+    await runtime.addEvent(
+      type: 'audio',
+      title: 'Audio provider site opened',
+      detail: _provider.name,
+    );
+    _addHistory(job.status.label, prompt);
+    _showMessage(_messageForExecutionJob(job));
   }
 
   void _clearPrompt() {
