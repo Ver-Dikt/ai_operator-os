@@ -121,7 +121,7 @@ class AppSettings extends ChangeNotifier {
         <String>{'director-agent', 'tool-router-agent'};
     _favoriteWorkflowIds =
         _preferences.getStringList(_favoriteWorkflowsKey)?.toSet() ??
-        <String>{'ai-short-video-factory'};
+        <String>{};
     _favoritePromptIds =
         _preferences.getStringList(_favoritePromptsKey)?.toSet() ??
         <String>{'cinematic-video-scene'};

@@ -42,12 +42,24 @@ class FlutenRuntimeStore extends ChangeNotifier {
 
   Future<void> updateCurrentWorkspace(String workspace) async {
     _touchSession(activeWorkspace: workspace);
-    addEvent(
-      type: 'workspace',
-      title: 'Workspace opened',
-      detail: workspace,
-      notify: false,
+    await _persist();
+    notifyListeners();
+  }
+
+  Future<void> clearCurrentSession() async {
+    final now = DateTime.now();
+    _session = FlutenSession(
+      id: _id('session'),
+      projectId: _project.id,
+      name: 'Creative Session',
+      activeWorkspace: 'text',
+      createdAt: now,
+      updatedAt: now,
     );
+    _jobs = <FlutenGenerationJob>[];
+    _assets = <FlutenAsset>[];
+    _events = <FlutenSessionEvent>[];
+    _project = _project.copyWith(updatedAt: now);
     await _persist();
     notifyListeners();
   }
