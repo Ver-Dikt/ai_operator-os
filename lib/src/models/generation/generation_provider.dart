@@ -11,32 +11,32 @@ enum GenerationCapability {
 extension GenerationProviderTypeLabel on GenerationProviderType {
   String get label {
     return switch (this) {
-      GenerationProviderType.api => 'API',
-      GenerationProviderType.browser => 'Браузер',
+      GenerationProviderType.api => 'Через API',
+      GenerationProviderType.browser => 'Через сайт',
       GenerationProviderType.local => 'Локально',
-      GenerationProviderType.externalLink => 'Внешняя ссылка',
+      GenerationProviderType.externalLink => 'Вручную',
     };
   }
 
   String get workflowLabel {
     return switch (this) {
-      GenerationProviderType.api => 'API / Mock',
-      GenerationProviderType.browser => 'Браузер',
-      GenerationProviderType.local => 'Локально',
-      GenerationProviderType.externalLink => 'Внешняя ссылка',
+      GenerationProviderType.api => 'Через API',
+      GenerationProviderType.browser => 'Через сайт',
+      GenerationProviderType.local => 'Локальная генерация',
+      GenerationProviderType.externalLink => 'Ручной режим',
     };
   }
 
   String get description {
     return switch (this) {
       GenerationProviderType.api =>
-        'API-маршрут. Если API не подключён, STUDIO покажет честный placeholder.',
+        'Маршрут через API. Если ключ не подключен, FLUTEN только показывает честный статус.',
       GenerationProviderType.browser =>
-        'Browser handoff: STUDIO готовит prompt, вы открываете внешний сервис и вставляете вручную.',
+        'Откройте сайт провайдера и вставьте подготовленный prompt вручную.',
       GenerationProviderType.local =>
-        'Локальный runtime. Используется только когда локальный движок подключён.',
+        'Локальный runtime используется только после подключения локальной модели.',
       GenerationProviderType.externalLink =>
-        'Внешняя ссылка: prompt и настройки остаются в STUDIO, результат возвращается вручную.',
+        'Ручной режим: prompt остается в FLUTEN, результат добавляется вручную.',
     };
   }
 }
@@ -44,11 +44,11 @@ extension GenerationProviderTypeLabel on GenerationProviderType {
 extension GenerationCapabilityLabel on GenerationCapability {
   String get label {
     return switch (this) {
-      GenerationCapability.textToImage => 'Текст в изображение',
-      GenerationCapability.imageToImage => 'Изображение в изображение',
-      GenerationCapability.textToVideo => 'Текст в видео',
-      GenerationCapability.imageToVideo => 'Изображение в видео',
-      GenerationCapability.videoToVideo => 'Видео в видео',
+      GenerationCapability.textToImage => 'Text to Image',
+      GenerationCapability.imageToImage => 'Image to Image',
+      GenerationCapability.textToVideo => 'Text to Video',
+      GenerationCapability.imageToVideo => 'Image to Video',
+      GenerationCapability.videoToVideo => 'Video to Video',
     };
   }
 }

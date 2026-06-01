@@ -196,7 +196,7 @@ class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
         selectedProvider: selectedProvider,
         selectedProviderType: _providerType,
         availableProviderTypes: allProviders.map((item) => item.type).toSet(),
-        onProviderChanged: (value) => setState(() => _providerId = value),
+        onProviderChanged: _selectProvider,
         onProviderTypeChanged: _changeProviderType,
         onCopy: _copyImagePrompt,
         onPrepare: _prepareImagePrompt,
@@ -429,6 +429,32 @@ Execution note: prompt preparation only. Open the selected image service and pas
       _providerType = type;
       _providerId = providers.first.id;
     });
+    _recordProviderSelected(providers.first);
+  }
+
+  void _selectProvider(String providerId) {
+    final provider = _registry.byId(providerId);
+    setState(() {
+      _providerId = provider.id;
+      _providerType = provider.type;
+    });
+    _recordProviderSelected(provider);
+  }
+
+  void _recordProviderSelected(GenerationProvider provider) {
+    unawaited(
+      FlutenRuntimeScope.read(context).setActiveProvider(
+        provider.id,
+        route: provider.type.name,
+      ),
+    );
+    unawaited(
+      FlutenRuntimeScope.read(context).addEvent(
+        type: 'image',
+        title: 'Image provider selected',
+        detail: provider.name,
+      ),
+    );
   }
 
   void _saveManualResult({bool saveAsset = true}) {

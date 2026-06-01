@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -20,7 +20,7 @@ class BrowserHubScreen extends StatefulWidget {
 class _BrowserHubScreenState extends State<BrowserHubScreen> {
   final _promptController = TextEditingController(
     text:
-        'Собери кинематографичную идею для короткого vertical video: герой, локация, свет, движение камеры, настроение, 3 варианта хука.',
+        'Р РЋР С•Р В±Р ВµРЎР‚Р С‘ Р С”Р С‘Р Р…Р ВµР СР В°РЎвЂљР С•Р С–РЎР‚Р В°РЎвЂћР С‘РЎвЂЎР Р…РЎС“РЎР‹ Р С‘Р Т‘Р ВµРЎР‹ Р Т‘Р В»РЎРЏ Р С”Р С•РЎР‚Р С•РЎвЂљР С”Р С•Р С–Р С• vertical video: Р С–Р ВµРЎР‚Р С•Р в„–, Р В»Р С•Р С”Р В°РЎвЂ Р С‘РЎРЏ, РЎРѓР Р†Р ВµРЎвЂљ, Р Т‘Р Р†Р С‘Р В¶Р ВµР Р…Р С‘Р Вµ Р С”Р В°Р СР ВµРЎР‚РЎвЂ№, Р Р…Р В°РЎРѓРЎвЂљРЎР‚Р С•Р ВµР Р…Р С‘Р Вµ, 3 Р Р†Р В°РЎР‚Р С‘Р В°Р Р…РЎвЂљР В° РЎвЂ¦РЎС“Р С”Р В°.',
   );
   final _searchController = TextEditingController();
 
@@ -30,7 +30,7 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
   bool _showInternalPlaceholder = false;
   bool _runtimeWorkspaceOpened = false;
   String _statusText =
-      'Сервис выбран. Можно открыть сайт во внешнем браузере или подготовить prompt handoff.';
+      'Р РЋР ВµРЎР‚Р Р†Р С‘РЎРѓ Р Р†РЎвЂ№Р В±РЎР‚Р В°Р Р…. Р СљР С•Р В¶Р Р…Р С• Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ РЎРѓР В°Р в„–РЎвЂљ Р Р†Р С• Р Р†Р Р…Р ВµРЎв‚¬Р Р…Р ВµР С Р В±РЎР‚Р В°РЎС“Р В·Р ВµРЎР‚Р Вµ Р С‘Р В»Р С‘ Р С—Р С•Р Т‘Р С–Р С•РЎвЂљР С•Р Р†Р С‘РЎвЂљРЎРЉ prompt handoff.';
 
   @override
   void initState() {
@@ -66,7 +66,7 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
       if (tool != null) _selectedTool = tool;
       _showInternalPlaceholder = false;
       _statusText =
-          'Промпт получен из AI Чата. Можно открыть сайт во внешнем браузере или подготовить prompt handoff.';
+          'Р СџРЎР‚Р С•Р СР С—РЎвЂљ Р С—Р С•Р В»РЎС“РЎвЂЎР ВµР Р… Р С‘Р В· AI Р В§Р В°РЎвЂљР В°. Р СљР С•Р В¶Р Р…Р С• Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ РЎРѓР В°Р в„–РЎвЂљ Р Р†Р С• Р Р†Р Р…Р ВµРЎв‚¬Р Р…Р ВµР С Р В±РЎР‚Р В°РЎС“Р В·Р ВµРЎР‚Р Вµ Р С‘Р В»Р С‘ Р С—Р С•Р Т‘Р С–Р С•РЎвЂљР С•Р Р†Р С‘РЎвЂљРЎРЉ prompt handoff.';
     });
     unawaited(FlutenRuntimeScope.read(context).setActivePromptDraft(prompt));
     if (tool != null) {
@@ -110,6 +110,8 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
             onCategoryChanged: (value) => setState(() => _category = value),
             onToolSelected: _selectTool,
             onCopyPrompt: _copyPrompt,
+            onOpenTool: _openExternal,
+            onPreparePaste: _preparePaste,
           );
           final workspace = _BrowserWorkspace(
             tool: _selectedTool,
@@ -170,7 +172,7 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
       _selectedTool = tool;
       _showInternalPlaceholder = false;
       _statusText =
-          'Сервис выбран. Можно открыть сайт во внешнем браузере или подготовить prompt handoff.';
+          'Р РЋР ВµРЎР‚Р Р†Р С‘РЎРѓ Р Р†РЎвЂ№Р В±РЎР‚Р В°Р Р…. Р СљР С•Р В¶Р Р…Р С• Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ РЎРѓР В°Р в„–РЎвЂљ Р Р†Р С• Р Р†Р Р…Р ВµРЎв‚¬Р Р…Р ВµР С Р В±РЎР‚Р В°РЎС“Р В·Р ВµРЎР‚Р Вµ Р С‘Р В»Р С‘ Р С—Р С•Р Т‘Р С–Р С•РЎвЂљР С•Р Р†Р С‘РЎвЂљРЎРЉ prompt handoff.';
     });
     unawaited(
       FlutenRuntimeScope.read(context).setActiveProvider(
@@ -178,19 +180,40 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
         route: 'browser',
       ),
     );
-    _showMessage('${tool.name}: сервис выбран.');
+    unawaited(
+      FlutenRuntimeScope.read(context).addEvent(
+        type: 'browser',
+        title: 'Provider selected',
+        detail: tool.name,
+      ),
+    );
+    _showMessage('${tool.name}: РЎРѓР ВµРЎР‚Р Р†Р С‘РЎРѓ Р Р†РЎвЂ№Р В±РЎР‚Р В°Р Р….');
   }
 
   Future<void> _copyPrompt() async {
     await Clipboard.setData(ClipboardData(text: _promptController.text.trim()));
     if (!mounted) return;
-    _showMessage('Промпт скопирован в буфер.');
+    unawaited(
+      FlutenRuntimeScope.read(context).addEvent(
+        type: 'browser',
+        title: 'Provider prompt copied',
+        detail: _selectedTool.name,
+      ),
+    );
+    _showMessage('Р СџРЎР‚Р С•Р СР С—РЎвЂљ РЎРѓР С”Р С•Р С—Р С‘РЎР‚Р С•Р Р†Р В°Р Р… Р Р† Р В±РЎС“РЎвЂћР ВµРЎР‚.');
   }
 
   Future<void> _preparePaste() async {
     await Clipboard.setData(ClipboardData(text: _promptController.text.trim()));
     if (!mounted) return;
-    _showMessage('Промпт скопирован. Вставьте его в открытом сервисе вручную.');
+    unawaited(
+      FlutenRuntimeScope.read(context).addEvent(
+        type: 'browser',
+        title: 'Provider handoff prepared',
+        detail: _selectedTool.name,
+      ),
+    );
+    _showMessage('Р СџРЎР‚Р С•Р СР С—РЎвЂљ РЎРѓР С”Р С•Р С—Р С‘РЎР‚Р С•Р Р†Р В°Р Р…. Р вЂ™РЎРѓРЎвЂљР В°Р Р†РЎРЉРЎвЂљР Вµ Р ВµР С–Р С• Р Р† Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљР С•Р С РЎРѓР ВµРЎР‚Р Р†Р С‘РЎРѓР Вµ Р Р†РЎР‚РЎС“РЎвЂЎР Р…РЎС“РЎР‹.');
   }
 
   Future<void> _openExternal(BrowserAiTool tool) async {
@@ -207,19 +230,19 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
           detail: tool.name,
         ),
       );
-      setState(() => _statusText = '${tool.name} открыт во внешнем браузере.');
-      _showMessage('${tool.name} открыт во внешнем браузере.');
+      setState(() => _statusText = '${tool.name} Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљ Р Р†Р С• Р Р†Р Р…Р ВµРЎв‚¬Р Р…Р ВµР С Р В±РЎР‚Р В°РЎС“Р В·Р ВµРЎР‚Р Вµ.');
+      _showMessage('${tool.name} Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљ Р Р†Р С• Р Р†Р Р…Р ВµРЎв‚¬Р Р…Р ВµР С Р В±РЎР‚Р В°РЎС“Р В·Р ВµРЎР‚Р Вµ.');
       return;
     }
     await Clipboard.setData(ClipboardData(text: tool.url));
     if (!mounted) return;
-    _showMessage('Не удалось открыть сайт. Ссылка скопирована.');
+    _showMessage('Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ РЎРѓР В°Р в„–РЎвЂљ. Р РЋРЎРѓРЎвЂ№Р В»Р С”Р В° РЎРѓР С”Р С•Р С—Р С‘РЎР‚Р С•Р Р†Р В°Р Р…Р В°.');
   }
 
   void _openInside() {
     final message = kIsWeb
-        ? 'В web-версии встроенный браузер ограничен. Используйте desktop-версию STUDIO или откройте сайт во внешнем браузере.'
-        : 'Встроенный браузер будет доступен в desktop-версии после подключения WebView runtime.';
+        ? 'Р вЂ™ web-Р Р†Р ВµРЎР‚РЎРѓР С‘Р С‘ Р Р†РЎРѓРЎвЂљРЎР‚Р С•Р ВµР Р…Р Р…РЎвЂ№Р в„– Р В±РЎР‚Р В°РЎС“Р В·Р ВµРЎР‚ Р С•Р С–РЎР‚Р В°Р Р…Р С‘РЎвЂЎР ВµР Р…. Р ВРЎРѓР С—Р С•Р В»РЎРЉР В·РЎС“Р в„–РЎвЂљР Вµ desktop-Р Р†Р ВµРЎР‚РЎРѓР С‘РЎР‹ STUDIO Р С‘Р В»Р С‘ Р С•РЎвЂљР С”РЎР‚Р С•Р в„–РЎвЂљР Вµ РЎРѓР В°Р в„–РЎвЂљ Р Р†Р С• Р Р†Р Р…Р ВµРЎв‚¬Р Р…Р ВµР С Р В±РЎР‚Р В°РЎС“Р В·Р ВµРЎР‚Р Вµ.'
+        : 'Р вЂ™РЎРѓРЎвЂљРЎР‚Р С•Р ВµР Р…Р Р…РЎвЂ№Р в„– Р В±РЎР‚Р В°РЎС“Р В·Р ВµРЎР‚ Р В±РЎС“Р Т‘Р ВµРЎвЂљ Р Т‘Р С•РЎРѓРЎвЂљРЎС“Р С—Р ВµР Р… Р Р† desktop-Р Р†Р ВµРЎР‚РЎРѓР С‘Р С‘ Р С—Р С•РЎРѓР В»Р Вµ Р С—Р С•Р Т‘Р С”Р В»РЎР‹РЎвЂЎР ВµР Р…Р С‘РЎРЏ WebView runtime.';
     setState(() {
       _showInternalPlaceholder = true;
       _statusText = message;
@@ -237,7 +260,7 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
         url: _selectedTool.url,
       ),
     );
-    _showMessage('Результат можно сохранить вручную после генерации.');
+    _showMessage('Р В Р ВµР В·РЎС“Р В»РЎРЉРЎвЂљР В°РЎвЂљ Р СР С•Р В¶Р Р…Р С• РЎРѓР С•РЎвЂ¦РЎР‚Р В°Р Р…Р С‘РЎвЂљРЎРЉ Р Р†РЎР‚РЎС“РЎвЂЎР Р…РЎС“РЎР‹ Р С—Р С•РЎРѓР В»Р Вµ Р С–Р ВµР Р…Р ВµРЎР‚Р В°РЎвЂ Р С‘Р С‘.');
   }
 
   void _showMessage(String text) {
@@ -256,7 +279,7 @@ class _HubHeader extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Браузер нейронок',
+            'Р вЂРЎР‚Р В°РЎС“Р В·Р ВµРЎР‚ Р Р…Р ВµР в„–РЎР‚Р С•Р Р…Р С•Р С”',
             style: TextStyle(
               color: Colors.white,
               fontSize: 24,
@@ -266,7 +289,7 @@ class _HubHeader extends StatelessWidget {
           ),
           SizedBox(height: 6),
           Text(
-            'Командный центр для внешних AI-сайтов: текст, ресерч, картинки, видео, промпты и creative tools.',
+            'Р С™Р С•Р СР В°Р Р…Р Т‘Р Р…РЎвЂ№Р в„– РЎвЂ Р ВµР Р…РЎвЂљРЎР‚ Р Т‘Р В»РЎРЏ Р Р†Р Р…Р ВµРЎв‚¬Р Р…Р С‘РЎвЂ¦ AI-РЎРѓР В°Р в„–РЎвЂљР С•Р Р†: РЎвЂљР ВµР С”РЎРѓРЎвЂљ, РЎР‚Р ВµРЎРѓР ВµРЎР‚РЎвЂЎ, Р С”Р В°РЎР‚РЎвЂљР С‘Р Р…Р С”Р С‘, Р Р†Р С‘Р Т‘Р ВµР С•, Р С—РЎР‚Р С•Р СР С—РЎвЂљРЎвЂ№ Р С‘ creative tools.',
             style: TextStyle(color: Color(0xFFA7B1C1), height: 1.35),
           ),
         ],
@@ -343,6 +366,8 @@ class _ToolsPanel extends StatelessWidget {
     required this.onCategoryChanged,
     required this.onToolSelected,
     required this.onCopyPrompt,
+    required this.onOpenTool,
+    required this.onPreparePaste,
   });
 
   final BrowserAiTool selectedTool;
@@ -351,7 +376,10 @@ class _ToolsPanel extends StatelessWidget {
   final ValueChanged<BrowserAiCategory?> onCategoryChanged;
   final ValueChanged<BrowserAiTool> onToolSelected;
   final VoidCallback onCopyPrompt;
+  final ValueChanged<BrowserAiTool> onOpenTool;
+  final VoidCallback onPreparePaste;
 
+  @override
   @override
   Widget build(BuildContext context) {
     return StatefulBuilder(
@@ -373,7 +401,7 @@ class _ToolsPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'AI-сервисы',
+                'AI-РЎРѓР ВµРЎР‚Р Р†Р С‘РЎРѓРЎвЂ№',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -386,7 +414,7 @@ class _ToolsPanel extends StatelessWidget {
                 onChanged: (_) => setLocalState(() {}),
                 decoration: const InputDecoration(
                   prefixIcon: Icon(Icons.search_rounded),
-                  hintText: 'Найти сервис или сценарий',
+                  hintText: 'Р СњР В°Р в„–РЎвЂљР С‘ РЎРѓР ВµРЎР‚Р Р†Р С‘РЎРѓ Р С‘Р В»Р С‘ РЎРѓРЎвЂ Р ВµР Р…Р В°РЎР‚Р С‘Р в„–',
                   isDense: true,
                 ),
               ),
@@ -396,7 +424,7 @@ class _ToolsPanel extends StatelessWidget {
                 runSpacing: 8,
                 children: [
                   ChoiceChip(
-                    label: const Text('Все'),
+                    label: const Text('Р’СЃРµ'),
                     selected: category == null,
                     onSelected: (_) => onCategoryChanged(null),
                   ),
@@ -420,6 +448,8 @@ class _ToolsPanel extends StatelessWidget {
                       selected: tool.id == selectedTool.id,
                       onSelect: () => onToolSelected(tool),
                       onCopyPrompt: onCopyPrompt,
+                      onOpenSite: () => onOpenTool(tool),
+                      onPreparePaste: onPreparePaste,
                     );
                   },
                 ),
@@ -438,12 +468,16 @@ class _ToolCard extends StatelessWidget {
     required this.selected,
     required this.onSelect,
     required this.onCopyPrompt,
+    required this.onOpenSite,
+    required this.onPreparePaste,
   });
 
   final BrowserAiTool tool;
   final bool selected;
   final VoidCallback onSelect;
   final VoidCallback onCopyPrompt;
+  final VoidCallback onOpenSite;
+  final VoidCallback onPreparePaste;
 
   @override
   Widget build(BuildContext context) {
@@ -498,27 +532,52 @@ class _ToolCard extends StatelessWidget {
               runSpacing: 6,
               children: [
                 _MiniPill(tool.category.label),
+                _MiniPill(tool.executionMode.label),
+                _MiniPill(tool.status.label),
                 _MiniPill(tool.accessType.label),
               ],
             ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: onSelect,
-                    icon: const Icon(
-                      Icons.check_circle_outline_rounded,
-                      size: 18,
-                    ),
-                    label: const Text('Выбрать сервис'),
-                  ),
+            if (tool.recommendedUseCase != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Best for: ${tool.recommendedUseCase}',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFFC8FFF4),
+                  height: 1.3,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
                 ),
-                const SizedBox(width: 8),
-                IconButton.outlined(
-                  tooltip: 'Скопировать промпт',
+              ),
+            ],
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.icon(
+                  onPressed: onSelect,
+                  icon: const Icon(
+                    Icons.check_circle_outline_rounded,
+                    size: 18,
+                  ),
+                  label: const Text('\u0412\u044b\u0431\u0440\u0430\u0442\u044c'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: onOpenSite,
+                  icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                  label: const Text('\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0441\u0430\u0439\u0442'),
+                ),
+                OutlinedButton.icon(
                   onPressed: tool.promptRelevant ? onCopyPrompt : null,
                   icon: const Icon(Icons.copy_rounded, size: 18),
+                  label: const Text('\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c prompt'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: tool.promptRelevant ? onPreparePaste : null,
+                  icon: const Icon(Icons.input_rounded, size: 18),
+                  label: const Text('\u041f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u0438\u0442\u044c \u0434\u043b\u044f \u0441\u0435\u0440\u0432\u0438\u0441\u0430'),
                 ),
               ],
             ),
@@ -595,6 +654,10 @@ class _BrowserWorkspace extends StatelessWidget {
               ),
               _MiniPill(tool.category.label),
               const SizedBox(width: 8),
+              _MiniPill(tool.executionMode.label),
+              const SizedBox(width: 8),
+              _MiniPill(tool.status.label),
+              const SizedBox(width: 8),
               _MiniPill(tool.accessType.label),
             ],
           ),
@@ -630,8 +693,8 @@ class _BrowserWorkspace extends StatelessWidget {
                             const SizedBox(height: 14),
                             Text(
                               showInternalPlaceholder
-                                  ? 'Встроенный браузер STUDIO'
-                                  : 'Рабочая область ${tool.name}',
+                                  ? 'Р вЂ™РЎРѓРЎвЂљРЎР‚Р С•Р ВµР Р…Р Р…РЎвЂ№Р в„– Р В±РЎР‚Р В°РЎС“Р В·Р ВµРЎР‚ STUDIO'
+                                  : 'Р В Р В°Р В±Р С•РЎвЂЎР В°РЎРЏ Р С•Р В±Р В»Р В°РЎРѓРЎвЂљРЎРЉ ${tool.name}',
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: Colors.white,
@@ -642,8 +705,8 @@ class _BrowserWorkspace extends StatelessWidget {
                             const SizedBox(height: 8),
                             Text(
                               showInternalPlaceholder
-                                  ? 'Встроенный браузер будет доступен в desktop-версии после подключения WebView runtime.\n${tool.url}'
-                                  : 'Сервис выбран. Можно открыть сайт во внешнем браузере или подготовить prompt handoff.\n${tool.url}',
+                                  ? 'Р вЂ™РЎРѓРЎвЂљРЎР‚Р С•Р ВµР Р…Р Р…РЎвЂ№Р в„– Р В±РЎР‚Р В°РЎС“Р В·Р ВµРЎР‚ Р В±РЎС“Р Т‘Р ВµРЎвЂљ Р Т‘Р С•РЎРѓРЎвЂљРЎС“Р С—Р ВµР Р… Р Р† desktop-Р Р†Р ВµРЎР‚РЎРѓР С‘Р С‘ Р С—Р С•РЎРѓР В»Р Вµ Р С—Р С•Р Т‘Р С”Р В»РЎР‹РЎвЂЎР ВµР Р…Р С‘РЎРЏ WebView runtime.\n${tool.url}'
+                                  : 'Р РЋР ВµРЎР‚Р Р†Р С‘РЎРѓ Р Р†РЎвЂ№Р В±РЎР‚Р В°Р Р…. Р СљР С•Р В¶Р Р…Р С• Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ РЎРѓР В°Р в„–РЎвЂљ Р Р†Р С• Р Р†Р Р…Р ВµРЎв‚¬Р Р…Р ВµР С Р В±РЎР‚Р В°РЎС“Р В·Р ВµРЎР‚Р Вµ Р С‘Р В»Р С‘ Р С—Р С•Р Т‘Р С–Р С•РЎвЂљР С•Р Р†Р С‘РЎвЂљРЎРЉ prompt handoff.\n${tool.url}',
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 color: Color(0xFF9AA6B8),
@@ -665,7 +728,7 @@ class _BrowserWorkspace extends StatelessWidget {
             minLines: 3,
             maxLines: 5,
             decoration: const InputDecoration(
-              labelText: 'Промпт для выбранного AI-сервиса',
+              labelText: 'Р СџРЎР‚Р С•Р СР С—РЎвЂљ Р Т‘Р В»РЎРЏ Р Р†РЎвЂ№Р В±РЎР‚Р В°Р Р…Р Р…Р С•Р С–Р С• AI-РЎРѓР ВµРЎР‚Р Р†Р С‘РЎРѓР В°',
               alignLabelWithHint: true,
               prefixIcon: Icon(Icons.notes_rounded),
             ),
@@ -678,27 +741,27 @@ class _BrowserWorkspace extends StatelessWidget {
               FilledButton.icon(
                 onPressed: onOpenInside,
                 icon: const Icon(Icons.open_in_browser_rounded),
-                label: const Text('Открыть внутри STUDIO'),
+                label: const Text('Р С›РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р Р†Р Р…РЎС“РЎвЂљРЎР‚Р С‘ STUDIO'),
               ),
               OutlinedButton.icon(
                 onPressed: onOpenExternal,
                 icon: const Icon(Icons.open_in_new_rounded),
-                label: const Text('Открыть во внешнем браузере'),
+                label: const Text('Р С›РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р Р†Р С• Р Р†Р Р…Р ВµРЎв‚¬Р Р…Р ВµР С Р В±РЎР‚Р В°РЎС“Р В·Р ВµРЎР‚Р Вµ'),
               ),
               OutlinedButton.icon(
                 onPressed: onCopyPrompt,
                 icon: const Icon(Icons.copy_rounded),
-                label: const Text('Скопировать промпт'),
+                label: const Text('Р РЋР С”Р С•Р С—Р С‘РЎР‚Р С•Р Р†Р В°РЎвЂљРЎРЉ Р С—РЎР‚Р С•Р СР С—РЎвЂљ'),
               ),
               OutlinedButton.icon(
                 onPressed: onPreparePaste,
                 icon: const Icon(Icons.input_rounded),
-                label: const Text('Подготовить вставку'),
+                label: const Text('Р СџР С•Р Т‘Р С–Р С•РЎвЂљР С•Р Р†Р С‘РЎвЂљРЎРЉ Р Р†РЎРѓРЎвЂљР В°Р Р†Р С”РЎС“'),
               ),
               OutlinedButton.icon(
                 onPressed: onSaveManualResult,
                 icon: const Icon(Icons.save_alt_rounded),
-                label: const Text('Сохранить результат вручную'),
+                label: const Text('Р РЋР С•РЎвЂ¦РЎР‚Р В°Р Р…Р С‘РЎвЂљРЎРЉ РЎР‚Р ВµР В·РЎС“Р В»РЎРЉРЎвЂљР В°РЎвЂљ Р Р†РЎР‚РЎС“РЎвЂЎР Р…РЎС“РЎР‹'),
               ),
             ],
           ),

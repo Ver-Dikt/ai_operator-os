@@ -166,7 +166,7 @@ class _VideoGenerationScreenState extends State<VideoGenerationScreen> {
             cameraStyle: _cameraStyle,
             pacing: _pacing,
             quality: _quality,
-            onProviderChanged: (value) => setState(() => _providerId = value),
+            onProviderChanged: _selectProvider,
             onProviderTypeChanged: _changeProviderType,
             references: _references,
             onAddReference: _addReference,
@@ -550,6 +550,26 @@ Execution note: copy/paste handoff only; no API generation is claimed.
       _providerType = type;
       _providerId = providers.first.id;
     });
+    _recordProviderSelected(providers.first);
+  }
+
+  void _selectProvider(String providerId) {
+    final provider = _registry.byId(providerId);
+    setState(() {
+      _providerId = provider.id;
+      _providerType = provider.type;
+    });
+    _recordProviderSelected(provider);
+  }
+
+  void _recordProviderSelected(GenerationProvider provider) {
+    unawaited(
+      FlutenRuntimeScope.read(context).setActiveProvider(
+        provider.id,
+        route: provider.type.name,
+      ),
+    );
+    _recordEvent('Video provider selected', detail: provider.name);
   }
 
   void _saveManualResult({bool saveAsset = true, String? promptOverride}) {
