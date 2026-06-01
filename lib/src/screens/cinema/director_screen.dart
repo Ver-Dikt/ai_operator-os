@@ -130,13 +130,13 @@ class _DirectorScreenState extends State<DirectorScreen> {
     final draft = session.activePromptDraft?.trim();
     if (draft == null || draft.isEmpty) {
       _showMessage(
-        'Р’ С‚РµРєСѓС‰РµР№ СЃРµСЃСЃРёРё РїРѕРєР° РЅРµС‚ Р°РєС‚РёРІРЅРѕР№ РёРґРµРё.',
+        'В текущей сессии пока нет активной идеи.',
       );
       return;
     }
     setState(() => _idea.text = draft);
     _showMessage(
-      'РўРµРєСѓС‰Р°СЏ РёРґРµСЏ РёР· СЃРµСЃСЃРёРё Р·Р°РіСЂСѓР¶РµРЅР°.',
+      'Текущая идея из сессии загружена.',
     );
   }
 
@@ -144,7 +144,7 @@ class _DirectorScreenState extends State<DirectorScreen> {
     final source = _idea.text.trim();
     if (source.isEmpty) {
       _showMessage(
-        'РћРїРёС€РёС‚Рµ РёРґРµСЋ РёР»Рё РєРѕРЅС†РµРїС‚ РґР»СЏ Director Engine.',
+        'Опишите идею или концепт для Director Engine.',
       );
       return;
     }
@@ -516,13 +516,13 @@ class _InputPanel extends StatelessWidget {
                 onPressed: onUseSessionIdea,
                 icon: const Icon(Icons.history_rounded),
                 label: const Text(
-                  'РСЃРїРѕР»СЊР·РѕРІР°С‚СЊ С‚РµРєСѓС‰СѓСЋ РёРґРµСЋ РёР· СЃРµСЃСЃРёРё',
+                  'Использовать текущую идею из сессии',
                 ),
               ),
               FilledButton.icon(
                 onPressed: onGenerate,
                 icon: const Icon(Icons.movie_creation_outlined),
-                label: const Text('РЎРѕР±СЂР°С‚СЊ Director Plan'),
+                label: const Text('Собрать Director Plan'),
               ),
             ],
           ),
@@ -591,7 +591,7 @@ class _DirectorPlanView extends StatelessWidget {
               FilledButton.icon(
                 onPressed: onSendVideo,
                 icon: const Icon(Icons.send_rounded),
-                label: const Text('РћС‚РїСЂР°РІРёС‚СЊ РІ Video Studio'),
+                label: const Text('Отправить в Video Studio'),
               ),
               OutlinedButton.icon(
                 onPressed: onCopy,
@@ -607,7 +607,7 @@ class _DirectorPlanView extends StatelessWidget {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.auto_fix_high_rounded),
-                label: const Text('РЈР»СѓС‡С€РёС‚СЊ С‡РµСЂРµР· Ollama'),
+                label: const Text('Улучшить через Ollama'),
               ),
             ],
           ),

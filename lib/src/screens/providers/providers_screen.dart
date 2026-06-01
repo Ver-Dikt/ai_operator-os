@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../ai_operator_app.dart';
 import '../../models/generation/generation_provider.dart';
 import '../../services/generation/generation_provider_registry.dart';
+import '../../state/app_settings.dart';
 
 class ProvidersScreen extends StatelessWidget {
   const ProvidersScreen({super.key});
@@ -9,6 +11,7 @@ class ProvidersScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final providers = const GenerationProviderRegistry().all();
+    final settings = AppSettingsScope.of(context);
     return DecoratedBox(
       decoration: const BoxDecoration(
         gradient: RadialGradient(
@@ -53,8 +56,10 @@ class ProvidersScreen extends StatelessWidget {
                                         : 1.35,
                                   ),
                               itemCount: providers.length,
-                              itemBuilder: (context, index) =>
-                                  _ProviderCard(provider: providers[index]),
+                              itemBuilder: (context, index) => _ProviderCard(
+                                provider: providers[index],
+                                settings: settings,
+                              ),
                             );
                           },
                         ),
@@ -178,9 +183,10 @@ class _SummaryTile extends StatelessWidget {
 }
 
 class _ProviderCard extends StatelessWidget {
-  const _ProviderCard({required this.provider});
+  const _ProviderCard({required this.provider, required this.settings});
 
   final GenerationProvider provider;
+  final AppSettings settings;
 
   @override
   Widget build(BuildContext context) {
@@ -244,14 +250,43 @@ class _ProviderCard extends StatelessWidget {
             spacing: 6,
             runSpacing: 6,
             children: [
-              Chip(label: Text(provider.statusLabel)),
+              Chip(label: Text(_effectiveStatus)),
               for (final capability in provider.capabilities)
                 Chip(label: Text(capability.label)),
+              if (provider.requiresApiKey)
+                ActionChip(
+                  avatar: const Icon(Icons.tune_rounded, size: 16),
+                  label: const Text('Открыть настройки запуска'),
+                  onPressed: () {
+                    AppSettingsScope.of(
+                      context,
+                    ).setDestination(AppDestination.settings);
+                    Navigator.of(
+                      context,
+                    ).pushNamed(AppDestination.settings.routePath);
+                  },
+                ),
             ],
           ),
         ],
       ),
     );
+  }
+
+  String get _effectiveStatus {
+    if (provider.requiresApiKey) {
+      final providerId = _settingsProviderId(provider.id);
+      return settings.hasProviderApiKey(providerId)
+          ? 'Ключ добавлен'
+          : 'Нужен API-ключ';
+    }
+    if (provider.type == GenerationProviderType.browser) {
+      return 'Готово: можно открыть сайт';
+    }
+    if (provider.type == GenerationProviderType.local) {
+      return 'Локальная модель не подключена';
+    }
+    return provider.statusLabel;
   }
 
   IconData _iconFor(GenerationProviderType type) {
@@ -262,4 +297,13 @@ class _ProviderCard extends StatelessWidget {
       GenerationProviderType.externalLink => Icons.open_in_new_rounded,
     };
   }
+}
+
+String _settingsProviderId(String generationProviderId) {
+  return switch (generationProviderId) {
+    'api-gpt-image' => 'openai',
+    'api-gemini-image' || 'api-veo' => 'gemini',
+    'api-flux' => 'stability',
+    _ => generationProviderId,
+  };
 }

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../state/app_settings.dart';
 
@@ -81,10 +81,10 @@ class _HeroPanel extends StatelessWidget {
           final text = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const _Eyebrow('РўРІРѕСЂС‡РµСЃРєР°СЏ СЃС‚СѓРґРёСЏ РіРµРЅРµСЂР°С†РёРё'),
+              const _Eyebrow('Творческая студия генерации'),
               const SizedBox(height: 14),
               Text(
-                'РћС‚РєСЂС‹С‚Р°СЏ AI-СЃС‚СѓРґРёСЏ',
+                'Открытая AI-студия',
                 style: Theme.of(context).textTheme.displaySmall?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w900,
@@ -93,7 +93,7 @@ class _HeroPanel extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               const Text(
-                'Р“РµРЅРµСЂРёСЂСѓР№ РёР·РѕР±СЂР°Р¶РµРЅРёСЏ, РІРёРґРµРѕ Рё РєРёРЅРµРјР°С‚РѕРіСЂР°С„РёС‡РЅС‹Рµ СЃС†РµРЅС‹ РёР· РѕРґРЅРѕРіРѕ РїРѕРЅСЏС‚РЅРѕРіРѕ СЂР°Р±РѕС‡РµРіРѕ РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІР°: РїСЂРѕРјРїС‚, СЂРµС„РµСЂРµРЅСЃС‹, РјРѕРґРµР»СЊ, РёСЃС‚РѕСЂРёСЏ Рё СЂРµР·СѓР»СЊС‚Р°С‚.',
+                'Генерируй изображения, видео и кинематографичные сцены из одного понятного рабочего пространства: промпт, референсы, модель, история и результат.',
                 style: TextStyle(
                   color: Color(0xFFA7B1C1),
                   fontSize: 16,
@@ -108,17 +108,17 @@ class _HeroPanel extends StatelessWidget {
                   FilledButton.icon(
                     onPressed: () => onNavigate(AppDestination.images),
                     icon: const Icon(Icons.image_outlined),
-                    label: const Text('РћС‚РєСЂС‹С‚СЊ Image Studio'),
+                    label: const Text('Открыть Image Studio'),
                   ),
                   OutlinedButton.icon(
                     onPressed: () => onNavigate(AppDestination.video),
                     icon: const Icon(Icons.movie_creation_outlined),
-                    label: const Text('РћС‚РєСЂС‹С‚СЊ Video Studio'),
+                    label: const Text('Открыть Video Studio'),
                   ),
                   OutlinedButton.icon(
                     onPressed: () => onNavigate(AppDestination.browserHub),
                     icon: const Icon(Icons.public_rounded),
-                    label: const Text('Р‘СЂР°СѓР·РµСЂ РЅРµР№СЂРѕРЅРѕРє'),
+                    label: const Text('Браузер нейронок'),
                   ),
                 ],
               ),
@@ -181,7 +181,7 @@ class _HeroPreview extends StatelessWidget {
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'РќРµРѕРЅРѕРІР°СЏ СѓР»РёС†Р° РїРѕРґ РґРѕР¶РґРµРј, РјРµРґР»РµРЅРЅС‹Р№ dolly-in, РєРёРЅРµРјР°С‚РѕРіСЂР°С„РёС‡РЅС‹Р№ С‚СѓРјР°РЅ',
+                        'Неоновая улица под дождем, медленный dolly-in, кинематографичный туман',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -402,12 +402,12 @@ class _WorkflowStrip extends StatelessWidget {
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           _Eyebrow('Workflow'),
-          _StepPill('РџСЂРѕРјРїС‚'),
-          _StepPill('Р РµС„РµСЂРµРЅСЃ'),
-          _StepPill('РњРѕРґРµР»СЊ'),
-          _StepPill('Р“РµРЅРµСЂР°С†РёСЏ'),
-          _StepPill('РСЃС‚РѕСЂРёСЏ'),
-          _StepPill('Р­РєСЃРїРѕСЂС‚'),
+          _StepPill('Промпт'),
+          _StepPill('Референс'),
+          _StepPill('Модель'),
+          _StepPill('Генерация'),
+          _StepPill('История'),
+          _StepPill('Экспорт'),
         ],
       ),
     );

@@ -44,10 +44,10 @@ extension AiProviderStatusLabel on AiProviderStatus {
   String get label {
     return switch (this) {
       AiProviderStatus.available => 'Ручной запуск',
-      AiProviderStatus.notConfigured => 'Требуется API ключ',
+      AiProviderStatus.notConfigured => 'Нужен API-ключ',
       AiProviderStatus.connectedMock => 'Локально доступно',
       AiProviderStatus.localUnavailable => 'Локальный runtime недоступен',
-      AiProviderStatus.comingSoon => 'Будет позже',
+      AiProviderStatus.comingSoon => 'Скоро',
     };
   }
 }
@@ -55,10 +55,10 @@ extension AiProviderStatusLabel on AiProviderStatus {
 extension AiProviderTypeLabel on AiProviderType {
   String get label {
     return switch (this) {
-      AiProviderType.api => 'API',
+      AiProviderType.api => 'Через API',
       AiProviderType.local => 'Локально',
-      AiProviderType.manual => 'Ручной',
-      AiProviderType.browser => 'Browser',
+      AiProviderType.manual => 'Вручную',
+      AiProviderType.browser => 'Через сайт',
       AiProviderType.hybrid => 'Гибрид',
     };
   }
@@ -70,7 +70,7 @@ extension LocalRuntimeStateLabel on LocalRuntimeState {
       LocalRuntimeState.connected => 'Локально доступно',
       LocalRuntimeState.unavailable => 'Endpoint недоступен',
       LocalRuntimeState.checking => 'Проверка runtime...',
-      LocalRuntimeState.manual => 'Ручной запуск',
+      LocalRuntimeState.manual => 'Ручной режим',
       LocalRuntimeState.unknown => 'Статус неизвестен',
     };
   }

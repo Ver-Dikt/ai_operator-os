@@ -118,21 +118,21 @@ class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
     final providers = _providersForCurrentMode();
     final selectedProvider = _registry.byId(_providerId);
     return _StudioWorkspace(
-      eyebrow: 'Р“РµРЅРµСЂР°С†РёСЏ РёР·РѕР±СЂР°Р¶РµРЅРёР№',
+      eyebrow: 'Генерация изображений',
       title: 'Image Studio',
       subtitle:
-          'РЎРѕР·РґР°РІР°Р№ РєР°РґСЂС‹, РїРѕСЃС‚РµСЂС‹, РєРѕРЅС†РµРїС‚С‹ Рё РІР°СЂРёР°С†РёРё РїРѕ СЂРµС„РµСЂРµРЅСЃР°Рј РёР· РѕРґРЅРѕРіРѕ focused prompt workflow.',
+          'Создавай кадры, постеры, концепты и вариации по референсам из одного focused prompt workflow.',
       modeSelector: SegmentedButton<GenerationCapability>(
         segments: const [
           ButtonSegment(
             value: GenerationCapability.textToImage,
             icon: Icon(Icons.text_fields_rounded),
-            label: Text('РўРµРєСЃС‚ в†’ РёР·РѕР±СЂР°Р¶РµРЅРёРµ'),
+            label: Text('Текст → изображение'),
           ),
           ButtonSegment(
             value: GenerationCapability.imageToImage,
             icon: Icon(Icons.image_search_outlined),
-            label: Text('Р РµС„РµСЂРµРЅСЃ в†’ РєР°РґСЂ'),
+            label: Text('Референс → кадр'),
           ),
         ],
         selected: {_capability},
@@ -225,20 +225,20 @@ class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
         provider.type == GenerationProviderType.externalLink) {
       _saveManualResult(saveAsset: false);
       _showMessage(
-        'РџСЂРѕРјРїС‚ РїРѕРґРіРѕС‚РѕРІР»РµРЅ. РЎРєРѕРїРёСЂСѓР№С‚Рµ РµРіРѕ Рё РѕС‚РєСЂРѕР№С‚Рµ СЃРµСЂРІРёСЃ РІ browser handoff panel.',
+        'Промпт подготовлен. Скопируйте его и откройте сервис в browser handoff panel.',
       );
       return;
     }
     if (provider.type == GenerationProviderType.local) {
       _showMessage(
-        'Р›РѕРєР°Р»СЊРЅС‹Р№ runtime Р±СѓРґРµС‚ РїРѕРґРєР»СЋС‡С‘РЅ РїРѕР·Р¶Рµ.',
+        'Локальный runtime будет подключён позже.',
       );
       return;
     }
     if (provider.type == GenerationProviderType.api &&
         provider.requiresApiKey) {
       _showMessage(
-        'API РґР»СЏ СЌС‚РѕР№ РјРѕРґРµР»Рё РїРѕРєР° РЅРµ РїРѕРґРєР»СЋС‡С‘РЅ. РСЃРїРѕР»СЊР·СѓР№С‚Рµ Browser route.',
+        'API для этой модели пока не подключён. Используйте Browser route.',
       );
       return;
     }
@@ -263,7 +263,7 @@ class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
 
   String get _composedImagePrompt {
     final base = _currentPrompt.trim().isEmpty
-        ? 'РќР°РїРёС€Рё, С‡С‚Рѕ С…РѕС‡РµС€СЊ СЃРѕР·РґР°С‚СЊ, РёР»Рё РёСЃРїРѕР»СЊР·СѓР№ prompt РёР· AI Chat.'
+        ? 'Напиши, что хочешь создать, или используй prompt из AI Chat.'
         : _currentPrompt.trim();
     final negative = _negativeController.text.trim();
     return '''
@@ -285,11 +285,11 @@ Execution note: prompt preparation only. Open the selected image service and pas
   void _improvePromptLocally() {
     final source = _currentPrompt.trim();
     if (source.isEmpty) {
-      _showMessage('РЎРЅР°С‡Р°Р»Р° РѕРїРёС€Рё РёР·РѕР±СЂР°Р¶РµРЅРёРµ.');
+      _showMessage('Сначала опиши изображение.');
       return;
     }
     if (source.isEmpty) {
-      _showMessage('РЎРЅР°С‡Р°Р»Р° РЅР°РїРёС€РёС‚Рµ prompt РІ Image Studio.');
+      _showMessage('Сначала напишите prompt в Image Studio.');
       return;
     }
     final improved =
@@ -312,7 +312,7 @@ Execution note: prompt preparation only. Open the selected image service and pas
     });
     unawaited(FlutenRuntimeScope.read(context).setActivePromptDraft(improved));
     _showMessage(
-      'Prompt СѓР»СѓС‡С€РµРЅ Р±РµР· API. Р­С‚Рѕ РЅРµ РіРµРЅРµСЂР°С†РёСЏ РёР·РѕР±СЂР°Р¶РµРЅРёСЏ.',
+      'Prompt улучшен без API. Это не генерация изображения.',
     );
   }
 
@@ -322,31 +322,31 @@ Execution note: prompt preparation only. Open the selected image service and pas
     if (!mounted) return;
     _saveManualResult(saveAsset: false);
     _showMessage(
-      'Prompt РїРѕРґРіРѕС‚РѕРІР»РµРЅ Рё СЃРєРѕРїРёСЂРѕРІР°РЅ. РћС‚РєСЂРѕР№С‚Рµ РІС‹Р±СЂР°РЅРЅС‹Р№ СЃРµСЂРІРёСЃ Рё РІСЃС‚Р°РІСЊС‚Рµ РµРіРѕ РІСЂСѓС‡РЅСѓСЋ.',
+      'Prompt подготовлен и скопирован. Откройте выбранный сервис и вставьте его вручную.',
     );
     _showMessage(
-      'Prompt РїРѕРґРіРѕС‚РѕРІР»РµРЅ Рё СЃРєРѕРїРёСЂРѕРІР°РЅ. РћС‚РєСЂРѕР№С‚Рµ РІС‹Р±СЂР°РЅРЅС‹Р№ СЃРµСЂРІРёСЃ Рё РІСЃС‚Р°РІСЊС‚Рµ РµРіРѕ РІСЂСѓС‡РЅСѓСЋ.',
+      'Prompt подготовлен и скопирован. Откройте выбранный сервис и вставьте его вручную.',
     );
   }
 
   Future<void> _copyImagePrompt() async {
     await Clipboard.setData(ClipboardData(text: _composedImagePrompt.trim()));
     if (!mounted) return;
-    _showMessage('Prompt СЃРєРѕРїРёСЂРѕРІР°РЅ');
-    _showMessage('Prompt СЃРєРѕРїРёСЂРѕРІР°РЅ.');
+    _showMessage('Prompt скопирован');
+    _showMessage('Prompt скопирован.');
   }
 
   Future<void> _copyBasePrompt() async {
     await Clipboard.setData(ClipboardData(text: _currentPrompt.trim()));
     if (!mounted) return;
-    _showMessage('Prompt СЃРєРѕРїРёСЂРѕРІР°РЅ');
+    _showMessage('Prompt скопирован');
   }
 
   void _useHandoffAsBase() {
     unawaited(
       FlutenRuntimeScope.read(context).setActivePromptDraft(_currentPrompt),
     );
-    _showMessage('Prompt РёСЃРїРѕР»СЊР·СѓРµС‚СЃСЏ РєР°Рє РѕСЃРЅРѕРІР°.');
+    _showMessage('Prompt используется как основа.');
   }
 
   void _clearHandoff() {
@@ -363,7 +363,7 @@ Execution note: prompt preparation only. Open the selected image service and pas
     final url = provider.launchUrl;
     if (url == null) {
       _showMessage(
-        'РЈ РІС‹Р±СЂР°РЅРЅРѕРіРѕ РїСЂРѕРІР°Р№РґРµСЂР° РїРѕРєР° РЅРµС‚ СЃР°Р№С‚Р° РґР»СЏ РѕС‚РєСЂС‹С‚РёСЏ.',
+        'У выбранного провайдера пока нет сайта для открытия.',
       );
       return;
     }
@@ -375,13 +375,13 @@ Execution note: prompt preparation only. Open the selected image service and pas
     if (!mounted) return;
     _showMessage(
       opened
-          ? 'РЎРµСЂРІРёСЃ РѕС‚РєСЂС‹С‚ РІРѕ РІРЅРµС€РЅРµРј Р±СЂР°СѓР·РµСЂРµ'
-          : 'РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РєСЂС‹С‚СЊ СЃР°Р№С‚. Prompt СЃРєРѕРїРёСЂРѕРІР°РЅ.',
+          ? 'Сервис открыт во внешнем браузере'
+          : 'Не удалось открыть сайт. Prompt скопирован.',
     );
     _showMessage(
       opened
-          ? 'Prompt СЃРєРѕРїРёСЂРѕРІР°РЅ. РЎР°Р№С‚ РїСЂРѕРІР°Р№РґРµСЂР° РѕС‚РєСЂС‹С‚.'
-          : 'Prompt СЃРєРѕРїРёСЂРѕРІР°РЅ. РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РєСЂС‹С‚СЊ СЃР°Р№С‚ РїСЂРѕРІР°Р№РґРµСЂР°.',
+          ? 'Prompt скопирован. Сайт провайдера открыт.'
+          : 'Prompt скопирован. Не удалось открыть сайт провайдера.',
     );
   }
 
@@ -551,12 +551,12 @@ class _ImageHandoffBanner extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'РСЃС‚РѕС‡РЅРёРє: AI Chat / Image Prompt',
+            'Источник: AI Chat / Image Prompt',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 4),
           const Text(
-            'Production prompt РїСЂРёРЅСЏС‚. РњРѕР¶РЅРѕ РЅР°СЃС‚СЂРѕРёС‚СЊ СЃС‚РёР»СЊ, РєРѕРјРїРѕР·РёС†РёСЋ Рё РїРѕРґРіРѕС‚РѕРІРёС‚СЊ prompt РґР»СЏ РІС‹Р±СЂР°РЅРЅРѕРіРѕ image-СЃРµСЂРІРёСЃР°.',
+            'Production prompt принят. Можно настроить стиль, композицию и подготовить prompt для выбранного image-сервиса.',
             style: TextStyle(color: Color(0xFFC8D2E2), fontSize: 12),
           ),
           const SizedBox(height: 8),
@@ -568,18 +568,18 @@ class _ImageHandoffBanner extends StatelessWidget {
                 onPressed: onUseBase,
                 icon: const Icon(Icons.edit_note_rounded),
                 label: const Text(
-                  'РСЃРїРѕР»СЊР·РѕРІР°С‚СЊ РєР°Рє РѕСЃРЅРѕРІСѓ',
+                  'Использовать как основу',
                 ),
               ),
               OutlinedButton.icon(
                 onPressed: onCopy,
                 icon: const Icon(Icons.copy_rounded),
-                label: const Text('РЎРєРѕРїРёСЂРѕРІР°С‚СЊ prompt'),
+                label: const Text('Скопировать prompt'),
               ),
               TextButton.icon(
                 onPressed: onClear,
                 icon: const Icon(Icons.close_rounded),
-                label: const Text('РћС‡РёСЃС‚РёС‚СЊ handoff'),
+                label: const Text('Очистить handoff'),
               ),
             ],
           ),
@@ -618,12 +618,12 @@ class _ImagePromptComposer extends StatelessWidget {
             icon: Icons.image_outlined,
             title: 'Image prompt',
             subtitle:
-                'РћРїРёС€Рё РѕР±СЉРµРєС‚, СЃС†РµРЅСѓ, СЃС‚РёР»СЊ, СЃРІРµС‚ Рё РЅР°СЃС‚СЂРѕРµРЅРёРµ.',
+                'Опиши объект, сцену, стиль, свет и настроение.',
           ),
           if (source != _ImagePromptSource.unknown) ...[
             const SizedBox(height: 6),
             Text(
-              'РСЃС‚РѕС‡РЅРёРє: ${source.label}',
+              'Источник: ${source.label}',
               style: const TextStyle(color: Color(0xFF8B97A8), fontSize: 12),
             ),
           ],
@@ -634,13 +634,13 @@ class _ImagePromptComposer extends StatelessWidget {
             maxLines: 9,
             decoration: const InputDecoration(
               hintText:
-                  'РќР°РїРёС€Рё, С‡С‚Рѕ С…РѕС‡РµС€СЊ СЃРѕР·РґР°С‚СЊ, РёР»Рё РёСЃРїРѕР»СЊР·СѓР№ prompt РёР· AI Chat.',
+                  'Напиши, что хочешь создать, или используй prompt из AI Chat.',
               border: OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 8),
           const Text(
-            'РџРѕРєР° РіРµРЅРµСЂР°С†РёСЏ СЂР°Р±РѕС‚Р°РµС‚ С‡РµСЂРµР· РІС‹Р±СЂР°РЅРЅС‹Р№ СЃРµСЂРІРёСЃ: СЃРєРѕРїРёСЂСѓР№С‚Рµ prompt Рё РѕС‚РєСЂРѕР№С‚Рµ СЃР°Р№С‚ РїСЂРѕРІР°Р№РґРµСЂР°. API/Р»РѕРєР°Р»СЊРЅС‹Р№ Р·Р°РїСѓСЃРє РїРѕРґРєР»СЋС‡РёРј РѕС‚РґРµР»СЊРЅС‹Рј СЌС‚Р°РїРѕРј.',
+            'Пока генерация работает через выбранный сервис: скопируйте prompt и откройте сайт провайдера. API/локальный запуск подключим отдельным этапом.',
             style: TextStyle(color: Color(0xFF8B97A8), fontSize: 12),
           ),
           const SizedBox(height: 10),
@@ -652,30 +652,30 @@ class _ImagePromptComposer extends StatelessWidget {
                 onPressed: onPrepare,
                 icon: const Icon(Icons.send_rounded),
                 label: const Text(
-                  'РџРѕРґРіРѕС‚РѕРІРёС‚СЊ prompt РґР»СЏ РіРµРЅРµСЂР°С†РёРё',
+                  'Подготовить prompt для генерации',
                 ),
               ),
               OutlinedButton.icon(
                 onPressed: onImprove,
                 icon: const Icon(Icons.auto_fix_high_rounded),
-                label: const Text('РЈР»СѓС‡С€РёС‚СЊ prompt Р±РµР· API'),
+                label: const Text('Улучшить prompt без API'),
               ),
               OutlinedButton.icon(
                 onPressed: onCopy,
                 icon: const Icon(Icons.copy_rounded),
-                label: const Text('РЎРєРѕРїРёСЂРѕРІР°С‚СЊ prompt'),
+                label: const Text('Скопировать prompt'),
               ),
               OutlinedButton.icon(
                 onPressed: onOpen,
                 icon: const Icon(Icons.open_in_new_rounded),
                 label: const Text(
-                  'РћС‚РєСЂС‹С‚СЊ РІС‹Р±СЂР°РЅРЅС‹Р№ СЃРµСЂРІРёСЃ',
+                  'Открыть выбранный сервис',
                 ),
               ),
               TextButton.icon(
                 onPressed: onClear,
                 icon: const Icon(Icons.clear_rounded),
-                label: const Text('РћС‡РёСЃС‚РёС‚СЊ'),
+                label: const Text('Очистить'),
               ),
             ],
           ),
@@ -734,7 +734,7 @@ class _ImageControlPanel extends StatelessWidget {
             icon: Icons.tune_rounded,
             title: 'Visual controls',
             subtitle:
-                'РќР°СЃС‚СЂРѕР№РєРё СЃСЂР°Р·Сѓ РІС…РѕРґСЏС‚ РІ СЃРѕР±СЂР°РЅРЅС‹Р№ image prompt.',
+                'Настройки сразу входят в собранный image prompt.',
           ),
           const SizedBox(height: 10),
           _ChoiceField(
@@ -890,7 +890,7 @@ class _ImageWorkspacePreview extends StatelessWidget {
             icon: Icons.photo_size_select_actual_outlined,
             title: 'Image workspace',
             subtitle:
-                'Р—РґРµСЃСЊ Р±СѓРґРµС‚ СЂРµР·СѓР»СЊС‚Р°С‚ РёР·РѕР±СЂР°Р¶РµРЅРёСЏ.',
+                'Здесь будет результат изображения.',
           ),
           const SizedBox(height: 12),
           SizedBox(
@@ -928,8 +928,8 @@ class _ImageWorkspacePreview extends StatelessWidget {
                             provider.type == GenerationProviderType.api ||
                                     provider.type ==
                                         GenerationProviderType.local
-                                ? 'Р“РµРЅРµСЂР°С†РёСЏ РІРЅСѓС‚СЂРё FLUTEN Р±СѓРґРµС‚ РїРѕРґРєР»СЋС‡РµРЅР° РѕС‚РґРµР»СЊРЅС‹Рј СЌС‚Р°РїРѕРј.'
-                                : 'РЎРєРѕРїРёСЂСѓР№С‚Рµ prompt Рё РѕС‚РєСЂРѕР№С‚Рµ РІС‹Р±СЂР°РЅРЅС‹Р№ image-СЃРµСЂРІРёСЃ.',
+                                ? 'Генерация внутри FLUTEN будет подключена отдельным этапом.'
+                                : 'Скопируйте prompt и откройте выбранный image-сервис.',
                             style: const TextStyle(
                               color: Color(0xFFA7B1C1),
                               height: 1.35,
@@ -940,7 +940,7 @@ class _ImageWorkspacePreview extends StatelessWidget {
                     )
                   : const Center(
                       child: Text(
-                        'Р—РґРµСЃСЊ Р±СѓРґРµС‚ СЂРµР·СѓР»СЊС‚Р°С‚ РёР·РѕР±СЂР°Р¶РµРЅРёСЏ',
+                        'Здесь будет результат изображения',
                         style: TextStyle(
                           color: Color(0xFF8B97A8),
                           fontWeight: FontWeight.w800,
@@ -978,7 +978,7 @@ class _ComposedImagePromptCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'РЎРѕР±СЂР°РЅРЅС‹Р№ image prompt',
+            'Собранный image prompt',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 8),
@@ -1006,7 +1006,7 @@ class _ReferencesPlaceholder extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: const Text(
-        'References\nРЎРєРѕСЂРѕ: Р·Р°РіСЂСѓР·РєР° СЂРµС„РµСЂРµРЅСЃРѕРІ, image-to-image, style reference.',
+        'References\nСкоро: загрузка референсов, image-to-image, style reference.',
         style: TextStyle(color: Color(0xFFA7B1C1), height: 1.35),
       ),
     );
@@ -1048,7 +1048,7 @@ class _ImageProviderPanel extends StatelessWidget {
             icon: Icons.route_rounded,
             title: 'Image provider',
             subtitle:
-                'РљР°Рє Р·Р°РїСѓСЃС‚РёС‚СЊ РІС‹Р±СЂР°РЅРЅС‹Р№ image-СЃРµСЂРІРёСЃ.',
+                'Как запустить выбранный image-сервис.',
           ),
           const SizedBox(height: 10),
           Wrap(
@@ -1086,7 +1086,7 @@ class _ImageProviderPanel extends StatelessWidget {
             runSpacing: 8,
             children: [
               Chip(
-                label: Text('Р—Р°РїСѓСЃРє: ${_runModeFor(selectedProvider)}'),
+                label: Text('Запуск: ${_runModeFor(selectedProvider)}'),
               ),
               Chip(label: Text(_statusFor(selectedProvider))),
             ],
@@ -1104,18 +1104,18 @@ class _ImageProviderPanel extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: selectedProvider.launchUrl == null ? null : onOpen,
                 icon: const Icon(Icons.open_in_new_rounded),
-                label: const Text('РћС‚РєСЂС‹С‚СЊ СЃР°Р№С‚'),
+                label: const Text('Открыть сайт'),
               ),
               OutlinedButton.icon(
                 onPressed: onCopy,
                 icon: const Icon(Icons.copy_rounded),
-                label: const Text('РЎРєРѕРїРёСЂРѕРІР°С‚СЊ prompt'),
+                label: const Text('Скопировать prompt'),
               ),
               FilledButton.icon(
                 onPressed: onPrepare,
                 icon: const Icon(Icons.send_rounded),
                 label: const Text(
-                  'РџРѕРґРіРѕС‚РѕРІРёС‚СЊ prompt РґР»СЏ РіРµРЅРµСЂР°С†РёРё',
+                  'Подготовить prompt для генерации',
                 ),
               ),
             ],
@@ -1128,35 +1128,35 @@ class _ImageProviderPanel extends StatelessWidget {
   String _statusFor(GenerationProvider provider) {
     if (provider.type == GenerationProviderType.api &&
         provider.requiresApiKey) {
-      return 'РќСѓР¶РµРЅ API-РєР»СЋС‡';
+      return 'Нужен API-ключ';
     }
     return switch (provider.type) {
       GenerationProviderType.api =>
-        'Р“РµРЅРµСЂР°С†РёСЏ РІРЅСѓС‚СЂРё FLUTEN РїРѕРєР° РЅРµ РїРѕРґРєР»СЋС‡РµРЅР°',
+        'Генерация внутри FLUTEN пока не подключена',
       GenerationProviderType.browser =>
-        'Р“РѕС‚РѕРІРѕ: РјРѕР¶РЅРѕ РѕС‚РєСЂС‹С‚СЊ СЃР°Р№С‚',
+        'Готово: можно открыть сайт',
       GenerationProviderType.local =>
-        'Р›РѕРєР°Р»СЊРЅР°СЏ РјРѕРґРµР»СЊ РЅРµ РїРѕРґРєР»СЋС‡РµРЅР°',
+        'Локальная модель не подключена',
       GenerationProviderType.externalLink =>
-        'РЎРєРѕРїРёСЂСѓР№С‚Рµ prompt Рё РІСЃС‚Р°РІСЊС‚Рµ РІСЂСѓС‡РЅСѓСЋ',
+        'Скопируйте prompt и вставьте вручную',
     };
   }
 
   String _runModeFor(GenerationProvider provider) {
     return switch (provider.type) {
-      GenerationProviderType.api => 'Р§РµСЂРµР· API',
-      GenerationProviderType.browser => 'Р§РµСЂРµР· СЃР°Р№С‚',
-      GenerationProviderType.local => 'Р›РѕРєР°Р»СЊРЅРѕ',
-      GenerationProviderType.externalLink => 'Р’СЂСѓС‡РЅСѓСЋ',
+      GenerationProviderType.api => 'Через API',
+      GenerationProviderType.browser => 'Через сайт',
+      GenerationProviderType.local => 'Локально',
+      GenerationProviderType.externalLink => 'Вручную',
     };
   }
 
   String _typeLabel(GenerationProviderType type) {
     return switch (type) {
       GenerationProviderType.api => 'API',
-      GenerationProviderType.browser => 'Р§РµСЂРµР· СЃР°Р№С‚',
-      GenerationProviderType.local => 'Р›РѕРєР°Р»СЊРЅР°СЏ РіРµРЅРµСЂР°С†РёСЏ',
-      GenerationProviderType.externalLink => 'Р СѓС‡РЅРѕР№ СЂРµР¶РёРј',
+      GenerationProviderType.browser => 'Через сайт',
+      GenerationProviderType.local => 'Локальная генерация',
+      GenerationProviderType.externalLink => 'Ручной режим',
     };
   }
 }
@@ -1386,7 +1386,7 @@ class _ImagePromptNotice extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
       ),
       child: const Text(
-        'РСЃС‚РѕС‡РЅРёРє: AI Chat / Image Prompt',
+        'Источник: AI Chat / Image Prompt',
         style: TextStyle(
           color: Color(0xFFC8FFF4),
           fontSize: 12,
@@ -1427,12 +1427,12 @@ class _ImageStudioActions extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'РќР°РїРёС€Рё, С‡С‚Рѕ С…РѕС‡РµС€СЊ СЃРѕР·РґР°С‚СЊ, РёР»Рё РёСЃРїРѕР»СЊР·СѓР№ prompt РёР· AI Chat.',
+            'Напиши, что хочешь создать, или используй prompt из AI Chat.',
             style: TextStyle(color: Color(0xFFA7B1C1), fontSize: 12),
           ),
           const SizedBox(height: 6),
           const Text(
-            'РџРѕРєР° РіРµРЅРµСЂР°С†РёСЏ СЂР°Р±РѕС‚Р°РµС‚ С‡РµСЂРµР· РІС‹Р±СЂР°РЅРЅС‹Р№ СЃРµСЂРІРёСЃ: СЃРєРѕРїРёСЂСѓР№С‚Рµ prompt Рё РѕС‚РєСЂРѕР№С‚Рµ СЃР°Р№С‚ РїСЂРѕРІР°Р№РґРµСЂР°. API/Р»РѕРєР°Р»СЊРЅС‹Р№ Р·Р°РїСѓСЃРє РїРѕРґРєР»СЋС‡РёРј РѕС‚РґРµР»СЊРЅС‹Рј СЌС‚Р°РїРѕРј.',
+            'Пока генерация работает через выбранный сервис: скопируйте prompt и откройте сайт провайдера. API/локальный запуск подключим отдельным этапом.',
             style: TextStyle(color: Color(0xFF8B97A8), fontSize: 12),
           ),
           const SizedBox(height: 10),
@@ -1444,30 +1444,30 @@ class _ImageStudioActions extends StatelessWidget {
                 onPressed: onPrepare,
                 icon: const Icon(Icons.send_rounded),
                 label: const Text(
-                  'РџРѕРґРіРѕС‚РѕРІРёС‚СЊ prompt РґР»СЏ РіРµРЅРµСЂР°С†РёРё',
+                  'Подготовить prompt для генерации',
                 ),
               ),
               OutlinedButton.icon(
                 onPressed: onImprove,
                 icon: const Icon(Icons.auto_fix_high_rounded),
-                label: const Text('РЈР»СѓС‡С€РёС‚СЊ prompt Р±РµР· API'),
+                label: const Text('Улучшить prompt без API'),
               ),
               OutlinedButton.icon(
                 onPressed: onCopy,
                 icon: const Icon(Icons.copy_rounded),
-                label: const Text('РЎРєРѕРїРёСЂРѕРІР°С‚СЊ prompt'),
+                label: const Text('Скопировать prompt'),
               ),
               OutlinedButton.icon(
                 onPressed: onOpen,
                 icon: const Icon(Icons.open_in_new_rounded),
                 label: const Text(
-                  'РћС‚РєСЂС‹С‚СЊ РІС‹Р±СЂР°РЅРЅС‹Р№ СЃРµСЂРІРёСЃ',
+                  'Открыть выбранный сервис',
                 ),
               ),
               TextButton.icon(
                 onPressed: onClear,
                 icon: const Icon(Icons.clear_rounded),
-                label: const Text('РћС‡РёСЃС‚РёС‚СЊ'),
+                label: const Text('Очистить'),
               ),
             ],
           ),
@@ -1492,7 +1492,7 @@ class _ChatPromptNotice extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
       ),
       child: const Text(
-        'РџСЂРѕРјРїС‚ РїРѕР»СѓС‡РµРЅ РёР· AI Chat',
+        'Промпт получен из AI Chat',
         style: TextStyle(
           color: Color(0xFFC8FFF4),
           fontSize: 12,

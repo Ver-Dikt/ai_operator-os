@@ -1,11 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../ai_operator_app.dart';
 import '../models/ai_provider.dart';
-import '../models/execution_mode.dart';
-import '../models/execution_route.dart';
-import '../services/execution_router_service.dart';
-import '../services/local_runtime_status_service.dart';
 import '../services/provider_registry.dart';
 import '../state/app_settings.dart';
 import '../widgets/cards/os_card.dart';
@@ -20,155 +18,262 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  final _registry = const ProviderRegistry();
   final Map<String, TextEditingController> _keyControllers = {};
-  final Set<String> _mockConnected = {};
-  final Map<String, LocalRuntimeState> _runtimeStates = {};
-  final LocalRuntimeStatusService _runtimeStatus =
-      const LocalRuntimeStatusService();
+  final Map<String, TextEditingController> _baseUrlControllers = {};
+  final Map<String, TextEditingController> _modelControllers = {};
+  final Map<String, TextEditingController> _endpointControllers = {};
+  final Map<String, bool> _apiEnabled = {};
+  final Map<String, bool> _localEnabled = {};
+  bool _hydrated = false;
+  bool _openedEventSent = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final settings = AppSettingsScope.of(context);
+    if (!_hydrated) {
+      _hydrated = true;
+      _hydrateControllers(settings);
+    }
+    if (!_openedEventSent) {
+      _openedEventSent = true;
+      unawaited(
+        FlutenRuntimeScope.read(context).addEvent(
+          type: 'settings',
+          title: 'Provider settings opened',
+          detail: 'Execution settings',
+        ),
+      );
+    }
+  }
 
   @override
   void dispose() {
-    for (final controller in _keyControllers.values) {
+    for (final controller in [
+      ..._keyControllers.values,
+      ..._baseUrlControllers.values,
+      ..._modelControllers.values,
+      ..._endpointControllers.values,
+    ]) {
       controller.dispose();
     }
     super.dispose();
   }
 
-  TextEditingController _controllerFor(AiProvider provider) {
-    return _keyControllers.putIfAbsent(provider.id, TextEditingController.new);
+  void _hydrateControllers(AppSettings settings) {
+    for (final provider in _apiProviders) {
+      _apiEnabled[provider.id] = settings.isProviderEnabled(provider.id);
+      _keyControllers[provider.id] = TextEditingController();
+      _baseUrlControllers[provider.id] = TextEditingController(
+        text: settings.providerBaseUrl(
+          provider.id,
+          fallback: provider.baseUrl ?? '',
+        ),
+      );
+      _modelControllers[provider.id] = TextEditingController(
+        text: settings.providerModel(
+          provider.id,
+          fallback: _defaultModelFor(provider),
+        ),
+      );
+    }
+    for (final provider in _localProviders) {
+      final endpoint = _defaultEndpointFor(provider);
+      _localEnabled[provider.id] = settings.isLocalProviderEnabled(provider.id);
+      _endpointControllers[provider.id] = TextEditingController(
+        text: settings.localEndpoint(provider.id, fallback: endpoint),
+      );
+    }
   }
 
-  Future<void> _refreshRuntime(AiProvider provider) async {
-    if (provider.localEndpoint == null) return;
-    setState(() => _runtimeStates[provider.id] = LocalRuntimeState.checking);
-    final state = await _runtimeStatus.checkProvider(provider);
-    if (!mounted) return;
-    setState(() => _runtimeStates[provider.id] = state);
-  }
+  List<AiProvider> get _apiProviders => _registry
+      .getAllProviders()
+      .where((provider) => provider.apiKeyRequired)
+      .toList(growable: false);
+
+  List<AiProvider> get _localProviders => _registry
+      .getAllProviders()
+      .where(
+        (provider) =>
+            provider.type == AiProviderType.local ||
+            provider.localEndpoint != null,
+      )
+      .toList(growable: false);
 
   @override
   Widget build(BuildContext context) {
     final settings = AppSettingsScope.of(context);
-    final providers = const ProviderRegistry().getAllProviders();
-
     return ResponsivePage(
-      title: 'Настройки',
-      subtitle: 'Локальные настройки runtime, провайдеров и режима оператора.',
+      title: 'Настройки запуска',
+      subtitle:
+          'Локальный vault для провайдеров, API-ключей, endpoint-ов и режимов выполнения. Реальные API-вызовы пока не подключены.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          OsCard(
-            child: Column(
-              children: [
-                SwitchListTile(
-                  value: settings.darkMode,
-                  onChanged: settings.setDarkMode,
-                  title: const Text('Тёмная тема'),
-                  subtitle: const Text(
-                    'Переключает состояние UI и сохраняется локально. Тёмная тема остаётся режимом по умолчанию.',
-                  ),
-                ),
-                const Divider(height: 1),
-                SwitchListTile(
-                  value: settings.compactCards,
-                  onChanged: settings.setCompactCards,
-                  title: const Text('Компактные карточки'),
-                  subtitle: const Text(
-                    'Более плотные сетки для desktop-экранов.',
-                  ),
-                ),
-                const Divider(height: 1),
-                _DestinationTile(settings: settings),
-                const Divider(height: 1),
-                _ModeTile(settings: settings),
-                const Divider(height: 1),
-                const ListTile(
-                  title: Text('Provider / API Manager'),
-                  subtitle: Text(
-                    'Карта runtime-маршрутов: API, local, manual и browser launch.',
-                  ),
-                  trailing: Icon(Icons.hub_outlined),
-                ),
-              ],
-            ),
-          ),
+          _ExecutionNotice(settings: settings),
           const SizedBox(height: 18),
-          _ProviderManagerPanel(
-            providers: providers,
+          _GeneralSettings(settings: settings),
+          const SizedBox(height: 18),
+          _ApiProviderSettings(
+            providers: _apiProviders,
+            enabled: _apiEnabled,
+            keyControllers: _keyControllers,
+            baseUrlControllers: _baseUrlControllers,
+            modelControllers: _modelControllers,
             settings: settings,
-            mockConnected: _mockConnected,
-            runtimeStates: _runtimeStates,
-            controllerFor: _controllerFor,
-            onRefreshRuntime: _refreshRuntime,
-            onConnect: (provider) => setState(() {
-              if (provider.apiKeyRequired &&
-                  _controllerFor(provider).text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      '${provider.name}: добавь локальный mock key',
-                    ),
-                  ),
-                );
-                return;
-              }
-              _mockConnected.add(provider.id);
-            }),
-            onDisconnect: (provider) =>
-                setState(() => _mockConnected.remove(provider.id)),
-            onClear: (provider) => setState(() {
-              _controllerFor(provider).clear();
-              _mockConnected.remove(provider.id);
-            }),
+            onToggle: (provider, value) =>
+                setState(() => _apiEnabled[provider.id] = value),
+            onSave: _saveApiProvider,
+            onClear: _clearApiProvider,
           ),
           const SizedBox(height: 18),
-          OsCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SectionHeader(
-                  title: 'Локальный режим',
-                  subtitle: 'Подготовлено для Ollama и локальных адаптеров.',
-                ),
-                TextFormField(
-                  initialValue: settings.ollamaBaseUrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Базовый URL Ollama',
-                    hintText: 'http://localhost:11434',
-                  ),
-                  onFieldSubmitted: settings.setOllamaBaseUrl,
-                ),
-              ],
-            ),
+          _LocalProviderSettings(
+            providers: _localProviders,
+            enabled: _localEnabled,
+            endpointControllers: _endpointControllers,
+            onToggle: (provider, value) =>
+                setState(() => _localEnabled[provider.id] = value),
+            onSave: _saveLocalProvider,
           ),
           const SizedBox(height: 18),
-          OsCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SectionHeader(
-                  title: 'Акцент темы',
-                  subtitle: 'Сохраняется локально для будущих вариантов темы.',
-                ),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    for (final accent in [
-                      ('cyan', 'Голубой'),
-                      ('amber', 'Янтарный'),
-                      ('rose', 'Розовый'),
-                    ])
-                      ChoiceChip(
-                        label: Text(accent.$2),
-                        selected: settings.themeAccent == accent.$1,
-                        onSelected: (_) => settings.setThemeAccent(accent.$1),
-                      ),
-                  ],
-                ),
-              ],
+          const _BrowserManualSettings(),
+          const SizedBox(height: 18),
+          const _SafetySecretsPanel(),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveApiProvider(AiProvider provider) async {
+    final settings = AppSettingsScope.of(context);
+    await settings.saveProviderApiSettings(
+      providerId: provider.id,
+      enabled: _apiEnabled[provider.id] ?? false,
+      apiKey: _keyControllers[provider.id]?.text ?? '',
+      baseUrl: _baseUrlControllers[provider.id]?.text ?? provider.baseUrl ?? '',
+      model: _modelControllers[provider.id]?.text ?? '',
+    );
+    _keyControllers[provider.id]?.clear();
+    if (!mounted) return;
+    unawaited(
+      FlutenRuntimeScope.read(context).addEvent(
+        type: 'settings',
+        title: 'API key saved',
+        detail: provider.name,
+      ),
+    );
+    _showMessage('${provider.name}: настройки сохранены. Ключ скрыт.');
+  }
+
+  Future<void> _clearApiProvider(AiProvider provider) async {
+    final settings = AppSettingsScope.of(context);
+    await settings.clearProviderApiKey(provider.id);
+    _keyControllers[provider.id]?.clear();
+    setState(() => _apiEnabled[provider.id] = false);
+    if (!mounted) return;
+    unawaited(
+      FlutenRuntimeScope.read(context).addEvent(
+        type: 'settings',
+        title: 'API key cleared',
+        detail: provider.name,
+      ),
+    );
+    _showMessage('${provider.name}: ключ очищен.');
+  }
+
+  Future<void> _saveLocalProvider(AiProvider provider) async {
+    final settings = AppSettingsScope.of(context);
+    final endpoint =
+        _endpointControllers[provider.id]?.text ?? _defaultEndpointFor(provider);
+    await settings.saveLocalProviderSettings(
+      providerId: provider.id,
+      enabled: _localEnabled[provider.id] ?? false,
+      endpoint: endpoint,
+    );
+    if (!mounted) return;
+    unawaited(
+      FlutenRuntimeScope.read(context).addEvent(
+        type: 'settings',
+        title: 'Local endpoint saved',
+        detail: provider.name,
+      ),
+    );
+    _showMessage('${provider.name}: endpoint сохранён.');
+  }
+
+  void _showMessage(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+}
+
+class _ExecutionNotice extends StatelessWidget {
+  const _ExecutionNotice({required this.settings});
+
+  final AppSettings settings;
+
+  @override
+  Widget build(BuildContext context) {
+    final configured = const ProviderRegistry()
+        .getAllProviders()
+        .where((provider) => provider.apiKeyRequired)
+        .where((provider) => settings.hasProviderApiKey(provider.id))
+        .length;
+
+    return OsCard(
+      child: Wrap(
+        spacing: 14,
+        runSpacing: 12,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          const Icon(Icons.shield_outlined, color: Color(0xFFC8FFF4)),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 860),
+            child: const Text(
+              'На этом этапе FLUTEN только сохраняет настройки запуска. Реальные API-запросы будут подключены следующим патчем. Не вставляйте ключи в чат: добавляйте их только здесь.',
+              style: TextStyle(color: Color(0xFFD9E6F7), height: 1.4),
             ),
           ),
+          Chip(label: Text('Ключей добавлено: $configured')),
+          const Chip(label: Text('Fallback: copy/open site')),
+        ],
+      ),
+    );
+  }
+}
+
+class _GeneralSettings extends StatelessWidget {
+  const _GeneralSettings({required this.settings});
+
+  final AppSettings settings;
+
+  @override
+  Widget build(BuildContext context) {
+    return OsCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionHeader(
+            title: 'Общие настройки',
+            subtitle: 'Тема, стартовый экран и предпочтительный режим маршрута.',
+          ),
+          SwitchListTile(
+            value: settings.darkMode,
+            onChanged: settings.setDarkMode,
+            title: const Text('Тёмная тема'),
+            subtitle: const Text('Сохраняется локально на этом устройстве.'),
+          ),
+          const Divider(height: 1),
+          SwitchListTile(
+            value: settings.compactCards,
+            onChanged: settings.setCompactCards,
+            title: const Text('Компактные карточки'),
+            subtitle: const Text('Более плотные сетки для desktop-экранов.'),
+          ),
+          const Divider(height: 1),
+          _DestinationTile(settings: settings),
+          const Divider(height: 1),
+          _ModeTile(settings: settings),
         ],
       ),
     );
@@ -182,40 +287,26 @@ class _DestinationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < 560;
-    final dropdown = DropdownButton<AppDestination>(
-      value: settings.startupDestination,
-      isExpanded: compact,
-      onChanged: (value) {
-        if (value != null) settings.setStartupDestination(value);
-      },
-      items: [
-        for (final destination in AppDestination.values)
-          DropdownMenuItem(value: destination, child: Text(destination.label)),
-      ],
-    );
-
-    if (compact) {
-      return Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Стартовый экран',
-              style: TextStyle(fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 8),
-            dropdown,
-          ],
-        ),
-      );
-    }
-
     return ListTile(
       title: const Text('Стартовый экран'),
-      subtitle: const Text('Где AI Operator OS откроется в следующий раз.'),
-      trailing: SizedBox(width: 220, child: dropdown),
+      subtitle: const Text('Где FLUTEN откроется в следующий раз.'),
+      trailing: SizedBox(
+        width: 240,
+        child: DropdownButton<AppDestination>(
+          value: settings.startupDestination,
+          isExpanded: true,
+          onChanged: (value) {
+            if (value != null) settings.setStartupDestination(value);
+          },
+          items: [
+            for (final destination in AppDestination.values)
+              DropdownMenuItem(
+                value: destination,
+                child: Text(destination.label),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -229,9 +320,7 @@ class _ModeTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       title: const Text('Режим по умолчанию'),
-      subtitle: const Text(
-        'Предпочтение маршрутизации: local / cloud / hybrid.',
-      ),
+      subtitle: const Text('Предпочтение маршрутизации: local / cloud / hybrid.'),
       trailing: DropdownButton<OperatorMode>(
         value: settings.operatorMode,
         onChanged: (value) {
@@ -246,27 +335,27 @@ class _ModeTile extends StatelessWidget {
   }
 }
 
-class _ProviderManagerPanel extends StatelessWidget {
-  const _ProviderManagerPanel({
+class _ApiProviderSettings extends StatelessWidget {
+  const _ApiProviderSettings({
     required this.providers,
+    required this.enabled,
+    required this.keyControllers,
+    required this.baseUrlControllers,
+    required this.modelControllers,
     required this.settings,
-    required this.mockConnected,
-    required this.runtimeStates,
-    required this.controllerFor,
-    required this.onRefreshRuntime,
-    required this.onConnect,
-    required this.onDisconnect,
+    required this.onToggle,
+    required this.onSave,
     required this.onClear,
   });
 
   final List<AiProvider> providers;
+  final Map<String, bool> enabled;
+  final Map<String, TextEditingController> keyControllers;
+  final Map<String, TextEditingController> baseUrlControllers;
+  final Map<String, TextEditingController> modelControllers;
   final AppSettings settings;
-  final Set<String> mockConnected;
-  final Map<String, LocalRuntimeState> runtimeStates;
-  final TextEditingController Function(AiProvider provider) controllerFor;
-  final ValueChanged<AiProvider> onRefreshRuntime;
-  final ValueChanged<AiProvider> onConnect;
-  final ValueChanged<AiProvider> onDisconnect;
+  final void Function(AiProvider provider, bool value) onToggle;
+  final ValueChanged<AiProvider> onSave;
   final ValueChanged<AiProvider> onClear;
 
   @override
@@ -276,53 +365,31 @@ class _ProviderManagerPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SectionHeader(
-            title: 'Provider / API Manager',
+            title: 'API Providers',
             subtitle:
-                'Операторская карта runtime-провайдеров. Реальные API и health checks пока не подключены.',
+                'Ключи сохраняются локально. Полные значения после сохранения не показываются.',
           ),
-          const SizedBox(height: 8),
-          const _FallbackNotice(),
-          const SizedBox(height: 14),
           LayoutBuilder(
             builder: (context, constraints) {
-              final compact = constraints.maxWidth < 760;
-              if (compact) {
-                return Column(
-                  children: [
-                    for (final provider in providers)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _ProviderCard(
-                          provider: provider,
-                          settings: settings,
-                          connected: mockConnected.contains(provider.id),
-                          runtimeState: runtimeStates[provider.id],
-                          controller: controllerFor(provider),
-                          onRefreshRuntime: () => onRefreshRuntime(provider),
-                          onConnect: () => onConnect(provider),
-                          onDisconnect: () => onDisconnect(provider),
-                          onClear: () => onClear(provider),
-                        ),
-                      ),
-                  ],
-                );
-              }
+              final wide = constraints.maxWidth >= 980;
               return Wrap(
                 spacing: 12,
                 runSpacing: 12,
                 children: [
                   for (final provider in providers)
                     SizedBox(
-                      width: (constraints.maxWidth - 12) / 2,
-                      child: _ProviderCard(
+                      width: wide
+                          ? (constraints.maxWidth - 12) / 2
+                          : constraints.maxWidth,
+                      child: _ApiProviderCard(
                         provider: provider,
+                        enabled: enabled[provider.id] ?? false,
+                        keyController: keyControllers[provider.id]!,
+                        baseUrlController: baseUrlControllers[provider.id]!,
+                        modelController: modelControllers[provider.id]!,
                         settings: settings,
-                        connected: mockConnected.contains(provider.id),
-                        runtimeState: runtimeStates[provider.id],
-                        controller: controllerFor(provider),
-                        onRefreshRuntime: () => onRefreshRuntime(provider),
-                        onConnect: () => onConnect(provider),
-                        onDisconnect: () => onDisconnect(provider),
+                        onToggle: (value) => onToggle(provider, value),
+                        onSave: () => onSave(provider),
                         onClear: () => onClear(provider),
                       ),
                     ),
@@ -336,208 +403,284 @@ class _ProviderManagerPanel extends StatelessWidget {
   }
 }
 
-class _ProviderCard extends StatelessWidget {
-  const _ProviderCard({
+class _ApiProviderCard extends StatelessWidget {
+  const _ApiProviderCard({
     required this.provider,
+    required this.enabled,
+    required this.keyController,
+    required this.baseUrlController,
+    required this.modelController,
     required this.settings,
-    required this.connected,
-    required this.runtimeState,
-    required this.controller,
-    required this.onRefreshRuntime,
-    required this.onConnect,
-    required this.onDisconnect,
+    required this.onToggle,
+    required this.onSave,
     required this.onClear,
   });
 
   final AiProvider provider;
+  final bool enabled;
+  final TextEditingController keyController;
+  final TextEditingController baseUrlController;
+  final TextEditingController modelController;
   final AppSettings settings;
-  final bool connected;
-  final LocalRuntimeState? runtimeState;
-  final TextEditingController controller;
-  final VoidCallback onRefreshRuntime;
-  final VoidCallback onConnect;
-  final VoidCallback onDisconnect;
+  final ValueChanged<bool> onToggle;
+  final VoidCallback onSave;
   final VoidCallback onClear;
 
   @override
   Widget build(BuildContext context) {
-    final showKeyField = provider.apiKeyRequired;
-    final showLocalPanel =
-        provider.type == AiProviderType.local ||
-        provider.id == 'n8n' ||
-        provider.localEndpoint != null;
-    final statusLabel =
-        runtimeState?.label ??
-        (connected ? 'Подключено (mock)' : provider.status.label);
-    final route = const ExecutionRouterService().resolveRoute(
-      workspaceType: provider.supportedWorkspaces.first,
-      toolId: provider.id,
-      configuredApiProviderIds: connected ? {provider.id} : const {},
-      localRuntimeStates: runtimeState == null
-          ? const {}
-          : {provider.id: runtimeState!},
-    );
+    final hasKey = settings.hasProviderApiKey(provider.id);
+    final status = hasKey
+        ? 'Ключ добавлен'
+        : enabled
+        ? 'Требуется проверка'
+        : 'Не настроено';
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).dividerColor),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        provider.name,
-                        style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w900),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        provider.description,
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _RuntimeChip(statusLabel),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                _RuntimeChip(provider.type.label),
-                for (final workspace in provider.supportedWorkspaces)
-                  _RuntimeChip(workspace.toUpperCase()),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [
-                for (final mode in provider.executionModes)
-                  _RuntimeChip(_modeLabel(mode)),
-                _RuntimeChip('Маршрут: ${route.routeType.label}'),
-              ],
-            ),
-            if (showLocalPanel) ...[
-              const SizedBox(height: 12),
-              _ProviderInfoLine(
-                label: 'Endpoint',
-                value: provider.localEndpoint ?? provider.baseUrl ?? 'Not set',
-              ),
-              _ProviderInfoLine(
-                label: 'Runtime',
-                value: _runtimeType(provider),
-              ),
-              _ProviderInfoLine(label: 'Status', value: statusLabel),
+    return _SettingsCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: enabled,
+            onChanged: onToggle,
+            title: Text(provider.name),
+            subtitle: Text(provider.description),
+          ),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _InfoChip(provider.type.label),
+              _InfoChip(status),
+              if (hasKey) _InfoChip(settings.maskedProviderApiKey(provider.id)),
             ],
-            if (provider.id == 'ollama') ...[
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue:
-                    AppSettings.ollamaModels.contains(settings.ollamaModel)
-                    ? settings.ollamaModel
-                    : AppSettings.defaultOllamaModel,
-                isExpanded: true,
-                decoration: const InputDecoration(
-                  labelText: 'Ollama model',
-                  isDense: true,
-                ),
-                items: [
-                  for (final model in AppSettings.ollamaModels)
-                    DropdownMenuItem(value: model, child: Text(model)),
-                ],
-                onChanged: (value) {
-                  if (value != null) settings.setOllamaModel(value);
-                },
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: keyController,
+            obscureText: true,
+            decoration: InputDecoration(
+              labelText: 'API key',
+              hintText: hasKey ? settings.maskedProviderApiKey(provider.id) : '',
+              helperText: 'Не печатается в логах и не показывается полностью.',
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: baseUrlController,
+            decoration: const InputDecoration(labelText: 'Base URL optional'),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            controller: modelController,
+            decoration: const InputDecoration(labelText: 'Model optional'),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                onPressed: onSave,
+                icon: const Icon(Icons.save_rounded),
+                label: const Text('Сохранить'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onClear,
+                icon: const Icon(Icons.delete_outline_rounded),
+                label: const Text('Очистить'),
+              ),
+              OutlinedButton.icon(
+                onPressed: null,
+                icon: const Icon(Icons.fact_check_outlined),
+                label: const Text('Проверить позже'),
               ),
             ],
-            if (showKeyField) ...[
-              const SizedBox(height: 12),
-              TextField(
-                controller: controller,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: '${provider.name} API Key',
-                  hintText: 'Локальное поле, без отправки на сервер',
-                  isDense: true,
-                ),
-              ),
-            ],
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                FilledButton.tonal(
-                  onPressed: onConnect,
-                  child: const Text('Подключить'),
-                ),
-                TextButton(
-                  onPressed: onDisconnect,
-                  child: const Text('Отключить'),
-                ),
-                TextButton(onPressed: onClear, child: const Text('Очистить')),
-                if (provider.localEndpoint != null)
-                  TextButton.icon(
-                    onPressed: runtimeState == LocalRuntimeState.checking
-                        ? null
-                        : onRefreshRuntime,
-                    icon: const Icon(Icons.refresh_rounded, size: 16),
-                    label: const Text('Проверить'),
-                  ),
-              ],
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _FallbackNotice extends StatelessWidget {
-  const _FallbackNotice();
+class _LocalProviderSettings extends StatelessWidget {
+  const _LocalProviderSettings({
+    required this.providers,
+    required this.enabled,
+    required this.endpointControllers,
+    required this.onToggle,
+    required this.onSave,
+  });
+
+  final List<AiProvider> providers;
+  final Map<String, bool> enabled;
+  final Map<String, TextEditingController> endpointControllers;
+  final void Function(AiProvider provider, bool value) onToggle;
+  final ValueChanged<AiProvider> onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    return OsCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SectionHeader(
+            title: 'Local Providers',
+            subtitle:
+                'Endpoint-ы для Ollama, ComfyUI, ACE-Step и будущего локального браузера.',
+          ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 980;
+              return Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  for (final provider in providers)
+                    SizedBox(
+                      width: wide
+                          ? (constraints.maxWidth - 12) / 2
+                          : constraints.maxWidth,
+                      child: _LocalProviderCard(
+                        provider: provider,
+                        enabled: enabled[provider.id] ?? false,
+                        endpointController: endpointControllers[provider.id]!,
+                        onToggle: (value) => onToggle(provider, value),
+                        onSave: () => onSave(provider),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LocalProviderCard extends StatelessWidget {
+  const _LocalProviderCard({
+    required this.provider,
+    required this.enabled,
+    required this.endpointController,
+    required this.onToggle,
+    required this.onSave,
+  });
+
+  final AiProvider provider;
+  final bool enabled;
+  final TextEditingController endpointController;
+  final ValueChanged<bool> onToggle;
+  final VoidCallback onSave;
+
+  @override
+  Widget build(BuildContext context) {
+    return _SettingsCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            value: enabled,
+            onChanged: onToggle,
+            title: Text(provider.name),
+            subtitle: Text(_localStatusFor(provider)),
+          ),
+          TextField(
+            controller: endpointController,
+            decoration: const InputDecoration(labelText: 'Endpoint URL'),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              FilledButton.icon(
+                onPressed: onSave,
+                icon: const Icon(Icons.save_rounded),
+                label: const Text('Сохранить'),
+              ),
+              OutlinedButton.icon(
+                onPressed: null,
+                icon: const Icon(Icons.cable_rounded),
+                label: const Text('Проверка будет подключена следующим этапом'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BrowserManualSettings extends StatelessWidget {
+  const _BrowserManualSettings();
+
+  @override
+  Widget build(BuildContext context) {
+    return OsCard(
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SectionHeader(
+            title: 'Browser / Manual Mode',
+            subtitle:
+                'Если ключ не добавлен, FLUTEN продолжает работать в ручном режиме: copy/open site.',
+          ),
+          Text(
+            'Провайдеры через сайт остаются рабочим fallback. Кнопки генерации внутри FLUTEN не должны обещать результат, пока API/local runtime не подключены.',
+            style: TextStyle(color: Color(0xFFA7B1C1), height: 1.4),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SafetySecretsPanel extends StatelessWidget {
+  const _SafetySecretsPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return OsCard(
+      child: const Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SectionHeader(
+            title: 'Safety / Secrets',
+            subtitle: 'Локальное хранение без публикации ключей.',
+          ),
+          Text(
+            'Ключи хранятся локально на этом устройстве через SharedPreferences, потому что secure storage dependency в проекте пока не подключена. Не публикуйте их в GitHub и не вставляйте в чат. После сохранения показывается только маска вида sk-...abcd.',
+            style: TextStyle(color: Color(0xFFD9E6F7), height: 1.4),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingsCard extends StatelessWidget {
+  const _SettingsCard({required this.child});
+
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
+        color: const Color(0x66070A0F),
+        border: Border.all(color: const Color(0x22FFFFFF)),
+        borderRadius: BorderRadius.circular(12),
       ),
-      child: const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Row(
-          children: [
-            Icon(Icons.open_in_browser_rounded, size: 18),
-            SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                'Fallback: Manual Browser Launch остаётся безопасным маршрутом, если API или local runtime не настроены.',
-              ),
-            ),
-          ],
-        ),
-      ),
+      child: Padding(padding: const EdgeInsets.all(12), child: child),
     );
   }
 }
 
-class _RuntimeChip extends StatelessWidget {
-  const _RuntimeChip(this.label);
+class _InfoChip extends StatelessWidget {
+  const _InfoChip(this.label);
 
   final String label;
 
@@ -551,50 +694,36 @@ class _RuntimeChip extends StatelessWidget {
   }
 }
 
-class _ProviderInfoLine extends StatelessWidget {
-  const _ProviderInfoLine({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 72,
-            child: Text(label, style: Theme.of(context).textTheme.bodySmall),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-String _modeLabel(ExecutionMode mode) {
-  return switch (mode) {
-    ExecutionMode.demo => 'Ручной запуск',
-    ExecutionMode.manual => 'Ручной запуск',
-    ExecutionMode.browserLaunch => 'Browser Launch',
-    ExecutionMode.api => 'API',
-    ExecutionMode.local => 'Local Runtime',
+String _defaultModelFor(AiProvider provider) {
+  return switch (provider.id) {
+    'openai' || 'chatgpt' => 'gpt-4.1',
+    'gemini' => 'gemini-1.5-pro',
+    'claude' => 'claude-3.5-sonnet',
+    'openrouter' => 'openrouter/auto',
+    'runway' => 'gen-3',
+    'kling' => 'kling-video',
+    'stability' => 'stable-image',
+    'elevenlabs' => 'voice',
+    _ => '',
   };
 }
 
-String _runtimeType(AiProvider provider) {
-  if (provider.id == 'ollama') return 'Local LLM Runtime';
-  if (provider.id == 'comfyui') return 'Local Node Runtime';
-  if (provider.id == 'n8n') return 'Local Automation Runtime';
-  return provider.type == AiProviderType.local
-      ? 'Local Runtime'
-      : 'Hybrid Runtime';
+String _defaultEndpointFor(AiProvider provider) {
+  return switch (provider.id) {
+    'ollama' => 'http://localhost:11434',
+    'comfyui' => 'http://127.0.0.1:8188',
+    'ace-step' => 'http://localhost:8001',
+    'local-browser' => 'http://localhost',
+    _ => provider.localEndpoint ?? provider.baseUrl ?? '',
+  };
+}
+
+String _localStatusFor(AiProvider provider) {
+  return switch (provider.id) {
+    'ollama' => 'local text/prompt brain',
+    'comfyui' => 'image/video pipeline later',
+    'ace-step' => 'audio/music generation later; UI обычно http://localhost:3001',
+    'local-browser' => 'Встроенный браузер пока не подключен',
+    _ => provider.notes,
+  };
 }

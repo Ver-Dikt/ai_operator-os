@@ -951,7 +951,7 @@ Final clean prompt: $source, cinematic short video shot, strong blocking, layere
   }
 
   String _normalizeUiMessage(String text) {
-    if (text.contains('production prompt') && text.contains('РћРї')) {
+    if (text.contains('production prompt') && text.contains('Оп')) {
       return 'Опиши идею, сцену или задачу, и я соберу production prompt.';
     }
     return text;
@@ -1343,13 +1343,13 @@ class _PromptDraftCard extends StatelessWidget {
 String? _readableSourceLabel(String? value) {
   if (value == null) return null;
   if (value.contains('draft')) {
-    return 'РСЃС‚РѕС‡РЅРёРє: РІС‹Р±СЂР°РЅРЅС‹Р№ draft';
+    return 'Источник: выбранный draft';
   }
-  if (value.contains('Р Р†Р Р†')) {
-    return 'РСЃС‚РѕС‡РЅРёРє: С‚РµРєСѓС‰РёР№ РІРІРѕРґ';
+  if (value.contains('вв')) {
+    return 'Источник: текущий ввод';
   }
-  if (value.contains('Р С—Р С•РЎРѓ')) {
-    return 'РСЃС‚РѕС‡РЅРёРє: РїРѕСЃР»РµРґРЅРµРµ СЃРѕРѕР±С‰РµРЅРёРµ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ';
+  if (value.contains('пос')) {
+    return 'Источник: последнее сообщение пользователя';
   }
   return value;
 }

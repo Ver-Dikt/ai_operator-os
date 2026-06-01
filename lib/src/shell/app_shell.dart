@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../ai_operator_app.dart';
 import '../screens/agents/agents_screen.dart';
@@ -116,14 +116,14 @@ class _StudioTopBar extends StatelessWidget {
   final ValueChanged<AppDestination> onSelect;
 
   static const _tabs = [
-    _StudioTab(AppDestination.textWorkspace, 'AI Р§Р°С‚'),
-    _StudioTab(AppDestination.images, 'РР·РѕР±СЂР°Р¶РµРЅРёСЏ'),
-    _StudioTab(AppDestination.video, 'Р’РёРґРµРѕ'),
+    _StudioTab(AppDestination.textWorkspace, 'AI Чат'),
+    _StudioTab(AppDestination.images, 'Image'),
+    _StudioTab(AppDestination.video, 'Видео'),
     _StudioTab(AppDestination.audio, 'Audio'),
     _StudioTab(AppDestination.director, 'Cinema'),
-    _StudioTab(AppDestination.contentFactory, 'РњР°СЂРєРµС‚РёРЅРі'),
+    _StudioTab(AppDestination.contentFactory, 'Маркетинг'),
     _StudioTab(AppDestination.workflows, 'Workflows', enabled: false),
-    _StudioTab(AppDestination.browserHub, 'Р‘СЂР°СѓР·РµСЂ'),
+    _StudioTab(AppDestination.browserHub, 'Браузер'),
     _StudioTab(AppDestination.renderHistory, 'History'),
     _StudioTab(AppDestination.agents, 'Agents', enabled: false),
     _StudioTab(AppDestination.tools, 'Apps', enabled: false),
@@ -159,12 +159,12 @@ class _StudioTopBar extends StatelessWidget {
         _BalancePill(),
         const SizedBox(width: 10),
         _TopIconButton(
-          tooltip: 'РњРѕРґРµР»Рё Рё РїСЂРѕРІР°Р№РґРµСЂС‹',
+          tooltip: 'Модели и провайдеры',
           icon: Icons.hub_outlined,
           onTap: () => onSelect(AppDestination.providers),
         ),
         _TopIconButton(
-          tooltip: 'РќР°СЃС‚СЂРѕР№РєРё',
+          tooltip: 'Настройки',
           icon: Icons.tune_rounded,
           onTap: () => onSelect(AppDestination.settings),
         ),
@@ -182,12 +182,12 @@ class _StudioTopBar extends StatelessWidget {
               _Logo(onTap: () => onSelect(AppDestination.commandCenter)),
               const Spacer(),
               _TopIconButton(
-                tooltip: 'РњРѕРґРµР»Рё Рё РїСЂРѕРІР°Р№РґРµСЂС‹',
+                tooltip: 'Модели и провайдеры',
                 icon: Icons.hub_outlined,
                 onTap: () => onSelect(AppDestination.providers),
               ),
               _TopIconButton(
-                tooltip: 'РќР°СЃС‚СЂРѕР№РєРё',
+                tooltip: 'Настройки',
                 icon: Icons.tune_rounded,
                 onTap: () => onSelect(AppDestination.settings),
               ),
@@ -289,7 +289,7 @@ class _TabsScroller extends StatelessWidget {
         return Tooltip(
           message: enabled
               ? tab.label
-              : 'Р Р°Р·РґРµР» Р±СѓРґРµС‚ РїРѕРґРєР»СЋС‡РµРЅ СЃР»РµРґСѓСЋС‰РёРј СЌС‚Р°РїРѕРј.',
+              : 'Раздел будет подключен следующим этапом.',
           child: InkWell(
             onTap: enabled ? () => onSelect(tab.destination) : null,
             child: SizedBox(
@@ -298,7 +298,7 @@ class _TabsScroller extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    enabled ? tab.label : '${tab.label} В· РЎРєРѕСЂРѕ',
+                    enabled ? tab.label : '${tab.label} · Скоро',
                     style: TextStyle(
                       color: !enabled
                           ? const Color(0x55FFFFFF)

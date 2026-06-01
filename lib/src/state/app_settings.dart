@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/seed_tools.dart';
@@ -9,9 +9,9 @@ enum OperatorMode { local, cloud, hybrid }
 extension OperatorModeLabel on OperatorMode {
   String get label {
     return switch (this) {
-      OperatorMode.local => 'Local - Р»РѕРєР°Р»СЊРЅРѕ',
-      OperatorMode.cloud => 'Cloud - РѕР±Р»Р°С‡РЅС‹Рµ СЃРµСЂРІРёСЃС‹',
-      OperatorMode.hybrid => 'Hybrid - СЃРјРµС€Р°РЅРЅС‹Р№ СЂРµР¶РёРј',
+      OperatorMode.local => 'Local - локально',
+      OperatorMode.cloud => 'Cloud - облачные сервисы',
+      OperatorMode.hybrid => 'Hybrid - смешанный режим',
     };
   }
 }
@@ -89,24 +89,24 @@ extension AppDestinationRoute on AppDestination {
 
   String get label {
     return switch (this) {
-      AppDestination.commandCenter => 'РџСѓР»СЊС‚',
-      AppDestination.textWorkspace => 'AI Р§Р°С‚',
-      AppDestination.images => 'РР·РѕР±СЂР°Р¶РµРЅРёСЏ',
-      AppDestination.video => 'Р’РёРґРµРѕ',
+      AppDestination.commandCenter => 'Пульт',
+      AppDestination.textWorkspace => 'AI Чат',
+      AppDestination.images => 'Изображения',
+      AppDestination.video => 'Видео',
       AppDestination.audio => 'Audio',
-      AppDestination.director => 'Р РµР¶РёСЃСЃС‘СЂ',
-      AppDestination.providers => 'РџСЂРѕРІР°Р№РґРµСЂС‹',
-      AppDestination.renderHistory => 'РСЃС‚РѕСЂРёСЏ',
-      AppDestination.socialIntelligence => 'РЎРѕС†Р°РЅР°Р»РёС‚РёРєР°',
-      AppDestination.browserHub => 'Р‘СЂР°СѓР·РµСЂ РЅРµР№СЂРѕРЅРѕРє',
-      AppDestination.tools => 'РРЅСЃС‚СЂСѓРјРµРЅС‚С‹',
-      AppDestination.agents => 'AI-РїРѕРјРѕС‰РЅРёРєРё',
-      AppDestination.workflows => 'РџР»Р°РЅС‹ СЂР°Р±РѕС‚С‹',
-      AppDestination.contentFactory => 'Р¤Р°Р±СЂРёРєРё',
-      AppDestination.useCases => 'РљРµР№СЃС‹',
-      AppDestination.projects => 'РџСЂРѕРµРєС‚С‹',
-      AppDestination.favorites => 'РР·Р±СЂР°РЅРЅРѕРµ',
-      AppDestination.settings => 'РќР°СЃС‚СЂРѕР№РєРё',
+      AppDestination.director => 'Режиссёр',
+      AppDestination.providers => 'Провайдеры',
+      AppDestination.renderHistory => 'История',
+      AppDestination.socialIntelligence => 'Соцаналитика',
+      AppDestination.browserHub => 'Браузер нейронок',
+      AppDestination.tools => 'Инструменты',
+      AppDestination.agents => 'AI-помощники',
+      AppDestination.workflows => 'Планы работы',
+      AppDestination.contentFactory => 'Фабрики',
+      AppDestination.useCases => 'Кейсы',
+      AppDestination.projects => 'Проекты',
+      AppDestination.favorites => 'Избранное',
+      AppDestination.settings => 'Настройки',
     };
   }
 }
@@ -155,6 +155,12 @@ class AppSettings extends ChangeNotifier {
   static const _ollamaModelKey = 'ollama_model';
   static const _accentKey = 'theme_accent';
   static const _darkModeKey = 'dark_mode';
+  static const _providerEnabledPrefix = 'execution_provider_enabled_';
+  static const _providerApiKeyPrefix = 'execution_provider_api_key_';
+  static const _providerBaseUrlPrefix = 'execution_provider_base_url_';
+  static const _providerModelPrefix = 'execution_provider_model_';
+  static const _localEnabledPrefix = 'execution_local_enabled_';
+  static const _localEndpointPrefix = 'execution_local_endpoint_';
   static const defaultOllamaModel = 'qwen2.5-coder:7b';
   static const ollamaModels = <String>[
     'qwen2.5-coder:7b',
@@ -162,7 +168,7 @@ class AppSettings extends ChangeNotifier {
     'qwen3.5:9b',
     'gemma4:latest',
   ];
-  static const allCategories = 'Р’СЃРµ';
+  static const allCategories = 'Все';
 
   final SharedPreferences _preferences;
   Set<String> _favoriteIds = <String>{};
@@ -347,6 +353,87 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
   }
 
+  bool isProviderEnabled(String providerId) {
+    return _preferences.getBool('$_providerEnabledPrefix$providerId') ?? false;
+  }
+
+  bool hasProviderApiKey(String providerId) {
+    return providerApiKey(providerId).trim().isNotEmpty;
+  }
+
+  String providerApiKey(String providerId) {
+    return _preferences.getString('$_providerApiKeyPrefix$providerId') ?? '';
+  }
+
+  String providerBaseUrl(String providerId, {String fallback = ''}) {
+    return _preferences.getString('$_providerBaseUrlPrefix$providerId') ??
+        fallback;
+  }
+
+  String providerModel(String providerId, {String fallback = ''}) {
+    return _preferences.getString('$_providerModelPrefix$providerId') ??
+        fallback;
+  }
+
+  String maskedProviderApiKey(String providerId) {
+    return maskSecret(providerApiKey(providerId));
+  }
+
+  Future<void> saveProviderApiSettings({
+    required String providerId,
+    required bool enabled,
+    required String apiKey,
+    required String baseUrl,
+    required String model,
+  }) async {
+    await _preferences.setBool('$_providerEnabledPrefix$providerId', enabled);
+    if (apiKey.trim().isNotEmpty) {
+      await _preferences.setString(
+        '$_providerApiKeyPrefix$providerId',
+        apiKey.trim(),
+      );
+    }
+    await _preferences.setString(
+      '$_providerBaseUrlPrefix$providerId',
+      baseUrl.trim(),
+    );
+    await _preferences.setString(
+      '$_providerModelPrefix$providerId',
+      model.trim(),
+    );
+    notifyListeners();
+  }
+
+  Future<void> clearProviderApiKey(String providerId) async {
+    await _preferences.remove('$_providerApiKeyPrefix$providerId');
+    await _preferences.setBool('$_providerEnabledPrefix$providerId', false);
+    notifyListeners();
+  }
+
+  bool isLocalProviderEnabled(String providerId) {
+    return _preferences.getBool('$_localEnabledPrefix$providerId') ?? false;
+  }
+
+  String localEndpoint(String providerId, {required String fallback}) {
+    return _preferences.getString('$_localEndpointPrefix$providerId') ??
+        fallback;
+  }
+
+  Future<void> saveLocalProviderSettings({
+    required String providerId,
+    required bool enabled,
+    required String endpoint,
+  }) async {
+    final normalized = endpoint.trim();
+    await _preferences.setBool('$_localEnabledPrefix$providerId', enabled);
+    await _preferences.setString('$_localEndpointPrefix$providerId', normalized);
+    if (providerId == 'ollama') {
+      ollamaBaseUrl = normalized;
+      await _preferences.setString(_ollamaBaseUrlKey, normalized);
+    }
+    notifyListeners();
+  }
+
   Future<void> setOllamaModel(String value) async {
     ollamaModel = value;
     await _preferences.setString(_ollamaModelKey, value);
@@ -364,4 +451,13 @@ class AppSettings extends ChangeNotifier {
     await _preferences.setBool(_darkModeKey, value);
     notifyListeners();
   }
+}
+
+String maskSecret(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) return 'Не настроено';
+  if (trimmed.length <= 8) {
+    return '••••${trimmed.substring(trimmed.length - 2)}';
+  }
+  return '${trimmed.substring(0, 3)}...${trimmed.substring(trimmed.length - 4)}';
 }
