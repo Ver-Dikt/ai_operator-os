@@ -11,6 +11,7 @@ enum ExecutionJobStatus {
   requiresApiKey,
   manualOnly,
   localUnavailable,
+  needsWorkflow,
 }
 
 enum ExecutionJobMode { api, browser, local, manual }
@@ -28,6 +29,7 @@ extension ExecutionJobStatusLabel on ExecutionJobStatus {
       ExecutionJobStatus.requiresApiKey => 'Нужен API-ключ',
       ExecutionJobStatus.manualOnly => 'Ручной режим',
       ExecutionJobStatus.localUnavailable => 'Локально недоступно',
+      ExecutionJobStatus.needsWorkflow => 'Нужен workflow',
     };
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../ai_operator_app.dart';
 import '../models/ai_provider.dart';
+import '../services/comfyui_health_service.dart';
 import '../services/ollama_execution_service.dart';
 import '../services/provider_registry.dart';
 import '../state/app_settings.dart';
@@ -24,6 +25,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final Map<String, TextEditingController> _baseUrlControllers = {};
   final Map<String, TextEditingController> _modelControllers = {};
   final Map<String, TextEditingController> _endpointControllers = {};
+  final Map<String, TextEditingController> _workflowControllers = {};
+  final Map<String, TextEditingController> _outputFolderControllers = {};
   final Map<String, bool> _apiEnabled = {};
   final Map<String, bool> _localEnabled = {};
   final Map<String, String> _localStatus = {};
@@ -59,6 +62,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ..._baseUrlControllers.values,
       ..._modelControllers.values,
       ..._endpointControllers.values,
+      ..._workflowControllers.values,
+      ..._outputFolderControllers.values,
     ]) {
       controller.dispose();
     }
@@ -91,6 +96,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (provider.id == 'ollama') {
         _modelControllers[provider.id] = TextEditingController(
           text: settings.ollamaModel,
+        );
+        _localStatus[provider.id] = 'Не проверено';
+      }
+      if (provider.id == 'comfyui') {
+        _workflowControllers[provider.id] = TextEditingController(
+          text: settings.localWorkflowPath(provider.id),
+        );
+        _outputFolderControllers[provider.id] = TextEditingController(
+          text: settings.localOutputFolder(provider.id),
         );
         _localStatus[provider.id] = 'Не проверено';
       }
@@ -143,6 +157,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             enabled: _localEnabled,
             endpointControllers: _endpointControllers,
             modelControllers: _modelControllers,
+            workflowControllers: _workflowControllers,
+            outputFolderControllers: _outputFolderControllers,
             statuses: _localStatus,
             models: _localModels,
             checking: _checkingLocal,
@@ -151,6 +167,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onSave: _saveLocalProvider,
             onCheck: _checkLocalProvider,
             onModelSelected: _selectLocalModel,
+            onClearWorkflow: _clearLocalWorkflow,
           ),
           const SizedBox(height: 18),
           const _BrowserManualSettings(),
@@ -212,6 +229,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _modelControllers[provider.id]?.text.trim() ?? '',
       );
     }
+    if (provider.id == 'comfyui') {
+      await settings.saveLocalWorkflowSettings(
+        providerId: provider.id,
+        workflowPath: _workflowControllers[provider.id]?.text ?? '',
+        outputFolder: _outputFolderControllers[provider.id]?.text ?? '',
+      );
+    }
     if (!mounted) return;
     unawaited(
       FlutenRuntimeScope.read(context).addEvent(
@@ -224,6 +248,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _checkLocalProvider(AiProvider provider) async {
+    if (provider.id == 'comfyui') {
+      await _checkComfyUi(provider);
+      return;
+    }
     if (provider.id != 'ollama') {
       _showMessage('Проверка будет подключена следующим этапом.');
       return;
@@ -292,6 +320,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
     _showMessage('Ollama model selected: $model');
+  }
+
+  Future<void> _checkComfyUi(AiProvider provider) async {
+    final endpoint =
+        _endpointControllers[provider.id]?.text.trim() ??
+        _defaultEndpointFor(provider);
+    final runtime = FlutenRuntimeScope.read(context);
+    setState(() {
+      _checkingLocal.add(provider.id);
+      _localStatus[provider.id] = 'Проверяется...';
+    });
+    unawaited(
+      runtime.addEvent(
+        type: 'settings',
+        title: 'ComfyUI health check started',
+        detail: endpoint,
+      ),
+    );
+    final result = await const ComfyUiHealthService().check(endpoint: endpoint);
+    if (!mounted) return;
+    setState(() {
+      _checkingLocal.remove(provider.id);
+      _localStatus[provider.id] = result.available
+          ? 'ComfyUI доступна'
+          : 'ComfyUI не отвечает';
+    });
+    if (result.available) {
+      unawaited(
+        runtime.addEvent(
+          type: 'settings',
+          title: 'ComfyUI available',
+          detail: result.info ?? endpoint,
+        ),
+      );
+      _showMessage('ComfyUI доступна.');
+      return;
+    }
+    unawaited(
+      runtime.addEvent(
+        type: 'settings',
+        title: 'ComfyUI unavailable',
+        detail: result.error ?? endpoint,
+      ),
+    );
+    _showMessage(
+      'ComfyUI не отвечает. Запустите ComfyUI на 127.0.0.1:8188.',
+    );
+  }
+
+  Future<void> _clearLocalWorkflow(AiProvider provider) async {
+    if (provider.id != 'comfyui') return;
+    _workflowControllers[provider.id]?.clear();
+    await AppSettingsScope.of(context).clearLocalWorkflow(provider.id);
+    if (!mounted) return;
+    setState(() => _localStatus[provider.id] = 'Workflow не выбран');
+    _showMessage('ComfyUI workflow очищен.');
   }
 
   void _showMessage(String text) {
@@ -601,6 +685,8 @@ class _LocalProviderSettings extends StatelessWidget {
     required this.enabled,
     required this.endpointControllers,
     required this.modelControllers,
+    required this.workflowControllers,
+    required this.outputFolderControllers,
     required this.statuses,
     required this.models,
     required this.checking,
@@ -608,12 +694,15 @@ class _LocalProviderSettings extends StatelessWidget {
     required this.onSave,
     required this.onCheck,
     required this.onModelSelected,
+    required this.onClearWorkflow,
   });
 
   final List<AiProvider> providers;
   final Map<String, bool> enabled;
   final Map<String, TextEditingController> endpointControllers;
   final Map<String, TextEditingController> modelControllers;
+  final Map<String, TextEditingController> workflowControllers;
+  final Map<String, TextEditingController> outputFolderControllers;
   final Map<String, String> statuses;
   final Map<String, List<String>> models;
   final Set<String> checking;
@@ -621,6 +710,7 @@ class _LocalProviderSettings extends StatelessWidget {
   final ValueChanged<AiProvider> onSave;
   final ValueChanged<AiProvider> onCheck;
   final void Function(AiProvider provider, String model) onModelSelected;
+  final ValueChanged<AiProvider> onClearWorkflow;
 
   @override
   Widget build(BuildContext context) {
@@ -650,6 +740,9 @@ class _LocalProviderSettings extends StatelessWidget {
                         enabled: enabled[provider.id] ?? false,
                         endpointController: endpointControllers[provider.id]!,
                         modelController: modelControllers[provider.id],
+                        workflowController: workflowControllers[provider.id],
+                        outputFolderController:
+                            outputFolderControllers[provider.id],
                         status: statuses[provider.id],
                         models: models[provider.id] ?? const [],
                         checking: checking.contains(provider.id),
@@ -658,6 +751,7 @@ class _LocalProviderSettings extends StatelessWidget {
                         onCheck: () => onCheck(provider),
                         onModelSelected: (model) =>
                             onModelSelected(provider, model),
+                        onClearWorkflow: () => onClearWorkflow(provider),
                       ),
                     ),
                 ],
@@ -676,6 +770,8 @@ class _LocalProviderCard extends StatelessWidget {
     required this.enabled,
     required this.endpointController,
     required this.modelController,
+    required this.workflowController,
+    required this.outputFolderController,
     required this.status,
     required this.models,
     required this.checking,
@@ -683,12 +779,15 @@ class _LocalProviderCard extends StatelessWidget {
     required this.onSave,
     required this.onCheck,
     required this.onModelSelected,
+    required this.onClearWorkflow,
   });
 
   final AiProvider provider;
   final bool enabled;
   final TextEditingController endpointController;
   final TextEditingController? modelController;
+  final TextEditingController? workflowController;
+  final TextEditingController? outputFolderController;
   final String? status;
   final List<String> models;
   final bool checking;
@@ -696,6 +795,7 @@ class _LocalProviderCard extends StatelessWidget {
   final VoidCallback onSave;
   final VoidCallback onCheck;
   final ValueChanged<String> onModelSelected;
+  final VoidCallback onClearWorkflow;
 
   @override
   Widget build(BuildContext context) {
@@ -742,6 +842,37 @@ class _LocalProviderCard extends StatelessWidget {
             const SizedBox(height: 8),
             _InfoChip(status ?? 'Не проверено'),
           ],
+          if (provider.id == 'comfyui') ...[
+            const SizedBox(height: 8),
+            TextField(
+              controller: workflowController,
+              decoration: const InputDecoration(
+                labelText: 'Workflow path optional',
+                helperText:
+                    'Пока FLUTEN не отправляет workflow в ComfyUI. Поле готовит следующий этап.',
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: outputFolderController,
+              decoration: const InputDecoration(
+                labelText: 'Output folder optional',
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                _InfoChip(status ?? 'Не проверено'),
+                _InfoChip(
+                  (workflowController?.text.trim().isEmpty ?? true)
+                      ? 'Workflow не выбран'
+                      : 'Workflow указан',
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 10),
           Wrap(
             spacing: 8,
@@ -755,8 +886,16 @@ class _LocalProviderCard extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: checking ? null : onCheck,
                 icon: const Icon(Icons.cable_rounded),
-                label: Text(checking ? 'Проверяем...' : 'Проверить Ollama'),
+                label: Text(
+                  checking ? 'Проверяем...' : _checkLabelFor(provider),
+                ),
               ),
+              if (provider.id == 'comfyui')
+                OutlinedButton.icon(
+                  onPressed: onClearWorkflow,
+                  icon: const Icon(Icons.clear_rounded),
+                  label: const Text('Очистить workflow'),
+                ),
             ],
           ),
         ],
@@ -876,5 +1015,13 @@ String _localStatusFor(AiProvider provider) {
     'ace-step' => 'audio/music generation later; UI обычно http://localhost:3001',
     'local-browser' => 'Встроенный браузер пока не подключен',
     _ => provider.notes,
+  };
+}
+
+String _checkLabelFor(AiProvider provider) {
+  return switch (provider.id) {
+    'ollama' => 'Проверить Ollama',
+    'comfyui' => 'Проверить ComfyUI',
+    _ => 'Проверить',
   };
 }

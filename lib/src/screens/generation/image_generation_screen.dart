@@ -2,12 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../ai_operator_app.dart';
 import '../../models/execution_job.dart';
 import '../../models/generation/generation_job.dart';
 import '../../models/generation/generation_provider.dart';
 import '../../models/generation/generation_request.dart';
+import '../../services/comfyui_health_service.dart';
+import '../../services/execution_queue.dart';
 import '../../services/generation/generation_provider_registry.dart';
 import '../../services/generation/mock_generation_service.dart';
 import '../../services/ollama_prompt_brain_service.dart';
@@ -46,6 +49,9 @@ class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
   String _colorMood = 'Warm';
   _ImagePromptSource _promptSource = _ImagePromptSource.unknown;
   bool _handoffVisible = false;
+  bool? _comfyUiAvailable;
+  bool _checkingComfyUi = false;
+  String _comfyUiStatus = 'Не проверено';
   bool _runtimeWorkspaceOpened = false;
   GenerationJob? _selectedJob;
 
@@ -185,6 +191,27 @@ class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
             onLens: (value) => setState(() => _lens = value),
             onColorMood: (value) => setState(() => _colorMood = value),
           ),
+          if (selectedProvider.id == 'local-comfyui') ...[
+            const SizedBox(height: 8),
+            _ComfyUiLocalRouteCard(
+              status: _comfyUiStatus,
+              checking: _checkingComfyUi,
+              available: _comfyUiAvailable,
+              endpoint: AppSettingsScope.of(context).localEndpoint(
+                'comfyui',
+                fallback: selectedProvider.localEndpoint ??
+                    'http://127.0.0.1:8188',
+              ),
+              workflowPath:
+                  AppSettingsScope.of(context).localWorkflowPath('comfyui'),
+              outputFolder:
+                  AppSettingsScope.of(context).localOutputFolder('comfyui'),
+              onCheck: _checkComfyUi,
+              onCopy: _copyImagePrompt,
+              onPrepareWorkflow: _prepareComfyUiWorkflowLater,
+              onOpen: _openComfyUi,
+            ),
+          ],
         ],
       ),
       canvas: _ImageWorkspacePreview(
@@ -354,6 +381,10 @@ Quality: $_quality
 
   Future<void> _prepareImagePrompt() async {
     final provider = _registry.byId(_providerId);
+    if (provider.id == 'local-comfyui') {
+      await _prepareComfyUiPrompt(provider);
+      return;
+    }
     final job = await const ProviderExecutionService().prepare(
       workspace: ExecutionJobWorkspace.image,
       provider: ExecutionProviderRef.fromGenerationProvider(provider),
@@ -365,6 +396,94 @@ Quality: $_quality
     if (!mounted) return;
     _recordExecutionJob(job);
     _showMessage(_messageForExecutionJob(job));
+  }
+
+  Future<void> _prepareComfyUiPrompt(GenerationProvider provider) async {
+    final settings = AppSettingsScope.of(context);
+    final endpoint = settings.localEndpoint(
+      'comfyui',
+      fallback: provider.localEndpoint ?? 'http://127.0.0.1:8188',
+    );
+    final workflow = settings.localWorkflowPath('comfyui').trim();
+    final health = settings.isLocalProviderEnabled('comfyui')
+        ? await const ComfyUiHealthService().check(endpoint: endpoint)
+        : const ComfyUiHealthResult(
+            available: false,
+            error: 'ComfyUI disabled',
+          );
+    if (!mounted) return;
+    setState(() {
+      _comfyUiAvailable = health.available;
+      _comfyUiStatus = health.available
+          ? 'ComfyUI доступна'
+          : 'ComfyUI не отвечает';
+    });
+    final status = !health.available
+        ? ExecutionJobStatus.localUnavailable
+        : workflow.isEmpty
+        ? ExecutionJobStatus.needsWorkflow
+        : ExecutionJobStatus.prepared;
+    final message = switch (status) {
+      ExecutionJobStatus.localUnavailable => 'ComfyUI не подключена.',
+      ExecutionJobStatus.needsWorkflow =>
+        'ComfyUI доступна. Выберите workflow перед локальным запуском.',
+      _ =>
+        'ComfyUI готова. Реальный запуск workflow будет подключён следующим этапом.',
+    };
+    final job = _createComfyUiExecutionJob(
+      provider: provider,
+      endpoint: endpoint,
+      workflow: workflow,
+      status: status,
+      errorMessage: status == ExecutionJobStatus.localUnavailable
+          ? message
+          : null,
+    );
+    ExecutionQueue.instance.add(job);
+    _recordExecutionJob(job);
+    unawaited(
+      FlutenRuntimeScope.read(context).addEvent(
+        type: 'image',
+        title: status == ExecutionJobStatus.needsWorkflow
+            ? 'ComfyUI workflow missing'
+            : 'ComfyUI route prepared',
+        detail: message,
+      ),
+    );
+    _showMessage(message);
+  }
+
+  ExecutionJob _createComfyUiExecutionJob({
+    required GenerationProvider provider,
+    required String endpoint,
+    required String workflow,
+    required ExecutionJobStatus status,
+    String? errorMessage,
+  }) {
+    final now = DateTime.now();
+    final outputFolder = AppSettingsScope.of(
+      context,
+    ).localOutputFolder('comfyui').trim();
+    return ExecutionJob(
+      id: 'comfyui-${now.microsecondsSinceEpoch}',
+      workspace: ExecutionJobWorkspace.image,
+      providerId: provider.id,
+      providerName: provider.name,
+      capability: _capability.name,
+      inputPrompt: _currentPrompt.trim(),
+      composedPrompt: _composedImagePrompt.trim(),
+      status: status,
+      executionMode: ExecutionJobMode.local,
+      createdAt: now,
+      updatedAt: now,
+      errorMessage: errorMessage,
+      metadata: {
+        'settingsProviderId': 'comfyui',
+        'endpoint': endpoint,
+        if (workflow.isNotEmpty) 'workflow': workflow,
+        if (outputFolder.isNotEmpty) 'outputFolder': outputFolder,
+      },
+    );
   }
 
   Future<void> _copyImagePrompt() async {
@@ -398,6 +517,10 @@ Quality: $_quality
 
   Future<void> _openSelectedProvider() async {
     final provider = _registry.byId(_providerId);
+    if (provider.id == 'local-comfyui') {
+      await _openComfyUi();
+      return;
+    }
     final job = await const ProviderExecutionService().start(
       workspace: ExecutionJobWorkspace.image,
       provider: ExecutionProviderRef.fromGenerationProvider(provider),
@@ -409,6 +532,79 @@ Quality: $_quality
     if (!mounted) return;
     _recordExecutionJob(job);
     _showMessage(_messageForExecutionJob(job));
+  }
+
+  Future<void> _checkComfyUi() async {
+    final settings = AppSettingsScope.of(context);
+    final endpoint = settings.localEndpoint(
+      'comfyui',
+      fallback: 'http://127.0.0.1:8188',
+    );
+    setState(() {
+      _checkingComfyUi = true;
+      _comfyUiStatus = 'Проверяется...';
+    });
+    final runtime = FlutenRuntimeScope.read(context);
+    unawaited(
+      runtime.addEvent(
+        type: 'image',
+        title: 'ComfyUI health check started',
+        detail: endpoint,
+      ),
+    );
+    final result = await const ComfyUiHealthService().check(endpoint: endpoint);
+    if (!mounted) return;
+    setState(() {
+      _checkingComfyUi = false;
+      _comfyUiAvailable = result.available;
+      _comfyUiStatus = result.available
+          ? 'ComfyUI доступна'
+          : 'ComfyUI не отвечает';
+    });
+    unawaited(
+      runtime.addEvent(
+        type: 'image',
+        title: result.available ? 'ComfyUI available' : 'ComfyUI unavailable',
+        detail: result.info ?? result.error ?? endpoint,
+      ),
+    );
+    _showMessage(
+      result.available
+          ? 'ComfyUI доступна.'
+          : 'ComfyUI не отвечает. Запустите ComfyUI на 127.0.0.1:8188.',
+    );
+  }
+
+  Future<void> _openComfyUi() async {
+    final endpoint = AppSettingsScope.of(
+      context,
+    ).localEndpoint('comfyui', fallback: 'http://127.0.0.1:8188');
+    final opened = await launchUrl(
+      Uri.parse(endpoint),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!mounted) return;
+    _showMessage(
+      opened
+          ? 'ComfyUI открыт во внешнем браузере.'
+          : 'Не удалось открыть ComfyUI. Endpoint скопирован.',
+    );
+    if (!opened) {
+      await Clipboard.setData(ClipboardData(text: endpoint));
+    }
+  }
+
+  void _prepareComfyUiWorkflowLater() {
+    unawaited(
+      FlutenRuntimeScope.read(context).addEvent(
+        type: 'image',
+        title: 'ComfyUI workflow preparation requested',
+        detail: 'Workflow submit is not implemented yet.',
+      ),
+    );
+    _showMessage(
+      'Workflow будет подготовлен следующим этапом. Сейчас prompt можно скопировать вручную.',
+    );
   }
 
   void _clearPrompt() {
@@ -502,6 +698,8 @@ Quality: $_quality
       ExecutionJobStatus.requiresApiKey => 'Нужен API-ключ ${job.providerName}.',
       ExecutionJobStatus.localUnavailable =>
         'Локальная ${job.providerName} не подключена.',
+      ExecutionJobStatus.needsWorkflow =>
+        '${job.providerName} доступна. Выберите workflow перед локальным запуском.',
       ExecutionJobStatus.manualOnly =>
         'Prompt подготовлен. Откройте ${job.providerName} и вставьте его вручную.',
       ExecutionJobStatus.prepared =>
@@ -730,6 +928,103 @@ class _ImagePromptComposer extends StatelessWidget {
                 onPressed: onClear,
                 icon: const Icon(Icons.clear_rounded),
                 label: const Text('Очистить'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ComfyUiLocalRouteCard extends StatelessWidget {
+  const _ComfyUiLocalRouteCard({
+    required this.status,
+    required this.checking,
+    required this.available,
+    required this.endpoint,
+    required this.workflowPath,
+    required this.outputFolder,
+    required this.onCheck,
+    required this.onCopy,
+    required this.onPrepareWorkflow,
+    required this.onOpen,
+  });
+
+  final String status;
+  final bool checking;
+  final bool? available;
+  final String endpoint;
+  final String workflowPath;
+  final String outputFolder;
+  final VoidCallback onCheck;
+  final VoidCallback onCopy;
+  final VoidCallback onPrepareWorkflow;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final workflowReady = workflowPath.trim().isNotEmpty;
+    final message = available == true
+        ? workflowReady
+            ? 'ComfyUI доступна. Реальный запуск workflow будет подключён следующим этапом.'
+            : 'ComfyUI доступна, но workflow ещё не выбран.'
+        : 'ComfyUI не подключена. Запустите ComfyUI и нажмите Проверить.';
+    return _GlassPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _PanelTitle(
+            icon: Icons.memory_rounded,
+            title: 'Локальный запуск через ComfyUI',
+            subtitle:
+                'Статус локального route. FLUTEN пока не отправляет workflow в ComfyUI.',
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              Chip(label: Text(status)),
+              Chip(label: Text('Endpoint: $endpoint')),
+              Chip(
+                label: Text(
+                  workflowReady ? 'Workflow указан' : 'Workflow не выбран',
+                ),
+              ),
+              if (outputFolder.trim().isNotEmpty)
+                Chip(label: Text('Output: $outputFolder')),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            style: const TextStyle(color: Color(0xFFA7B1C1), height: 1.35),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: checking ? null : onCheck,
+                icon: const Icon(Icons.cable_rounded),
+                label: Text(checking ? 'Проверяем...' : 'Проверить ComfyUI'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onCopy,
+                icon: const Icon(Icons.copy_rounded),
+                label: const Text('Скопировать prompt'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onPrepareWorkflow,
+                icon: const Icon(Icons.account_tree_rounded),
+                label: const Text('Подготовить workflow позже'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onOpen,
+                icon: const Icon(Icons.open_in_new_rounded),
+                label: const Text('Открыть ComfyUI'),
               ),
             ],
           ),

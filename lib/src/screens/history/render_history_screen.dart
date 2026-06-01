@@ -144,6 +144,7 @@ class _RenderHistoryScreenState extends State<RenderHistoryScreen> {
       ExecutionJobStatus.prepared ||
       ExecutionJobStatus.requiresApiKey ||
       ExecutionJobStatus.localUnavailable ||
+      ExecutionJobStatus.needsWorkflow ||
       ExecutionJobStatus.failed => _HistoryEntryType.providerHandoff,
       ExecutionJobStatus.completed => _HistoryEntryType.manualResult,
       _ => _HistoryEntryType.promptDraft,
@@ -158,6 +159,7 @@ class _RenderHistoryScreenState extends State<RenderHistoryScreen> {
         job.routeType == 'external' ||
         job.status == 'requiresApiKey' ||
         job.status == 'localUnavailable' ||
+        job.status == 'needsWorkflow' ||
         job.status == 'manualOnly' ||
         job.status == 'failed') {
       return _HistoryEntryType.providerHandoff;
