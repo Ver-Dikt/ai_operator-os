@@ -124,6 +124,7 @@ class _StudioTopBar extends StatelessWidget {
     _StudioTab(AppDestination.contentFactory, 'РњР°СЂРєРµС‚РёРЅРі'),
     _StudioTab(AppDestination.workflows, 'Workflows', enabled: false),
     _StudioTab(AppDestination.browserHub, 'Р‘СЂР°СѓР·РµСЂ'),
+    _StudioTab(AppDestination.renderHistory, 'History'),
     _StudioTab(AppDestination.agents, 'Agents', enabled: false),
     _StudioTab(AppDestination.tools, 'Apps', enabled: false),
   ];
@@ -282,6 +283,7 @@ class _TabsScroller extends StatelessWidget {
           AppDestination.audio,
           AppDestination.director,
           AppDestination.browserHub,
+          AppDestination.renderHistory,
         }.contains(tab.destination);
         final enabled = tab.enabled && activeDestination;
         return Tooltip(
@@ -342,7 +344,7 @@ class _BalancePill extends StatelessWidget {
           Icon(Icons.circle, color: Color(0xFF22C55E), size: 8),
           SizedBox(width: 8),
           Text(
-            'Mock balance',
+            'Local prep mode',
             style: TextStyle(
               color: Color(0xDFFFFFFF),
               fontSize: 11,

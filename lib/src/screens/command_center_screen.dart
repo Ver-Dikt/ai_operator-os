@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../state/app_settings.dart';
 
@@ -81,10 +81,10 @@ class _HeroPanel extends StatelessWidget {
           final text = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const _Eyebrow('Творческая студия генерации'),
+              const _Eyebrow('РўРІРѕСЂС‡РµСЃРєР°СЏ СЃС‚СѓРґРёСЏ РіРµРЅРµСЂР°С†РёРё'),
               const SizedBox(height: 14),
               Text(
-                'Открытая AI-студия',
+                'РћС‚РєСЂС‹С‚Р°СЏ AI-СЃС‚СѓРґРёСЏ',
                 style: Theme.of(context).textTheme.displaySmall?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w900,
@@ -93,7 +93,7 @@ class _HeroPanel extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               const Text(
-                'Генерируй изображения, видео и кинематографичные сцены из одного понятного рабочего пространства: промпт, референсы, модель, история и результат.',
+                'Р“РµРЅРµСЂРёСЂСѓР№ РёР·РѕР±СЂР°Р¶РµРЅРёСЏ, РІРёРґРµРѕ Рё РєРёРЅРµРјР°С‚РѕРіСЂР°С„РёС‡РЅС‹Рµ СЃС†РµРЅС‹ РёР· РѕРґРЅРѕРіРѕ РїРѕРЅСЏС‚РЅРѕРіРѕ СЂР°Р±РѕС‡РµРіРѕ РїСЂРѕСЃС‚СЂР°РЅСЃС‚РІР°: РїСЂРѕРјРїС‚, СЂРµС„РµСЂРµРЅСЃС‹, РјРѕРґРµР»СЊ, РёСЃС‚РѕСЂРёСЏ Рё СЂРµР·СѓР»СЊС‚Р°С‚.',
                 style: TextStyle(
                   color: Color(0xFFA7B1C1),
                   fontSize: 16,
@@ -108,17 +108,17 @@ class _HeroPanel extends StatelessWidget {
                   FilledButton.icon(
                     onPressed: () => onNavigate(AppDestination.images),
                     icon: const Icon(Icons.image_outlined),
-                    label: const Text('Открыть Image Studio'),
+                    label: const Text('РћС‚РєСЂС‹С‚СЊ Image Studio'),
                   ),
                   OutlinedButton.icon(
                     onPressed: () => onNavigate(AppDestination.video),
                     icon: const Icon(Icons.movie_creation_outlined),
-                    label: const Text('Открыть Video Studio'),
+                    label: const Text('РћС‚РєСЂС‹С‚СЊ Video Studio'),
                   ),
                   OutlinedButton.icon(
                     onPressed: () => onNavigate(AppDestination.browserHub),
                     icon: const Icon(Icons.public_rounded),
-                    label: const Text('Браузер нейронок'),
+                    label: const Text('Р‘СЂР°СѓР·РµСЂ РЅРµР№СЂРѕРЅРѕРє'),
                   ),
                 ],
               ),
@@ -181,7 +181,7 @@ class _HeroPreview extends StatelessWidget {
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Неоновая улица под дождем, медленный dolly-in, кинематографичный туман',
+                        'РќРµРѕРЅРѕРІР°СЏ СѓР»РёС†Р° РїРѕРґ РґРѕР¶РґРµРј, РјРµРґР»РµРЅРЅС‹Р№ dolly-in, РєРёРЅРµРјР°С‚РѕРіСЂР°С„РёС‡РЅС‹Р№ С‚СѓРјР°РЅ',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -210,60 +210,76 @@ class _StudioGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final cards = [
       _StudioCardData(
-        'AI Чат',
-        'Текстовая модель, сценарии, prompt builder и подготовка production prompts.',
+        'AI Chat',
+        'Persistent text workspace for ideas, prompt drafts and studio handoffs.',
         Icons.chat_bubble_outline_rounded,
         AppDestination.textWorkspace,
         const Color(0xFF67E8F9),
       ),
       _StudioCardData(
         'Image Studio',
-        'Промпт, референсы, формат, модель и история рендеров.',
+        'Direct visual prompt composer, image controls and provider handoff.',
         Icons.image_outlined,
         AppDestination.images,
         const Color(0xFF22D3EE),
       ),
       _StudioCardData(
         'Video Studio',
-        'Text-to-video, image-to-video, движение камеры и длительность.',
+        'Cinematic prompt composer, shot plan and video provider handoff.',
         Icons.movie_creation_outlined,
         AppDestination.video,
         const Color(0xFFFFB86B),
       ),
       _StudioCardData(
-        'Cinema Studio',
-        'Язык кадра, камера, объектив, свет и режиссерские пресеты.',
+        'Audio Studio',
+        'Music, voice and sound design prompts for external audio services.',
+        Icons.graphic_eq_rounded,
+        AppDestination.audio,
+        const Color(0xFF9FE870),
+      ),
+      _StudioCardData(
+        'Cinema / Director',
+        'Director plan, shot logic, camera language and Video Studio handoff.',
         Icons.video_camera_back_outlined,
         AppDestination.director,
         const Color(0xFFFF6B8A),
       ),
       _StudioCardData(
-        'Workflows',
-        'Шаблоны production-пайплайнов и повторяемые генеративные процессы.',
-        Icons.schema_outlined,
-        AppDestination.workflows,
-        const Color(0xFF8B5CF6),
-      ),
-      _StudioCardData(
-        'Браузер нейронок',
-        'Внешние AI-сайты, промпт-буфер, запуск в браузере и desktop WebView-зона.',
+        'Browser Hub',
+        'Filtered AI tools: open site, copy prompt, prepare manual handoff.',
         Icons.public_rounded,
         AppDestination.browserHub,
         const Color(0xFF67E8F9),
       ),
       _StudioCardData(
-        'Маркетинг',
-        'Контент-модули, короткие видео, публикации и creative packs.',
-        Icons.campaign_outlined,
-        AppDestination.contentFactory,
-        const Color(0xFFFFD166),
+        'History / Assets',
+        'Prepared prompts, provider handoffs, plans and manually saved results.',
+        Icons.history_rounded,
+        AppDestination.renderHistory,
+        const Color(0xFFC8FFF4),
       ),
       _StudioCardData(
-        'Модели и провайдеры',
-        'API, браузерные, локальные и внешние маршруты генерации.',
+        'Providers',
+        'Registered API, browser, local and manual routes. Execution is not connected yet.',
         Icons.hub_outlined,
         AppDestination.providers,
         const Color(0xFF9FE870),
+      ),
+      _StudioCardData(
+        'Workflows',
+        'Repeatable pipelines will be connected after real execution.',
+        Icons.schema_outlined,
+        AppDestination.workflows,
+        const Color(0xFF8B5CF6),
+        enabled: false,
+      ),
+      _StudioCardData(
+        'Marketing',
+        'Content Factory packs are planned; this section is not configured yet.',
+        Icons.campaign_outlined,
+        AppDestination.contentFactory,
+        const Color(0xFFFFD166),
+        enabled: false,
       ),
     ];
     return LayoutBuilder(
@@ -285,7 +301,9 @@ class _StudioGrid extends StatelessWidget {
           itemCount: cards.length,
           itemBuilder: (context, index) => _StudioCard(
             data: cards[index],
-            onTap: () => onNavigate(cards[index].destination),
+            onTap: cards[index].enabled
+                ? () => onNavigate(cards[index].destination)
+                : null,
           ),
         );
       },
@@ -300,6 +318,7 @@ class _StudioCardData {
     this.icon,
     this.destination,
     this.accent,
+    {this.enabled = true}
   );
 
   final String title;
@@ -307,18 +326,19 @@ class _StudioCardData {
   final IconData icon;
   final AppDestination destination;
   final Color accent;
+  final bool enabled;
 }
 
 class _StudioCard extends StatelessWidget {
   const _StudioCard({required this.data, required this.onTap});
 
   final _StudioCardData data;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onTap,
+      onTap: data.enabled ? onTap : null,
       borderRadius: BorderRadius.circular(14),
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -330,7 +350,17 @@ class _StudioCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(data.icon, color: data.accent, size: 28),
+            Row(
+              children: [
+                Icon(data.icon, color: data.enabled ? data.accent : Colors.white38, size: 28),
+                const Spacer(),
+                if (!data.enabled)
+                  const Chip(
+                    label: Text('Скоро'),
+                    visualDensity: VisualDensity.compact,
+                  ),
+              ],
+            ),
             const Spacer(),
             Text(
               data.title,
@@ -372,12 +402,12 @@ class _WorkflowStrip extends StatelessWidget {
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           _Eyebrow('Workflow'),
-          _StepPill('Промпт'),
-          _StepPill('Референс'),
-          _StepPill('Модель'),
-          _StepPill('Генерация'),
-          _StepPill('История'),
-          _StepPill('Экспорт'),
+          _StepPill('РџСЂРѕРјРїС‚'),
+          _StepPill('Р РµС„РµСЂРµРЅСЃ'),
+          _StepPill('РњРѕРґРµР»СЊ'),
+          _StepPill('Р“РµРЅРµСЂР°С†РёСЏ'),
+          _StepPill('РСЃС‚РѕСЂРёСЏ'),
+          _StepPill('Р­РєСЃРїРѕСЂС‚'),
         ],
       ),
     );
