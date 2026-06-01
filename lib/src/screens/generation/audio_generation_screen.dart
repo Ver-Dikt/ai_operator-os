@@ -2,11 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../ai_operator_app.dart';
 import '../../data/seed_browser_ai_tools.dart';
 import '../../models/browser_ai_tool.dart';
 import '../../models/execution_job.dart';
+import '../../services/ace_step_health_service.dart';
+import '../../services/execution_queue.dart';
 import '../../services/ollama_prompt_brain_service.dart';
 import '../../services/provider_executor.dart';
 import '../../widgets/current_session_strip.dart';
@@ -41,6 +44,9 @@ class _AudioGenerationScreenState extends State<AudioGenerationScreen> {
   _AudioMode _mode = _AudioMode.music;
   late BrowserAiTool _provider;
   bool _runtimeWorkspaceOpened = false;
+  bool? _aceStepAvailable;
+  bool _checkingAceStep = false;
+  String _aceStepStatus = 'Не проверено';
 
   String _genre = 'Cinematic pop';
   String _mood = 'Emotional';
@@ -188,6 +194,30 @@ class _AudioGenerationScreenState extends State<AudioGenerationScreen> {
             onOpen: _openProvider,
             onClear: _clearPrompt,
           );
+          final settings = AppSettingsScope.of(context);
+          final aceStepCard = _provider.id == 'ace-step'
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: _AceStepLocalRouteCard(
+                    status: _aceStepStatus,
+                    checking: _checkingAceStep,
+                    available: _aceStepAvailable,
+                    apiEndpoint: settings.localEndpoint(
+                      'ace-step',
+                      fallback: 'http://localhost:8001',
+                    ),
+                    uiEndpoint: settings.localUiEndpoint(
+                      'ace-step',
+                      fallback: 'http://localhost:3001',
+                    ),
+                    mode: _mode.label,
+                    onCheck: _checkAceStep,
+                    onOpenUi: _openAceStepUi,
+                    onCopy: _copyPrompt,
+                    onPrepareLater: _prepareAceStepLaunchLater,
+                  ),
+                )
+              : const SizedBox.shrink();
           final center = _AudioWorkspace(
             mode: _mode,
             prompt: _prompt,
@@ -216,6 +246,7 @@ class _AudioGenerationScreenState extends State<AudioGenerationScreen> {
                 const CurrentSessionStrip(),
                 const SizedBox(height: 12),
                 left,
+                aceStepCard,
                 const SizedBox(height: 12),
                 SizedBox(height: 560, child: center),
                 const SizedBox(height: 12),
@@ -237,7 +268,15 @@ class _AudioGenerationScreenState extends State<AudioGenerationScreen> {
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      SizedBox(width: 360, child: left),
+                      SizedBox(
+                        width: 360,
+                        child: Column(
+                          children: [
+                            Expanded(child: left),
+                            if (_provider.id == 'ace-step') aceStepCard,
+                          ],
+                        ),
+                      ),
                       const SizedBox(width: 12),
                       Expanded(child: center),
                       const SizedBox(width: 12),
@@ -328,6 +367,10 @@ Sound design controls: type $_soundType, environment $_environment, intensity $_
       _showMessage('Сначала опиши трек, голос или звук.');
       return;
     }
+    if (_provider.id == 'ace-step') {
+      await _prepareAceStepPrompt();
+      return;
+    }
     final prompt = _composedPrompt;
     final job = await const ProviderExecutionService().prepare(
       workspace: ExecutionJobWorkspace.audio,
@@ -341,6 +384,73 @@ Sound design controls: type $_soundType, environment $_environment, intensity $_
     await _recordExecutionJob(job);
     _addHistory(job.status.label, prompt);
     _showMessage(_messageForExecutionJob(job));
+  }
+
+  Future<void> _prepareAceStepPrompt() async {
+    final settings = AppSettingsScope.of(context);
+    final apiEndpoint = settings.localEndpoint(
+      'ace-step',
+      fallback: 'http://localhost:8001',
+    );
+    final uiEndpoint = settings.localUiEndpoint(
+      'ace-step',
+      fallback: 'http://localhost:3001',
+    );
+    final health = settings.isLocalProviderEnabled('ace-step')
+        ? await const AceStepHealthService().check(
+            apiEndpoint: apiEndpoint,
+            uiEndpoint: uiEndpoint,
+          )
+        : const AceStepHealthResult(
+            apiAvailable: false,
+            uiAvailable: false,
+            error: 'ACE-Step disabled',
+          );
+    if (!mounted) return;
+    final runtime = FlutenRuntimeScope.read(context);
+    setState(() {
+      _aceStepAvailable = health.available;
+      _aceStepStatus = health.statusLabel;
+    });
+    final status = health.available
+        ? ExecutionJobStatus.needsExecutionImplementation
+        : ExecutionJobStatus.localUnavailable;
+    final message = health.available
+        ? 'ACE-Step доступен. Реальный запуск будет подключён следующим этапом.'
+        : 'ACE-Step не подключен.';
+    final now = DateTime.now();
+    final job = ExecutionJob(
+      id: 'ace-step-${now.microsecondsSinceEpoch}',
+      workspace: ExecutionJobWorkspace.audio,
+      providerId: _provider.id,
+      providerName: _provider.name,
+      capability: _mode.name,
+      inputPrompt: _prompt,
+      composedPrompt: _composedPrompt,
+      status: status,
+      executionMode: ExecutionJobMode.local,
+      createdAt: now,
+      updatedAt: now,
+      errorMessage: status == ExecutionJobStatus.localUnavailable
+          ? message
+          : null,
+      metadata: {
+        'settingsProviderId': 'ace-step',
+        'apiEndpoint': apiEndpoint,
+        'uiEndpoint': uiEndpoint,
+      },
+    );
+    ExecutionQueue.instance.add(job);
+    await _recordExecutionJob(job);
+    await runtime.addEvent(
+      type: 'audio',
+      title: health.available
+          ? 'ACE-Step implementation pending'
+          : 'ACE-Step unavailable',
+      detail: message,
+    );
+    _addHistory(job.status.label, _composedPrompt);
+    _showMessage(message);
   }
 
   Future<void> _recordExecutionJob(ExecutionJob job) async {
@@ -360,6 +470,8 @@ Sound design controls: type $_soundType, environment $_environment, intensity $_
       ExecutionJobStatus.requiresApiKey => 'Нужен API-ключ ${job.providerName}.',
       ExecutionJobStatus.localUnavailable =>
         'Локальная модель ${job.providerName} не подключена.',
+      ExecutionJobStatus.needsExecutionImplementation =>
+        '${job.providerName} доступен. Реальный запуск будет подключён следующим этапом.',
       ExecutionJobStatus.manualOnly =>
         'Prompt подготовлен и скопирован. Вставьте его в ${job.providerName} вручную.',
       ExecutionJobStatus.prepared =>
@@ -388,6 +500,10 @@ Sound design controls: type $_soundType, environment $_environment, intensity $_
   }
 
   Future<void> _openProvider() async {
+    if (_provider.id == 'ace-step') {
+      await _openAceStepUi();
+      return;
+    }
     final prompt = _prompt.isEmpty ? _provider.url : _composedPrompt;
     final runtime = FlutenRuntimeScope.read(context);
     final job = await const ProviderExecutionService().start(
@@ -407,6 +523,81 @@ Sound design controls: type $_soundType, environment $_environment, intensity $_
     );
     _addHistory(job.status.label, prompt);
     _showMessage(_messageForExecutionJob(job));
+  }
+
+  Future<void> _checkAceStep() async {
+    final settings = AppSettingsScope.of(context);
+    final apiEndpoint = settings.localEndpoint(
+      'ace-step',
+      fallback: 'http://localhost:8001',
+    );
+    final uiEndpoint = settings.localUiEndpoint(
+      'ace-step',
+      fallback: 'http://localhost:3001',
+    );
+    final runtime = FlutenRuntimeScope.read(context);
+    setState(() {
+      _checkingAceStep = true;
+      _aceStepStatus = 'Проверяется...';
+    });
+    unawaited(
+      runtime.addEvent(
+        type: 'audio',
+        title: 'ACE-Step health check started',
+        detail: '$apiEndpoint / $uiEndpoint',
+      ),
+    );
+    final result = await const AceStepHealthService().check(
+      apiEndpoint: apiEndpoint,
+      uiEndpoint: uiEndpoint,
+    );
+    if (!mounted) return;
+    setState(() {
+      _checkingAceStep = false;
+      _aceStepAvailable = result.available;
+      _aceStepStatus = result.statusLabel;
+    });
+    unawaited(
+      runtime.addEvent(
+        type: 'audio',
+        title: result.available ? 'ACE-Step available' : 'ACE-Step unavailable',
+        detail: result.statusLabel,
+      ),
+    );
+    _showMessage(
+      result.available
+          ? result.statusLabel
+          : 'ACE-Step не отвечает. Запустите API на 8001 и UI на 3001.',
+    );
+  }
+
+  Future<void> _openAceStepUi() async {
+    final uiEndpoint = AppSettingsScope.of(
+      context,
+    ).localUiEndpoint('ace-step', fallback: 'http://localhost:3001');
+    final opened = await launchUrl(
+      Uri.parse(uiEndpoint),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!mounted) return;
+    _showMessage(
+      opened
+          ? 'ACE-Step UI открыт во внешнем браузере.'
+          : 'Не удалось открыть ACE-Step UI.',
+    );
+  }
+
+  void _prepareAceStepLaunchLater() {
+    unawaited(
+      FlutenRuntimeScope.read(context).addEvent(
+        type: 'audio',
+        title: 'ACE-Step route prepared',
+        detail: 'Execution submit is not implemented yet.',
+      ),
+    );
+    _showMessage(
+      'Запуск через ACE-Step будет подключён следующим этапом. Сейчас prompt можно скопировать.',
+    );
   }
 
   void _clearPrompt() {
@@ -933,6 +1124,90 @@ class _ModeControls extends StatelessWidget {
           ),
         ],
       },
+    );
+  }
+}
+
+class _AceStepLocalRouteCard extends StatelessWidget {
+  const _AceStepLocalRouteCard({
+    required this.status,
+    required this.checking,
+    required this.available,
+    required this.apiEndpoint,
+    required this.uiEndpoint,
+    required this.mode,
+    required this.onCheck,
+    required this.onOpenUi,
+    required this.onCopy,
+    required this.onPrepareLater,
+  });
+
+  final String status;
+  final bool checking;
+  final bool? available;
+  final String apiEndpoint;
+  final String uiEndpoint;
+  final String mode;
+  final VoidCallback onCheck;
+  final VoidCallback onOpenUi;
+  final VoidCallback onCopy;
+  final VoidCallback onPrepareLater;
+
+  @override
+  Widget build(BuildContext context) {
+    final message = available == true
+        ? 'ACE-Step доступен. Prompt можно подготовить, реальный submit будет подключён следующим этапом.'
+        : 'ACE-Step не подключен. Запустите API на 8001 и UI на 3001.';
+    return _GlassPanel(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _PanelTitle('Локальный запуск через ACE-Step'),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              Chip(label: Text(status)),
+              Chip(label: Text('API: $apiEndpoint')),
+              Chip(label: Text('UI: $uiEndpoint')),
+              Chip(label: Text('Mode: $mode')),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            style: const TextStyle(color: Color(0xFFA7B1C1), height: 1.35),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: checking ? null : onCheck,
+                icon: const Icon(Icons.cable_rounded),
+                label: Text(checking ? 'Проверяем...' : 'Проверить ACE-Step'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onOpenUi,
+                icon: const Icon(Icons.open_in_new_rounded),
+                label: const Text('Открыть ACE-Step UI'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onCopy,
+                icon: const Icon(Icons.copy_rounded),
+                label: const Text('Скопировать prompt'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onPrepareLater,
+                icon: const Icon(Icons.queue_music_rounded),
+                label: const Text('Подготовить запуск позже'),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

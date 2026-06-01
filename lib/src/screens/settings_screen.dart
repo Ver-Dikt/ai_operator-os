@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../ai_operator_app.dart';
 import '../models/ai_provider.dart';
+import '../services/ace_step_health_service.dart';
 import '../services/comfyui_health_service.dart';
 import '../services/ollama_execution_service.dart';
 import '../services/provider_registry.dart';
@@ -25,6 +27,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final Map<String, TextEditingController> _baseUrlControllers = {};
   final Map<String, TextEditingController> _modelControllers = {};
   final Map<String, TextEditingController> _endpointControllers = {};
+  final Map<String, TextEditingController> _uiEndpointControllers = {};
   final Map<String, TextEditingController> _workflowControllers = {};
   final Map<String, TextEditingController> _outputFolderControllers = {};
   final Map<String, bool> _apiEnabled = {};
@@ -62,6 +65,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ..._baseUrlControllers.values,
       ..._modelControllers.values,
       ..._endpointControllers.values,
+      ..._uiEndpointControllers.values,
       ..._workflowControllers.values,
       ..._outputFolderControllers.values,
     ]) {
@@ -105,6 +109,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         );
         _outputFolderControllers[provider.id] = TextEditingController(
           text: settings.localOutputFolder(provider.id),
+        );
+        _localStatus[provider.id] = 'Не проверено';
+      }
+      if (provider.id == 'ace-step') {
+        _uiEndpointControllers[provider.id] = TextEditingController(
+          text: settings.localUiEndpoint(
+            provider.id,
+            fallback: 'http://localhost:3001',
+          ),
         );
         _localStatus[provider.id] = 'Не проверено';
       }
@@ -156,6 +169,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             providers: _localProviders,
             enabled: _localEnabled,
             endpointControllers: _endpointControllers,
+            uiEndpointControllers: _uiEndpointControllers,
             modelControllers: _modelControllers,
             workflowControllers: _workflowControllers,
             outputFolderControllers: _outputFolderControllers,
@@ -168,6 +182,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onCheck: _checkLocalProvider,
             onModelSelected: _selectLocalModel,
             onClearWorkflow: _clearLocalWorkflow,
+            onOpenUi: _openLocalUi,
           ),
           const SizedBox(height: 18),
           const _BrowserManualSettings(),
@@ -236,6 +251,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         outputFolder: _outputFolderControllers[provider.id]?.text ?? '',
       );
     }
+    if (provider.id == 'ace-step') {
+      await settings.saveLocalUiEndpoint(
+        providerId: provider.id,
+        uiEndpoint:
+            _uiEndpointControllers[provider.id]?.text ??
+            'http://localhost:3001',
+      );
+    }
     if (!mounted) return;
     unawaited(
       FlutenRuntimeScope.read(context).addEvent(
@@ -248,6 +271,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _checkLocalProvider(AiProvider provider) async {
+    if (provider.id == 'ace-step') {
+      await _checkAceStep(provider);
+      return;
+    }
     if (provider.id == 'comfyui') {
       await _checkComfyUi(provider);
       return;
@@ -376,6 +403,65 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!mounted) return;
     setState(() => _localStatus[provider.id] = 'Workflow не выбран');
     _showMessage('ComfyUI workflow очищен.');
+  }
+
+  Future<void> _checkAceStep(AiProvider provider) async {
+    final apiEndpoint =
+        _endpointControllers[provider.id]?.text.trim() ??
+        _defaultEndpointFor(provider);
+    final uiEndpoint =
+        _uiEndpointControllers[provider.id]?.text.trim() ??
+        'http://localhost:3001';
+    final runtime = FlutenRuntimeScope.read(context);
+    setState(() {
+      _checkingLocal.add(provider.id);
+      _localStatus[provider.id] = 'Проверяется...';
+    });
+    unawaited(
+      runtime.addEvent(
+        type: 'settings',
+        title: 'ACE-Step health check started',
+        detail: '$apiEndpoint / $uiEndpoint',
+      ),
+    );
+    final result = await const AceStepHealthService().check(
+      apiEndpoint: apiEndpoint,
+      uiEndpoint: uiEndpoint,
+    );
+    if (!mounted) return;
+    setState(() {
+      _checkingLocal.remove(provider.id);
+      _localStatus[provider.id] = result.statusLabel;
+    });
+    unawaited(
+      runtime.addEvent(
+        type: 'settings',
+        title: result.available ? 'ACE-Step available' : 'ACE-Step unavailable',
+        detail: result.statusLabel,
+      ),
+    );
+    _showMessage(
+      result.available
+          ? result.statusLabel
+          : 'ACE-Step не отвечает. Запустите API на 8001 и UI на 3001.',
+    );
+  }
+
+  Future<void> _openLocalUi(AiProvider provider) async {
+    if (provider.id != 'ace-step') return;
+    final uiEndpoint =
+        _uiEndpointControllers[provider.id]?.text.trim() ??
+        'http://localhost:3001';
+    final opened = await launchUrl(
+      Uri.parse(uiEndpoint),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!mounted) return;
+    _showMessage(
+      opened
+          ? 'ACE-Step UI открыт во внешнем браузере.'
+          : 'Не удалось открыть ACE-Step UI.',
+    );
   }
 
   void _showMessage(String text) {
@@ -684,6 +770,7 @@ class _LocalProviderSettings extends StatelessWidget {
     required this.providers,
     required this.enabled,
     required this.endpointControllers,
+    required this.uiEndpointControllers,
     required this.modelControllers,
     required this.workflowControllers,
     required this.outputFolderControllers,
@@ -695,11 +782,13 @@ class _LocalProviderSettings extends StatelessWidget {
     required this.onCheck,
     required this.onModelSelected,
     required this.onClearWorkflow,
+    required this.onOpenUi,
   });
 
   final List<AiProvider> providers;
   final Map<String, bool> enabled;
   final Map<String, TextEditingController> endpointControllers;
+  final Map<String, TextEditingController> uiEndpointControllers;
   final Map<String, TextEditingController> modelControllers;
   final Map<String, TextEditingController> workflowControllers;
   final Map<String, TextEditingController> outputFolderControllers;
@@ -711,6 +800,7 @@ class _LocalProviderSettings extends StatelessWidget {
   final ValueChanged<AiProvider> onCheck;
   final void Function(AiProvider provider, String model) onModelSelected;
   final ValueChanged<AiProvider> onClearWorkflow;
+  final ValueChanged<AiProvider> onOpenUi;
 
   @override
   Widget build(BuildContext context) {
@@ -739,6 +829,7 @@ class _LocalProviderSettings extends StatelessWidget {
                         provider: provider,
                         enabled: enabled[provider.id] ?? false,
                         endpointController: endpointControllers[provider.id]!,
+                        uiEndpointController: uiEndpointControllers[provider.id],
                         modelController: modelControllers[provider.id],
                         workflowController: workflowControllers[provider.id],
                         outputFolderController:
@@ -752,6 +843,7 @@ class _LocalProviderSettings extends StatelessWidget {
                         onModelSelected: (model) =>
                             onModelSelected(provider, model),
                         onClearWorkflow: () => onClearWorkflow(provider),
+                        onOpenUi: () => onOpenUi(provider),
                       ),
                     ),
                 ],
@@ -769,6 +861,7 @@ class _LocalProviderCard extends StatelessWidget {
     required this.provider,
     required this.enabled,
     required this.endpointController,
+    required this.uiEndpointController,
     required this.modelController,
     required this.workflowController,
     required this.outputFolderController,
@@ -780,11 +873,13 @@ class _LocalProviderCard extends StatelessWidget {
     required this.onCheck,
     required this.onModelSelected,
     required this.onClearWorkflow,
+    required this.onOpenUi,
   });
 
   final AiProvider provider;
   final bool enabled;
   final TextEditingController endpointController;
+  final TextEditingController? uiEndpointController;
   final TextEditingController? modelController;
   final TextEditingController? workflowController;
   final TextEditingController? outputFolderController;
@@ -796,6 +891,7 @@ class _LocalProviderCard extends StatelessWidget {
   final VoidCallback onCheck;
   final ValueChanged<String> onModelSelected;
   final VoidCallback onClearWorkflow;
+  final VoidCallback onOpenUi;
 
   @override
   Widget build(BuildContext context) {
@@ -814,6 +910,18 @@ class _LocalProviderCard extends StatelessWidget {
             controller: endpointController,
             decoration: const InputDecoration(labelText: 'Endpoint URL'),
           ),
+          if (provider.id == 'ace-step') ...[
+            const SizedBox(height: 8),
+            TextField(
+              controller: uiEndpointController,
+              decoration: const InputDecoration(
+                labelText: 'ACE-Step UI endpoint',
+                helperText: 'Обычно http://localhost:3001',
+              ),
+            ),
+            const SizedBox(height: 8),
+            _InfoChip(status ?? 'Не проверено'),
+          ],
           if (provider.id == 'ollama') ...[
             const SizedBox(height: 8),
             if (models.isEmpty)
@@ -895,6 +1003,12 @@ class _LocalProviderCard extends StatelessWidget {
                   onPressed: onClearWorkflow,
                   icon: const Icon(Icons.clear_rounded),
                   label: const Text('Очистить workflow'),
+                ),
+              if (provider.id == 'ace-step')
+                OutlinedButton.icon(
+                  onPressed: onOpenUi,
+                  icon: const Icon(Icons.open_in_new_rounded),
+                  label: const Text('Открыть ACE-Step UI'),
                 ),
             ],
           ),
@@ -1022,6 +1136,7 @@ String _checkLabelFor(AiProvider provider) {
   return switch (provider.id) {
     'ollama' => 'Проверить Ollama',
     'comfyui' => 'Проверить ComfyUI',
+    'ace-step' => 'Проверить ACE-Step',
     _ => 'Проверить',
   };
 }

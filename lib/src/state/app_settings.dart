@@ -161,6 +161,7 @@ class AppSettings extends ChangeNotifier {
   static const _providerModelPrefix = 'execution_provider_model_';
   static const _localEnabledPrefix = 'execution_local_enabled_';
   static const _localEndpointPrefix = 'execution_local_endpoint_';
+  static const _localUiEndpointPrefix = 'execution_local_ui_endpoint_';
   static const _localWorkflowPathPrefix = 'execution_local_workflow_path_';
   static const _localOutputFolderPrefix = 'execution_local_output_folder_';
   static const defaultOllamaModel = 'qwen2.5-coder:7b';
@@ -421,6 +422,11 @@ class AppSettings extends ChangeNotifier {
         fallback;
   }
 
+  String localUiEndpoint(String providerId, {required String fallback}) {
+    return _preferences.getString('$_localUiEndpointPrefix$providerId') ??
+        fallback;
+  }
+
   String localWorkflowPath(String providerId) {
     return _preferences.getString('$_localWorkflowPathPrefix$providerId') ?? '';
   }
@@ -456,6 +462,17 @@ class AppSettings extends ChangeNotifier {
     await _preferences.setString(
       '$_localOutputFolderPrefix$providerId',
       outputFolder.trim(),
+    );
+    notifyListeners();
+  }
+
+  Future<void> saveLocalUiEndpoint({
+    required String providerId,
+    required String uiEndpoint,
+  }) async {
+    await _preferences.setString(
+      '$_localUiEndpointPrefix$providerId',
+      uiEndpoint.trim(),
     );
     notifyListeners();
   }

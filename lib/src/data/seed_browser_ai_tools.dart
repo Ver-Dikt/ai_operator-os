@@ -281,6 +281,22 @@ const browserAiTools = <BrowserAiTool>[
     workflowHints: ['Audio Studio'],
   ),
   BrowserAiTool(
+    id: 'ace-step',
+    name: 'ACE-Step Local',
+    url: 'http://localhost:3001',
+    category: BrowserAiCategory.audio,
+    accessType: BrowserToolAccessType.free,
+    launchModes: [BrowserLaunchMode.externalBrowser, BrowserLaunchMode.clipboardOnly],
+    description:
+        'Локальный music/audio runtime. FLUTEN пока только проверяет статус и готовит prompt.',
+    executionMode: BrowserExecutionMode.local,
+    status: BrowserProviderStatus.localNotConnected,
+    recommendedUseCase: 'Local music generation route preparation.',
+    supportedWorkflows: ['textToAudio', 'musicGeneration'],
+    tags: ['audio', 'music', 'local', 'ace-step'],
+    workflowHints: ['Audio Studio', 'Local runtime'],
+  ),
+  BrowserAiTool(
     id: 'hugging-face',
     name: 'Hugging Face',
     url: 'https://huggingface.co/',

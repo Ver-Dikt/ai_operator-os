@@ -12,6 +12,7 @@ enum ExecutionJobStatus {
   manualOnly,
   localUnavailable,
   needsWorkflow,
+  needsExecutionImplementation,
 }
 
 enum ExecutionJobMode { api, browser, local, manual }
@@ -30,6 +31,8 @@ extension ExecutionJobStatusLabel on ExecutionJobStatus {
       ExecutionJobStatus.manualOnly => 'Ручной режим',
       ExecutionJobStatus.localUnavailable => 'Локально недоступно',
       ExecutionJobStatus.needsWorkflow => 'Нужен workflow',
+      ExecutionJobStatus.needsExecutionImplementation =>
+        'Нужна реализация запуска',
     };
   }
 }
