@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../data/seed_tools.dart';
@@ -9,9 +9,9 @@ enum OperatorMode { local, cloud, hybrid }
 extension OperatorModeLabel on OperatorMode {
   String get label {
     return switch (this) {
-      OperatorMode.local => 'Local - локально',
-      OperatorMode.cloud => 'Cloud - облачные сервисы',
-      OperatorMode.hybrid => 'Hybrid - смешанный режим',
+      OperatorMode.local => 'Local - Р»РѕРєР°Р»СЊРЅРѕ',
+      OperatorMode.cloud => 'Cloud - РѕР±Р»Р°С‡РЅС‹Рµ СЃРµСЂРІРёСЃС‹',
+      OperatorMode.hybrid => 'Hybrid - СЃРјРµС€Р°РЅРЅС‹Р№ СЂРµР¶РёРј',
     };
   }
 }
@@ -21,6 +21,7 @@ enum AppDestination {
   textWorkspace,
   images,
   video,
+  audio,
   director,
   providers,
   renderHistory,
@@ -43,6 +44,7 @@ extension AppDestinationRoute on AppDestination {
       AppDestination.textWorkspace => '/text',
       AppDestination.images => '/images',
       AppDestination.video => '/video',
+      AppDestination.audio => '/audio',
       AppDestination.director => '/director',
       AppDestination.providers => '/providers',
       AppDestination.renderHistory => '/history',
@@ -64,6 +66,7 @@ extension AppDestinationRoute on AppDestination {
       '/text' || '/chat' || '/prompt-builder' => AppDestination.textWorkspace,
       '/images' || '/image' => AppDestination.images,
       '/video' => AppDestination.video,
+      '/audio' => AppDestination.audio,
       '/director' || '/cinema' => AppDestination.director,
       '/providers' => AppDestination.providers,
       '/history' || '/renders' => AppDestination.renderHistory,
@@ -86,23 +89,24 @@ extension AppDestinationRoute on AppDestination {
 
   String get label {
     return switch (this) {
-      AppDestination.commandCenter => 'Пульт',
-      AppDestination.textWorkspace => 'AI Чат',
-      AppDestination.images => 'Изображения',
-      AppDestination.video => 'Видео',
-      AppDestination.director => 'Режиссёр',
-      AppDestination.providers => 'Провайдеры',
-      AppDestination.renderHistory => 'История',
-      AppDestination.socialIntelligence => 'Соцаналитика',
-      AppDestination.browserHub => 'Браузер нейронок',
-      AppDestination.tools => 'Инструменты',
-      AppDestination.agents => 'AI-помощники',
-      AppDestination.workflows => 'Планы работы',
-      AppDestination.contentFactory => 'Фабрики',
-      AppDestination.useCases => 'Кейсы',
-      AppDestination.projects => 'Проекты',
-      AppDestination.favorites => 'Избранное',
-      AppDestination.settings => 'Настройки',
+      AppDestination.commandCenter => 'РџСѓР»СЊС‚',
+      AppDestination.textWorkspace => 'AI Р§Р°С‚',
+      AppDestination.images => 'РР·РѕР±СЂР°Р¶РµРЅРёСЏ',
+      AppDestination.video => 'Р’РёРґРµРѕ',
+      AppDestination.audio => 'Audio',
+      AppDestination.director => 'Р РµР¶РёСЃСЃС‘СЂ',
+      AppDestination.providers => 'РџСЂРѕРІР°Р№РґРµСЂС‹',
+      AppDestination.renderHistory => 'РСЃС‚РѕСЂРёСЏ',
+      AppDestination.socialIntelligence => 'РЎРѕС†Р°РЅР°Р»РёС‚РёРєР°',
+      AppDestination.browserHub => 'Р‘СЂР°СѓР·РµСЂ РЅРµР№СЂРѕРЅРѕРє',
+      AppDestination.tools => 'РРЅСЃС‚СЂСѓРјРµРЅС‚С‹',
+      AppDestination.agents => 'AI-РїРѕРјРѕС‰РЅРёРєРё',
+      AppDestination.workflows => 'РџР»Р°РЅС‹ СЂР°Р±РѕС‚С‹',
+      AppDestination.contentFactory => 'Р¤Р°Р±СЂРёРєРё',
+      AppDestination.useCases => 'РљРµР№СЃС‹',
+      AppDestination.projects => 'РџСЂРѕРµРєС‚С‹',
+      AppDestination.favorites => 'РР·Р±СЂР°РЅРЅРѕРµ',
+      AppDestination.settings => 'РќР°СЃС‚СЂРѕР№РєРё',
     };
   }
 }
@@ -158,7 +162,7 @@ class AppSettings extends ChangeNotifier {
     'qwen3.5:9b',
     'gemma4:latest',
   ];
-  static const allCategories = 'Все';
+  static const allCategories = 'Р’СЃРµ';
 
   final SharedPreferences _preferences;
   Set<String> _favoriteIds = <String>{};

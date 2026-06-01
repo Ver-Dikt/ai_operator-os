@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../ai_operator_app.dart';
 import '../screens/agents/agents_screen.dart';
@@ -7,6 +7,7 @@ import '../screens/cinema/director_screen.dart';
 import '../screens/command_center_screen.dart';
 import '../screens/content_factory/content_factory_screen.dart';
 import '../screens/favorites_screen.dart';
+import '../screens/generation/audio_generation_screen.dart';
 import '../screens/generation/image_generation_screen.dart';
 import '../screens/generation/video_generation_screen.dart';
 import '../screens/history/render_history_screen.dart';
@@ -90,6 +91,7 @@ class _AppShellState extends State<AppShell> {
       ),
       AppDestination.images => const ImageGenerationScreen(),
       AppDestination.video => const VideoGenerationScreen(),
+      AppDestination.audio => const AudioGenerationScreen(),
       AppDestination.director => const DirectorScreen(),
       AppDestination.providers => const ProvidersScreen(),
       AppDestination.renderHistory => const RenderHistoryScreen(),
@@ -114,13 +116,14 @@ class _StudioTopBar extends StatelessWidget {
   final ValueChanged<AppDestination> onSelect;
 
   static const _tabs = [
-    _StudioTab(AppDestination.textWorkspace, 'AI Чат'),
-    _StudioTab(AppDestination.images, 'Изображения'),
-    _StudioTab(AppDestination.video, 'Видео'),
+    _StudioTab(AppDestination.textWorkspace, 'AI Р§Р°С‚'),
+    _StudioTab(AppDestination.images, 'РР·РѕР±СЂР°Р¶РµРЅРёСЏ'),
+    _StudioTab(AppDestination.video, 'Р’РёРґРµРѕ'),
+    _StudioTab(AppDestination.audio, 'Audio'),
     _StudioTab(AppDestination.director, 'Cinema'),
-    _StudioTab(AppDestination.contentFactory, 'Маркетинг'),
+    _StudioTab(AppDestination.contentFactory, 'РњР°СЂРєРµС‚РёРЅРі'),
     _StudioTab(AppDestination.workflows, 'Workflows', enabled: false),
-    _StudioTab(AppDestination.browserHub, 'Браузер'),
+    _StudioTab(AppDestination.browserHub, 'Р‘СЂР°СѓР·РµСЂ'),
     _StudioTab(AppDestination.agents, 'Agents', enabled: false),
     _StudioTab(AppDestination.tools, 'Apps', enabled: false),
   ];
@@ -155,12 +158,12 @@ class _StudioTopBar extends StatelessWidget {
         _BalancePill(),
         const SizedBox(width: 10),
         _TopIconButton(
-          tooltip: 'Модели и провайдеры',
+          tooltip: 'РњРѕРґРµР»Рё Рё РїСЂРѕРІР°Р№РґРµСЂС‹',
           icon: Icons.hub_outlined,
           onTap: () => onSelect(AppDestination.providers),
         ),
         _TopIconButton(
-          tooltip: 'Настройки',
+          tooltip: 'РќР°СЃС‚СЂРѕР№РєРё',
           icon: Icons.tune_rounded,
           onTap: () => onSelect(AppDestination.settings),
         ),
@@ -178,12 +181,12 @@ class _StudioTopBar extends StatelessWidget {
               _Logo(onTap: () => onSelect(AppDestination.commandCenter)),
               const Spacer(),
               _TopIconButton(
-                tooltip: 'Модели и провайдеры',
+                tooltip: 'РњРѕРґРµР»Рё Рё РїСЂРѕРІР°Р№РґРµСЂС‹',
                 icon: Icons.hub_outlined,
                 onTap: () => onSelect(AppDestination.providers),
               ),
               _TopIconButton(
-                tooltip: 'Настройки',
+                tooltip: 'РќР°СЃС‚СЂРѕР№РєРё',
                 icon: Icons.tune_rounded,
                 onTap: () => onSelect(AppDestination.settings),
               ),
@@ -276,6 +279,7 @@ class _TabsScroller extends StatelessWidget {
           AppDestination.textWorkspace,
           AppDestination.images,
           AppDestination.video,
+          AppDestination.audio,
           AppDestination.director,
           AppDestination.browserHub,
         }.contains(tab.destination);
@@ -283,7 +287,7 @@ class _TabsScroller extends StatelessWidget {
         return Tooltip(
           message: enabled
               ? tab.label
-              : 'Раздел будет подключен следующим этапом.',
+              : 'Р Р°Р·РґРµР» Р±СѓРґРµС‚ РїРѕРґРєР»СЋС‡РµРЅ СЃР»РµРґСѓСЋС‰РёРј СЌС‚Р°РїРѕРј.',
           child: InkWell(
             onTap: enabled ? () => onSelect(tab.destination) : null,
             child: SizedBox(
@@ -292,7 +296,7 @@ class _TabsScroller extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    enabled ? tab.label : '${tab.label} · Скоро',
+                    enabled ? tab.label : '${tab.label} В· РЎРєРѕСЂРѕ',
                     style: TextStyle(
                       color: !enabled
                           ? const Color(0x55FFFFFF)
