@@ -9,8 +9,11 @@ import '../../ai_operator_app.dart';
 import '../../data/seed_browser_ai_tools.dart';
 import '../../models/browser_ai_tool.dart';
 import '../../models/execution_job.dart';
+import '../../models/manual_result_asset.dart';
 import '../../services/execution_queue.dart';
+import '../../services/manual_result_service.dart';
 import '../../widgets/current_session_strip.dart';
+import '../../widgets/generation/manual_result_dialog.dart';
 
 class BrowserHubScreen extends StatefulWidget {
   const BrowserHubScreen({super.key});
@@ -287,17 +290,31 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
     _showMessage(message);
   }
 
-  void _saveManualResult() {
-    unawaited(
-      FlutenRuntimeScope.read(context).addAsset(
-        type: 'manual',
-        title: '${_selectedTool.name} manual result',
-        description: _promptController.text.trim(),
-        sourceProvider: _selectedTool.id,
-        url: _selectedTool.url,
-      ),
+  Future<void> _saveManualResult() async {
+    final request = await showManualResultDialog(
+      context: context,
+      initialType: _manualTypeFor(_selectedTool.category),
+      sourceWorkspace: 'browser',
+      prompt: _promptController.text.trim(),
+      providerId: _selectedTool.id,
+      providerName: _selectedTool.name,
+      externalUrl: _selectedTool.url,
+      linkedExecutionJobId: _latestExecutionJob?.id,
     );
-    _showMessage('Результат можно сохранить вручную после генерации во внешнем сервисе.');
+    if (request == null || !mounted) return;
+    await const ManualResultService().save(context, request);
+    if (!mounted) return;
+    _showMessage('Результат сохранён в History / Assets.');
+  }
+
+  ManualResultType _manualTypeFor(BrowserAiCategory category) {
+    return switch (category) {
+      BrowserAiCategory.image => ManualResultType.image,
+      BrowserAiCategory.video => ManualResultType.video,
+      BrowserAiCategory.audio => ManualResultType.audio,
+      BrowserAiCategory.text => ManualResultType.text,
+      _ => ManualResultType.other,
+    };
   }
 
   ExecutionJob _createBrowserJob({

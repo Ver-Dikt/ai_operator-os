@@ -8,11 +8,14 @@ import '../../ai_operator_app.dart';
 import '../../data/seed_browser_ai_tools.dart';
 import '../../models/browser_ai_tool.dart';
 import '../../models/execution_job.dart';
+import '../../models/manual_result_asset.dart';
 import '../../services/ace_step_health_service.dart';
 import '../../services/execution_queue.dart';
+import '../../services/manual_result_service.dart';
 import '../../services/ollama_prompt_brain_service.dart';
 import '../../services/provider_executor.dart';
 import '../../widgets/current_session_strip.dart';
+import '../../widgets/generation/manual_result_dialog.dart';
 
 enum _AudioMode { music, voice, soundDesign }
 
@@ -120,6 +123,14 @@ class _AudioGenerationScreenState extends State<AudioGenerationScreen> {
         ).setActiveProvider(_provider.id, route: _provider.executionMode.name),
       );
     }
+    final settings = AppSettingsScope.of(context);
+    final draft = settings.pendingAudioPromptDraft;
+    if (draft == null || draft.trim().isEmpty) return;
+    setState(() => _promptController.text = draft.trim());
+    unawaited(FlutenRuntimeScope.read(context).setActivePromptDraft(draft.trim()));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) settings.clearAudioPromptDraft();
+    });
   }
 
   @override
@@ -192,6 +203,7 @@ class _AudioGenerationScreenState extends State<AudioGenerationScreen> {
             onPrepare: _preparePrompt,
             onCopy: _copyPrompt,
             onOpen: _openProvider,
+            onSaveManualResult: _saveManualResult,
             onClear: _clearPrompt,
           );
           final settings = AppSettingsScope.of(context);
@@ -226,6 +238,7 @@ class _AudioGenerationScreenState extends State<AudioGenerationScreen> {
             onCopy: _copyPrompt,
             onPrepare: _preparePrompt,
             onOpen: _openProvider,
+            onSaveManualResult: _saveManualResult,
           );
           final right = _RightPanel(
             providers: _audioProviders,
@@ -235,6 +248,7 @@ class _AudioGenerationScreenState extends State<AudioGenerationScreen> {
             onCopy: _copyPrompt,
             onPrepare: _preparePrompt,
             onOpen: _openProvider,
+            onSaveManualResult: _saveManualResult,
           );
 
           if (compact) {
@@ -525,6 +539,34 @@ Sound design controls: type $_soundType, environment $_environment, intensity $_
     _showMessage(_messageForExecutionJob(job));
   }
 
+  Future<void> _saveManualResult() async {
+    final latestJob = _latestExecutionJob(_provider.id);
+    final request = await showManualResultDialog(
+      context: context,
+      initialType: ManualResultType.audio,
+      sourceWorkspace: 'audio',
+      prompt: _composedPrompt,
+      providerId: _provider.id,
+      providerName: _provider.name,
+      externalUrl: _provider.url,
+      linkedExecutionJobId: latestJob?.id,
+    );
+    if (request == null || !mounted) return;
+    await const ManualResultService().save(context, request);
+    if (!mounted) return;
+    _addHistory('Manual result saved', request.prompt);
+    _showMessage('Результат сохранён в History / Assets.');
+  }
+
+  ExecutionJob? _latestExecutionJob(String providerId) {
+    for (final job in ExecutionQueue.instance.listJobs(
+      workspace: ExecutionJobWorkspace.audio,
+    )) {
+      if (job.providerId == providerId) return job;
+    }
+    return null;
+  }
+
   Future<void> _checkAceStep() async {
     final settings = AppSettingsScope.of(context);
     final apiEndpoint = settings.localEndpoint(
@@ -727,6 +769,7 @@ class _LeftPanel extends StatelessWidget {
     required this.onPrepare,
     required this.onCopy,
     required this.onOpen,
+    required this.onSaveManualResult,
     required this.onClear,
   });
 
@@ -774,6 +817,7 @@ class _LeftPanel extends StatelessWidget {
   final VoidCallback onPrepare;
   final VoidCallback onCopy;
   final VoidCallback onOpen;
+  final VoidCallback onSaveManualResult;
   final VoidCallback onClear;
 
   @override
@@ -883,6 +927,11 @@ class _LeftPanel extends StatelessWidget {
                 onPressed: onOpen,
                 icon: const Icon(Icons.open_in_new_rounded),
                 label: const Text('Открыть выбранный сервис'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onSaveManualResult,
+                icon: const Icon(Icons.save_alt_rounded),
+                label: const Text('Сохранить результат вручную'),
               ),
               TextButton.icon(
                 onPressed: onClear,
@@ -1221,6 +1270,7 @@ class _AudioWorkspace extends StatelessWidget {
     required this.onCopy,
     required this.onPrepare,
     required this.onOpen,
+    required this.onSaveManualResult,
   });
 
   final _AudioMode mode;
@@ -1230,6 +1280,7 @@ class _AudioWorkspace extends StatelessWidget {
   final VoidCallback onCopy;
   final VoidCallback onPrepare;
   final VoidCallback onOpen;
+  final VoidCallback onSaveManualResult;
 
   @override
   Widget build(BuildContext context) {
@@ -1343,6 +1394,11 @@ class _AudioWorkspace extends StatelessWidget {
                       icon: const Icon(Icons.open_in_new_rounded),
                       label: const Text('Открыть сайт'),
                     ),
+                    OutlinedButton.icon(
+                      onPressed: onSaveManualResult,
+                      icon: const Icon(Icons.save_alt_rounded),
+                      label: const Text('Сохранить результат вручную'),
+                    ),
                   ],
                 ),
               ],
@@ -1363,6 +1419,7 @@ class _RightPanel extends StatelessWidget {
     required this.onCopy,
     required this.onPrepare,
     required this.onOpen,
+    required this.onSaveManualResult,
   });
 
   final List<BrowserAiTool> providers;
@@ -1372,6 +1429,7 @@ class _RightPanel extends StatelessWidget {
   final VoidCallback onCopy;
   final VoidCallback onPrepare;
   final VoidCallback onOpen;
+  final VoidCallback onSaveManualResult;
 
   @override
   Widget build(BuildContext context) {
@@ -1436,6 +1494,11 @@ class _RightPanel extends StatelessWidget {
                 onPressed: onPrepare,
                 icon: const Icon(Icons.input_rounded),
                 label: const Text('Подготовить для сервиса'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onSaveManualResult,
+                icon: const Icon(Icons.save_alt_rounded),
+                label: const Text('Сохранить результат вручную'),
               ),
             ],
           ),

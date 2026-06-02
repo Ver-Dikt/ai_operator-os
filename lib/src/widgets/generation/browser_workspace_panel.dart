@@ -218,7 +218,6 @@ class _BrowserWorkspacePanelState extends State<BrowserWorkspacePanel> {
 
   void _saveManualResult() {
     widget.onSaveManualResult();
-    _showMessage('Результат можно сохранить вручную после генерации.');
   }
 
   void _showMessage(String text) {

@@ -8,10 +8,14 @@ import '../../models/execution_job.dart';
 import '../../models/generation/generation_job.dart';
 import '../../models/generation/generation_provider.dart';
 import '../../models/generation/generation_request.dart';
+import '../../models/manual_result_asset.dart';
 import '../../services/generation/generation_provider_registry.dart';
 import '../../services/generation/mock_generation_service.dart';
+import '../../services/execution_queue.dart';
+import '../../services/manual_result_service.dart';
 import '../../services/ollama_prompt_brain_service.dart';
 import '../../services/provider_executor.dart';
+import '../../widgets/generation/manual_result_dialog.dart';
 import '../../widgets/generation/browser_workspace_panel.dart';
 import '../../widgets/generation/render_history_rail.dart';
 import '../../widgets/generation/result_canvas.dart';
@@ -181,6 +185,7 @@ class _VideoGenerationScreenState extends State<VideoGenerationScreen> {
             onCopyComposed: _copyComposedPrompt,
             onPrepareHandoff: _prepareProviderHandoff,
             onOpenProvider: _openProviderSite,
+            onSaveManualResult: _saveManualResult,
             onDurationChanged: (value) => _setControl('duration', value),
             onAspectRatioChanged: (value) => _setControl('aspect', value),
             onMotionChanged: (value) => _setControl('motion', value),
@@ -223,7 +228,7 @@ class _VideoGenerationScreenState extends State<VideoGenerationScreen> {
     final provider = _registry.byId(request.providerId);
     if (provider.type == GenerationProviderType.browser ||
         provider.type == GenerationProviderType.externalLink) {
-      _saveManualResult(saveAsset: false);
+      unawaited(_prepareProviderHandoff());
       _showMessage(
         'Промпт подготовлен. Скопируйте его и откройте сервис в browser handoff panel.',
       );
@@ -638,54 +643,32 @@ Output quality: $_quality
     };
   }
 
-  void _saveManualResult({bool saveAsset = true, String? promptOverride}) {
-    final request = GenerationRequest(
-      prompt: promptOverride ?? _composedPrompt.trim(),
-      providerId: _providerId,
-      capability: _capability,
-      aspectRatio: _aspectRatio,
-      negativePrompt: _negativeController.text.trim().isEmpty
-          ? null
-          : _negativeController.text.trim(),
-      quality: _quality,
-      durationSeconds: int.tryParse(_duration.replaceAll('s', '')),
-      referencePaths: _references,
-      metadata: {'route': _providerType.name},
-    );
-    final job = _mock.createMockJob(request);
-    setState(() {
-      _jobs.insert(0, job);
-      _selectedJob = job;
-    });
-    _persistHistory();
+  Future<void> _saveManualResult() async {
     final provider = _registry.byId(_providerId);
-    final route = provider.type == GenerationProviderType.externalLink
-        ? 'external'
-        : provider.type == GenerationProviderType.browser
-        ? 'browser'
-        : 'manual';
-    unawaited(
-      FlutenRuntimeScope.read(context).addGenerationJob(
-        workspaceType: 'video',
-        providerId: provider.id,
-        routeType: route,
-        prompt: request.prompt,
-        status: saveAsset ? 'manual' : 'prepared',
-        resultLabel: saveAsset ? 'Manual video result' : 'Video route prepared',
-        resultUrl: provider.launchUrl,
-      ),
+    final latestJob = _latestExecutionJob(provider.id);
+    final request = await showManualResultDialog(
+      context: context,
+      initialType: ManualResultType.video,
+      sourceWorkspace: 'video',
+      prompt: _composedPrompt.trim(),
+      providerId: provider.id,
+      providerName: provider.name,
+      externalUrl: provider.launchUrl,
+      linkedExecutionJobId: latestJob?.id,
     );
-    if (saveAsset) {
-      unawaited(
-        FlutenRuntimeScope.read(context).addAsset(
-          type: 'manual',
-          title: 'Manual video result',
-          description: request.prompt,
-          sourceProvider: provider.id,
-          url: provider.launchUrl,
-        ),
-      );
+    if (request == null || !mounted) return;
+    await const ManualResultService().save(context, request);
+    if (!mounted) return;
+    _showMessage('Результат сохранён в History / Assets.');
+  }
+
+  ExecutionJob? _latestExecutionJob(String providerId) {
+    for (final job in ExecutionQueue.instance.listJobs(
+      workspace: ExecutionJobWorkspace.video,
+    )) {
+      if (job.providerId == providerId) return job;
     }
+    return null;
   }
 
   void _persistHistory() {
@@ -849,6 +832,7 @@ class _CinematicVideoPanel extends StatelessWidget {
     required this.onCopyComposed,
     required this.onPrepareHandoff,
     required this.onOpenProvider,
+    required this.onSaveManualResult,
     required this.onDurationChanged,
     required this.onAspectRatioChanged,
     required this.onMotionChanged,
@@ -887,6 +871,7 @@ class _CinematicVideoPanel extends StatelessWidget {
   final VoidCallback onCopyComposed;
   final VoidCallback onPrepareHandoff;
   final VoidCallback onOpenProvider;
+  final VoidCallback onSaveManualResult;
   final ValueChanged<String> onDurationChanged;
   final ValueChanged<String> onAspectRatioChanged;
   final ValueChanged<String> onMotionChanged;
@@ -953,6 +938,11 @@ class _CinematicVideoPanel extends StatelessWidget {
                 icon: const Icon(Icons.open_in_new_rounded),
                 label: const Text('Открыть выбранный сервис'),
               ),
+              OutlinedButton.icon(
+                onPressed: onSaveManualResult,
+                icon: const Icon(Icons.save_alt_rounded),
+                label: const Text('Сохранить результат вручную'),
+              ),
               TextButton.icon(
                 onPressed: onClearPrompt,
                 icon: const Icon(Icons.clear_rounded),
@@ -1004,6 +994,7 @@ class _CinematicVideoPanel extends StatelessWidget {
             prompt: composedPrompt,
             onCopy: onCopyComposed,
             onPrepare: onPrepareHandoff,
+            onSaveManualResult: onSaveManualResult,
           ),
           const SizedBox(height: 12),
           _VideoProviderPanel(
@@ -1017,6 +1008,7 @@ class _CinematicVideoPanel extends StatelessWidget {
             onCopy: onCopyComposed,
             onPrepare: onPrepareHandoff,
             onOpen: onOpenProvider,
+            onSaveManualResult: onSaveManualResult,
           ),
         ],
       ),
@@ -1355,11 +1347,13 @@ class _ComposedPromptCard extends StatelessWidget {
     required this.prompt,
     required this.onCopy,
     required this.onPrepare,
+    required this.onSaveManualResult,
   });
 
   final String prompt;
   final VoidCallback onCopy;
   final VoidCallback onPrepare;
+  final VoidCallback onSaveManualResult;
 
   @override
   Widget build(BuildContext context) {
@@ -1400,6 +1394,11 @@ class _ComposedPromptCard extends StatelessWidget {
                 icon: const Icon(Icons.send_to_mobile_rounded),
                 label: const Text('Подготовить prompt для генерации'),
               ),
+              OutlinedButton.icon(
+                onPressed: onSaveManualResult,
+                icon: const Icon(Icons.save_alt_rounded),
+                label: const Text('Сохранить результат вручную'),
+              ),
             ],
           ),
         ],
@@ -1420,6 +1419,7 @@ class _VideoProviderPanel extends StatelessWidget {
     required this.onCopy,
     required this.onPrepare,
     required this.onOpen,
+    required this.onSaveManualResult,
   });
 
   final List<GenerationProvider> providers;
@@ -1432,6 +1432,7 @@ class _VideoProviderPanel extends StatelessWidget {
   final VoidCallback onCopy;
   final VoidCallback onPrepare;
   final VoidCallback onOpen;
+  final VoidCallback onSaveManualResult;
 
   @override
   Widget build(BuildContext context) {
@@ -1519,6 +1520,11 @@ class _VideoProviderPanel extends StatelessWidget {
                 onPressed: onPrepare,
                 icon: const Icon(Icons.send_rounded),
                 label: const Text('Подготовить для сервиса'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onSaveManualResult,
+                icon: const Icon(Icons.save_alt_rounded),
+                label: const Text('Сохранить результат вручную'),
               ),
             ],
           ),

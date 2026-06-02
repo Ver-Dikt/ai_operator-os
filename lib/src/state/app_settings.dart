@@ -194,6 +194,7 @@ class AppSettings extends ChangeNotifier {
   String? pendingBrowserToolId;
   String? pendingImagePromptDraft;
   String? pendingVideoPromptDraft;
+  String? pendingAudioPromptDraft;
 
   Set<String> get favoriteIds => Set.unmodifiable(_favoriteIds);
   Set<String> get favoriteAgentIds => Set.unmodifiable(_favoriteAgentIds);
@@ -256,6 +257,11 @@ class AppSettings extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setAudioPromptDraft(String prompt) {
+    pendingAudioPromptDraft = prompt;
+    notifyListeners();
+  }
+
   void clearImagePromptDraft() {
     pendingImagePromptDraft = null;
     notifyListeners();
@@ -263,6 +269,11 @@ class AppSettings extends ChangeNotifier {
 
   void clearVideoPromptDraft() {
     pendingVideoPromptDraft = null;
+    notifyListeners();
+  }
+
+  void clearAudioPromptDraft() {
+    pendingAudioPromptDraft = null;
     notifyListeners();
   }
 

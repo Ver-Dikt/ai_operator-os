@@ -182,6 +182,12 @@ class FlutenRuntimeStore extends ChangeNotifier {
     String? sourceProvider,
     String? url,
     String? localPath,
+    String? prompt,
+    String? providerId,
+    String? providerName,
+    String? sourceWorkspace,
+    String? notes,
+    String? status,
   }) async {
     final asset = FlutenAsset(
       id: _id('asset'),
@@ -194,9 +200,23 @@ class FlutenRuntimeStore extends ChangeNotifier {
       sourceProvider: sourceProvider,
       url: url,
       localPath: localPath,
+      prompt: prompt,
+      providerId: providerId,
+      providerName: providerName,
+      sourceWorkspace: sourceWorkspace,
+      notes: notes,
+      status: status,
       createdAt: DateTime.now(),
     );
     _assets.insert(0, asset);
+    if (sourceWorkspace != null || prompt != null || providerId != null) {
+      _touchSession(
+        activeWorkspace: sourceWorkspace,
+        activePromptDraft: prompt,
+        activeProviderId: providerId,
+        activeRoute: 'manual',
+      );
+    }
     await addEvent(
       type: 'asset',
       title: 'Asset saved',
@@ -207,6 +227,20 @@ class FlutenRuntimeStore extends ChangeNotifier {
     await _persist();
     notifyListeners();
     return asset;
+  }
+
+  Future<void> deleteAsset(String id) async {
+    final index = _assets.indexWhere((asset) => asset.id == id);
+    if (index == -1) return;
+    final asset = _assets.removeAt(index);
+    await addEvent(
+      type: 'asset',
+      title: 'Manual result deleted',
+      detail: asset.title,
+      notify: false,
+    );
+    await _persist();
+    notifyListeners();
   }
 
   void _load() {

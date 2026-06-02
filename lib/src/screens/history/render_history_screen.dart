@@ -106,10 +106,13 @@ class _RenderHistoryScreenState extends State<RenderHistoryScreen> {
           type: _typeForAsset(asset),
           workspace: _workspaceForAsset(asset),
           title: asset.title,
-          preview: asset.description ?? asset.url ?? asset.localPath ?? '',
-          provider: asset.sourceProvider,
-          prompt: asset.description,
+          preview: _assetPreview(asset),
+          provider: asset.providerName ?? asset.sourceProvider,
+          prompt: asset.prompt ?? asset.description,
           url: asset.url,
+          localPath: asset.localPath,
+          notes: asset.notes,
+          status: asset.status,
           createdAt: asset.createdAt,
         ),
       );
@@ -134,6 +137,7 @@ class _RenderHistoryScreenState extends State<RenderHistoryScreen> {
       provider: job.providerName,
       prompt: job.composedPrompt,
       url: job.metadata['url'],
+      status: job.status.label,
       createdAt: job.updatedAt,
     );
   }
@@ -149,13 +153,16 @@ class _RenderHistoryScreenState extends State<RenderHistoryScreen> {
       ExecutionJobStatus.browserReady ||
       ExecutionJobStatus.openedExternal ||
       ExecutionJobStatus.failed => _HistoryEntryType.providerHandoff,
-      ExecutionJobStatus.completed => _HistoryEntryType.manualResult,
+      ExecutionJobStatus.completed ||
+      ExecutionJobStatus.completedManual => _HistoryEntryType.manualResult,
       _ => _HistoryEntryType.promptDraft,
     };
   }
 
   _HistoryEntryType _typeForJob(FlutenGenerationJob job) {
-    if (job.status == 'manual' || job.status == 'saved') {
+    if (job.status == 'manual' ||
+        job.status == 'saved' ||
+        job.status == 'completedManual') {
       return _HistoryEntryType.manualResult;
     }
     if (job.routeType == 'browser' ||
@@ -187,12 +194,25 @@ class _RenderHistoryScreenState extends State<RenderHistoryScreen> {
   }
 
   String _workspaceForAsset(FlutenAsset asset) {
+    final workspace = asset.sourceWorkspace?.toLowerCase();
+    if (workspace != null && workspace.isNotEmpty) return workspace;
     final type = asset.type.toLowerCase();
     if (type == 'image' || type == 'video' || type == 'audio') return type;
     if ((asset.sourceProvider ?? '').toLowerCase().contains('director')) {
       return 'director';
     }
     return 'manual';
+  }
+
+  String _assetPreview(FlutenAsset asset) {
+    final parts = [
+      if ((asset.prompt ?? asset.description ?? '').trim().isNotEmpty)
+        asset.prompt ?? asset.description!,
+      if ((asset.url ?? '').trim().isNotEmpty) 'URL: ${asset.url}',
+      if ((asset.localPath ?? '').trim().isNotEmpty) 'File: ${asset.localPath}',
+      if ((asset.notes ?? '').trim().isNotEmpty) 'Notes: ${asset.notes}',
+    ];
+    return parts.join('\n');
   }
 
   _HistoryEntry? _entryForEvent(FlutenSessionEvent event) {
@@ -329,6 +349,7 @@ class _HistoryTile extends StatelessWidget {
                 _MiniPill(entry.type.label),
                 _MiniPill(_readableWorkspace(entry.workspace)),
                 if (entry.provider != null) _MiniPill(entry.provider!),
+                if (entry.status != null) _MiniPill(_readableStatus(entry.status!)),
                 _MiniPill(time),
               ],
             ),
@@ -337,6 +358,22 @@ class _HistoryTile extends StatelessWidget {
               Text(
                 _preview(entry.preview),
                 maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+            if ((entry.localPath ?? '').trim().isNotEmpty) ...[
+              const SizedBox(height: 5),
+              Text(
+                'File: ${entry.localPath}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+            if ((entry.notes ?? '').trim().isNotEmpty) ...[
+              const SizedBox(height: 5),
+              Text(
+                'Notes: ${_preview(entry.notes!)}',
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
             ],
@@ -400,14 +437,31 @@ class _HistoryActions extends StatelessWidget {
             icon: const Icon(Icons.movie_creation_outlined, size: 16),
             label: const Text('Отправить в Video Studio'),
           ),
-        if (entry.url != null)
+        if (hasPrompt && entry.workspace != 'audio')
           OutlinedButton.icon(
-            onPressed: () => _openUrl(context),
+            onPressed: () => _sendToAudio(context),
+            icon: const Icon(Icons.graphic_eq_rounded, size: 16),
+            label: const Text('Отправить в Audio Studio'),
+          ),
+        if (_hasOpenTarget)
+          OutlinedButton.icon(
+            onPressed: () => _openTarget(context),
             icon: const Icon(Icons.open_in_new_rounded, size: 16),
-            label: const Text('Открыть сайт'),
+            label: const Text('Открыть'),
+          ),
+        if (entry.type == _HistoryEntryType.manualResult)
+          OutlinedButton.icon(
+            onPressed: () => _deleteLocalEntry(context),
+            icon: const Icon(Icons.delete_outline_rounded, size: 16),
+            label: const Text('Удалить локальную запись'),
           ),
       ],
     );
+  }
+
+  bool get _hasOpenTarget {
+    return (entry.url ?? '').trim().isNotEmpty ||
+        (entry.localPath ?? '').trim().isNotEmpty;
   }
 
   void _showEntry(BuildContext context) {
@@ -417,7 +471,7 @@ class _HistoryActions extends StatelessWidget {
         title: Text(entry.title),
         content: SingleChildScrollView(
           child: SelectableText(
-            entry.prompt ?? entry.preview,
+            _fullEntryText,
             style: const TextStyle(height: 1.4),
           ),
         ),
@@ -455,11 +509,24 @@ class _HistoryActions extends StatelessWidget {
     Navigator.of(context).pushNamed(AppDestination.video.routePath);
   }
 
-  Future<void> _openUrl(BuildContext context) async {
-    final url = entry.url;
-    if (url == null || url.isEmpty) return;
+  void _sendToAudio(BuildContext context) {
+    final prompt = entry.prompt?.trim();
+    if (prompt == null || prompt.isEmpty) return;
+    AppSettingsScope.of(context).setAudioPromptDraft(prompt);
+    Navigator.of(context).pushNamed(AppDestination.audio.routePath);
+  }
+
+  Future<void> _openTarget(BuildContext context) async {
+    final url = entry.url?.trim();
+    final localPath = entry.localPath?.trim();
+    if ((url == null || url.isEmpty) && (localPath == null || localPath.isEmpty)) {
+      return;
+    }
+    final uri = url != null && url.isNotEmpty
+        ? Uri.parse(url)
+        : Uri.file(localPath!, windows: true);
     final opened = await launchUrl(
-      Uri.parse(url),
+      uri,
       mode: LaunchMode.externalApplication,
     );
     if (!context.mounted) return;
@@ -467,11 +534,31 @@ class _HistoryActions extends StatelessWidget {
       SnackBar(
         content: Text(
           opened
-              ? 'Сайт открыт во внешнем браузере.'
-              : 'Не удалось открыть сайт.',
+              ? 'Открыто во внешнем приложении.'
+              : 'Не удалось открыть. Проверь ссылку или путь к файлу.',
         ),
       ),
     );
+  }
+
+  Future<void> _deleteLocalEntry(BuildContext context) async {
+    await FlutenRuntimeScope.read(context).deleteAsset(entry.id);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Локальная запись удалена. Файл не удалялся.'),
+      ),
+    );
+  }
+
+  String get _fullEntryText {
+    final parts = [
+      entry.prompt ?? entry.preview,
+      if ((entry.url ?? '').trim().isNotEmpty) 'URL: ${entry.url}',
+      if ((entry.localPath ?? '').trim().isNotEmpty) 'File: ${entry.localPath}',
+      if ((entry.notes ?? '').trim().isNotEmpty) 'Notes: ${entry.notes}',
+    ];
+    return parts.join('\n\n');
   }
 }
 
@@ -557,6 +644,9 @@ class _HistoryEntry {
     this.provider,
     this.prompt,
     this.url,
+    this.localPath,
+    this.notes,
+    this.status,
   });
 
   final String id;
@@ -567,6 +657,9 @@ class _HistoryEntry {
   final String? provider;
   final String? prompt;
   final String? url;
+  final String? localPath;
+  final String? notes;
+  final String? status;
   final DateTime createdAt;
 }
 
@@ -579,6 +672,15 @@ String _readableWorkspace(String value) {
     'browser' || 'provider' => 'Provider',
     'manual' => 'Manual',
     'text' => 'AI Chat',
+    _ => value,
+  };
+}
+
+String _readableStatus(String value) {
+  return switch (value) {
+    'completedManual' => 'Completed manual',
+    'needsReview' => 'Needs review',
+    'draft' => 'Draft',
     _ => value,
   };
 }

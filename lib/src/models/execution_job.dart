@@ -15,6 +15,7 @@ enum ExecutionJobStatus {
   needsExecutionImplementation,
   browserReady,
   openedExternal,
+  completedManual,
 }
 
 enum ExecutionJobMode { api, browser, local, manual }
@@ -37,6 +38,7 @@ extension ExecutionJobStatusLabel on ExecutionJobStatus {
         'Нужна реализация запуска',
       ExecutionJobStatus.browserReady => 'Browser ready',
       ExecutionJobStatus.openedExternal => 'Открыт внешний сайт',
+      ExecutionJobStatus.completedManual => 'Результат сохранён вручную',
     };
   }
 }

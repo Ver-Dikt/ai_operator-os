@@ -242,6 +242,12 @@ class FlutenAsset {
     this.sourceProvider,
     this.url,
     this.localPath,
+    this.prompt,
+    this.providerId,
+    this.providerName,
+    this.sourceWorkspace,
+    this.notes,
+    this.status,
   });
 
   final String id;
@@ -254,6 +260,12 @@ class FlutenAsset {
   final String? sourceProvider;
   final String? url;
   final String? localPath;
+  final String? prompt;
+  final String? providerId;
+  final String? providerName;
+  final String? sourceWorkspace;
+  final String? notes;
+  final String? status;
   final DateTime createdAt;
 
   Map<String, Object?> toJson() {
@@ -268,6 +280,12 @@ class FlutenAsset {
       'sourceProvider': sourceProvider,
       'url': url,
       'localPath': localPath,
+      'prompt': prompt,
+      'providerId': providerId,
+      'providerName': providerName,
+      'sourceWorkspace': sourceWorkspace,
+      'notes': notes,
+      'status': status,
       'createdAt': createdAt.toIso8601String(),
     };
   }
@@ -284,6 +302,12 @@ class FlutenAsset {
       sourceProvider: json['sourceProvider'] as String?,
       url: json['url'] as String?,
       localPath: json['localPath'] as String?,
+      prompt: json['prompt'] as String?,
+      providerId: json['providerId'] as String?,
+      providerName: json['providerName'] as String?,
+      sourceWorkspace: json['sourceWorkspace'] as String?,
+      notes: json['notes'] as String?,
+      status: json['status'] as String?,
       createdAt: _date(json['createdAt']),
     );
   }

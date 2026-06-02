@@ -13,7 +13,9 @@ class CurrentSessionStrip extends StatelessWidget {
     final project = runtime.getCurrentProject();
     final session = runtime.getCurrentSession();
     final events = runtime.getRecentEvents(limit: 1);
+    final assets = runtime.getAssets(limit: 1);
     final lastEvent = events.isEmpty ? null : events.first;
+    final lastAsset = assets.isEmpty ? null : assets.first;
     final draft = session.activePromptDraft?.trim();
     final status = lastEvent?.title ?? (draft == null ? 'Runtime ready' : 'Draft ready');
     final provider = session.activeProviderId == null
@@ -43,6 +45,12 @@ class CurrentSessionStrip extends StatelessWidget {
           ),
           if (provider != null) _Pill(icon: Icons.hub_outlined, text: provider),
           _Pill(icon: Icons.bolt_rounded, text: status),
+          if (lastAsset != null && (lastAsset.status ?? '').isNotEmpty)
+            _Pill(
+              icon: Icons.save_alt_rounded,
+              text:
+                  '${lastAsset.title} / ${lastAsset.type} / ${lastAsset.providerName ?? lastAsset.sourceProvider ?? 'Manual'}',
+            ),
           if (draft != null && draft.isNotEmpty)
             _Pill(icon: Icons.notes_rounded, text: 'active prompt'),
           _SessionAction(

@@ -9,14 +9,17 @@ import '../../models/execution_job.dart';
 import '../../models/generation/generation_job.dart';
 import '../../models/generation/generation_provider.dart';
 import '../../models/generation/generation_request.dart';
+import '../../models/manual_result_asset.dart';
 import '../../services/comfyui_health_service.dart';
 import '../../services/execution_queue.dart';
 import '../../services/generation/generation_provider_registry.dart';
 import '../../services/generation/mock_generation_service.dart';
+import '../../services/manual_result_service.dart';
 import '../../services/ollama_prompt_brain_service.dart';
 import '../../services/provider_executor.dart';
-import '../../widgets/generation/render_history_rail.dart';
 import '../../widgets/current_session_strip.dart';
+import '../../widgets/generation/manual_result_dialog.dart';
+import '../../widgets/generation/render_history_rail.dart';
 
 class ImageGenerationScreen extends StatefulWidget {
   const ImageGenerationScreen({super.key});
@@ -169,6 +172,7 @@ class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
             onPrepare: _prepareImagePrompt,
             onCopy: _copyImagePrompt,
             onOpen: _openSelectedProvider,
+            onSaveManualResult: _saveManualResult,
             onClear: _clearPrompt,
           ),
           const SizedBox(height: 8),
@@ -230,6 +234,7 @@ class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
         onCopy: _copyImagePrompt,
         onPrepare: _prepareImagePrompt,
         onOpen: _openSelectedProvider,
+        onSaveManualResult: _saveManualResult,
       ),
       history: RenderHistoryRail(
         jobs: _jobs,
@@ -252,7 +257,7 @@ class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
     final provider = _registry.byId(request.providerId);
     if (provider.type == GenerationProviderType.browser ||
         provider.type == GenerationProviderType.externalLink) {
-      _saveManualResult(saveAsset: false);
+      unawaited(_prepareImagePrompt());
       _showMessage(
         'Промпт подготовлен. Скопируйте его и откройте сервис в browser handoff panel.',
       );
@@ -709,53 +714,32 @@ Quality: $_quality
     };
   }
 
-  void _saveManualResult({bool saveAsset = true}) {
-    final request = GenerationRequest(
-      prompt: _composedImagePrompt.trim(),
-      providerId: _providerId,
-      capability: _capability,
-      aspectRatio: _aspectRatio,
-      negativePrompt: _negativeController.text.trim().isEmpty
-          ? null
-          : _negativeController.text.trim(),
-      quality: _quality,
-      referencePaths: _references,
-      metadata: {'route': _providerType.name},
-    );
-    final job = _mock.createMockJob(request);
-    setState(() {
-      _jobs.insert(0, job);
-      _selectedJob = job;
-    });
-    _persistHistory();
+  Future<void> _saveManualResult() async {
     final provider = _registry.byId(_providerId);
-    final route = provider.type == GenerationProviderType.externalLink
-        ? 'external'
-        : provider.type == GenerationProviderType.browser
-        ? 'browser'
-        : 'manual';
-    unawaited(
-      FlutenRuntimeScope.read(context).addGenerationJob(
-        workspaceType: 'image',
-        providerId: provider.id,
-        routeType: route,
-        prompt: request.prompt,
-        status: saveAsset ? 'manual' : 'prepared',
-        resultLabel: saveAsset ? 'Manual image result' : 'Image route prepared',
-        resultUrl: provider.launchUrl,
-      ),
+    final latestJob = _latestExecutionJob(provider.id);
+    final request = await showManualResultDialog(
+      context: context,
+      initialType: ManualResultType.image,
+      sourceWorkspace: 'image',
+      prompt: _composedImagePrompt.trim(),
+      providerId: provider.id,
+      providerName: provider.name,
+      externalUrl: provider.launchUrl,
+      linkedExecutionJobId: latestJob?.id,
     );
-    if (saveAsset) {
-      unawaited(
-        FlutenRuntimeScope.read(context).addAsset(
-          type: 'manual',
-          title: 'Manual image result',
-          description: request.prompt,
-          sourceProvider: provider.id,
-          url: provider.launchUrl,
-        ),
-      );
+    if (request == null || !mounted) return;
+    await const ManualResultService().save(context, request);
+    if (!mounted) return;
+    _showMessage('Результат сохранён в History / Assets.');
+  }
+
+  ExecutionJob? _latestExecutionJob(String providerId) {
+    for (final job in ExecutionQueue.instance.listJobs(
+      workspace: ExecutionJobWorkspace.image,
+    )) {
+      if (job.providerId == providerId) return job;
     }
+    return null;
   }
 
   void _persistHistory() {
@@ -849,6 +833,7 @@ class _ImagePromptComposer extends StatelessWidget {
     required this.onPrepare,
     required this.onCopy,
     required this.onOpen,
+    required this.onSaveManualResult,
     required this.onClear,
   });
 
@@ -858,6 +843,7 @@ class _ImagePromptComposer extends StatelessWidget {
   final VoidCallback onPrepare;
   final VoidCallback onCopy;
   final VoidCallback onOpen;
+  final VoidCallback onSaveManualResult;
   final VoidCallback onClear;
 
   @override
@@ -923,6 +909,11 @@ class _ImagePromptComposer extends StatelessWidget {
                 label: const Text(
                   'Открыть выбранный сервис',
                 ),
+              ),
+              OutlinedButton.icon(
+                onPressed: onSaveManualResult,
+                icon: const Icon(Icons.save_alt_rounded),
+                label: const Text('Сохранить результат вручную'),
               ),
               TextButton.icon(
                 onPressed: onClear,
@@ -1389,6 +1380,7 @@ class _ImageProviderPanel extends StatelessWidget {
     required this.onCopy,
     required this.onPrepare,
     required this.onOpen,
+    required this.onSaveManualResult,
   });
 
   final List<GenerationProvider> providers;
@@ -1401,6 +1393,7 @@ class _ImageProviderPanel extends StatelessWidget {
   final VoidCallback onCopy;
   final VoidCallback onPrepare;
   final VoidCallback onOpen;
+  final VoidCallback onSaveManualResult;
 
   @override
   Widget build(BuildContext context) {
@@ -1481,6 +1474,11 @@ class _ImageProviderPanel extends StatelessWidget {
                 label: const Text(
                   'Подготовить prompt для генерации',
                 ),
+              ),
+              OutlinedButton.icon(
+                onPressed: onSaveManualResult,
+                icon: const Icon(Icons.save_alt_rounded),
+                label: const Text('Сохранить результат вручную'),
               ),
             ],
           ),
