@@ -1232,77 +1232,92 @@ class _ImageWorkspacePreview extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasPrompt = prompt.trim().isNotEmpty;
     return _GlassPanel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const _PanelTitle(
-            icon: Icons.photo_size_select_actual_outlined,
-            title: 'Image workspace',
-            subtitle:
-                'Здесь будет результат изображения.',
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 300,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0x99070A0F),
-                border: Border.all(color: const Color(0x24FFFFFF)),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: hasPrompt
-                  ? SingleChildScrollView(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Prompt preview',
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final content = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                height: 300,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0x99070A0F),
+                    border: Border.all(color: const Color(0x24FFFFFF)),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: hasPrompt
+                      ? SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Prompt preview',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              SelectableText(
+                                prompt,
+                                style: const TextStyle(
+                                  color: Color(0xFFE8EEF8),
+                                  height: 1.35,
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              Text(
+                                provider.type == GenerationProviderType.api ||
+                                        provider.type ==
+                                            GenerationProviderType.local
+                                    ? 'Генерация внутри FLUTEN будет подключена отдельным этапом.'
+                                    : 'Скопируйте prompt и откройте выбранный image-сервис.',
+                                style: const TextStyle(
+                                  color: Color(0xFFA7B1C1),
+                                  height: 1.35,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : const Center(
+                          child: Text(
+                            'Здесь будет результат изображения',
                             style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF8B97A8),
+                              fontWeight: FontWeight.w800,
                             ),
                           ),
-                          const SizedBox(height: 8),
-                          SelectableText(
-                            prompt,
-                            style: const TextStyle(
-                              color: Color(0xFFE8EEF8),
-                              height: 1.35,
-                            ),
-                          ),
-                          const SizedBox(height: 14),
-                          Text(
-                            provider.type == GenerationProviderType.api ||
-                                    provider.type ==
-                                        GenerationProviderType.local
-                                ? 'Генерация внутри FLUTEN будет подключена отдельным этапом.'
-                                : 'Скопируйте prompt и откройте выбранный image-сервис.',
-                            style: const TextStyle(
-                              color: Color(0xFFA7B1C1),
-                              height: 1.35,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : const Center(
-                      child: Text(
-                        'Здесь будет результат изображения',
-                        style: TextStyle(
-                          color: Color(0xFF8B97A8),
-                          fontWeight: FontWeight.w800,
                         ),
-                      ),
-                    ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          _ComposedImagePromptCard(prompt: composedPrompt),
-          const SizedBox(height: 12),
-          const _ReferencesPlaceholder(),
-        ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              _ComposedImagePromptCard(prompt: composedPrompt),
+              const SizedBox(height: 12),
+              const _ReferencesPlaceholder(),
+            ],
+          );
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const _PanelTitle(
+                icon: Icons.photo_size_select_actual_outlined,
+                title: 'Image workspace',
+                subtitle: 'Здесь будет результат изображения.',
+              ),
+              const SizedBox(height: 12),
+              if (constraints.hasBoundedHeight)
+                Expanded(
+                  child: SingleChildScrollView(child: content),
+                )
+              else
+                content,
+            ],
+          );
+        },
       ),
     );
   }
