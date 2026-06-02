@@ -1,4 +1,4 @@
-enum ExecutionJobWorkspace { image, video, audio, text, director }
+enum ExecutionJobWorkspace { image, video, audio, text, director, browser }
 
 enum ExecutionJobStatus {
   idle,
@@ -13,6 +13,8 @@ enum ExecutionJobStatus {
   localUnavailable,
   needsWorkflow,
   needsExecutionImplementation,
+  browserReady,
+  openedExternal,
 }
 
 enum ExecutionJobMode { api, browser, local, manual }
@@ -33,6 +35,8 @@ extension ExecutionJobStatusLabel on ExecutionJobStatus {
       ExecutionJobStatus.needsWorkflow => 'Нужен workflow',
       ExecutionJobStatus.needsExecutionImplementation =>
         'Нужна реализация запуска',
+      ExecutionJobStatus.browserReady => 'Browser ready',
+      ExecutionJobStatus.openedExternal => 'Открыт внешний сайт',
     };
   }
 }

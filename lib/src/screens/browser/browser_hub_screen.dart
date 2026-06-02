@@ -8,6 +8,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../ai_operator_app.dart';
 import '../../data/seed_browser_ai_tools.dart';
 import '../../models/browser_ai_tool.dart';
+import '../../models/execution_job.dart';
+import '../../services/execution_queue.dart';
 import '../../widgets/current_session_strip.dart';
 
 class BrowserHubScreen extends StatefulWidget {
@@ -90,6 +92,13 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
     return null;
   }
 
+  ExecutionJob? get _latestExecutionJob {
+    for (final job in ExecutionQueue.instance.listJobs()) {
+      if (job.providerId == _selectedTool.id) return job;
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
@@ -118,6 +127,7 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
             statusText: _statusText,
             showInternalPlaceholder: _showInternalPlaceholder,
             promptController: _promptController,
+            latestJob: _latestExecutionJob,
             onCopyPrompt: _copyPrompt,
             onOpenExternal: () => _openExternal(_selectedTool),
             onOpenInside: _openInside,
@@ -204,8 +214,15 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
   }
 
   Future<void> _preparePaste() async {
-    await Clipboard.setData(ClipboardData(text: _promptController.text.trim()));
+    final prompt = _promptController.text.trim();
+    await Clipboard.setData(ClipboardData(text: prompt));
     if (!mounted) return;
+    final status = _selectedTool.executionMode == BrowserExecutionMode.browser
+        ? ExecutionJobStatus.browserReady
+        : ExecutionJobStatus.manualOnly;
+    final job = _createBrowserJob(status: status, prompt: prompt);
+    ExecutionQueue.instance.add(job);
+    _recordExecutionJob(job);
     unawaited(
       FlutenRuntimeScope.read(context).addEvent(
         type: 'browser',
@@ -213,16 +230,28 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
         detail: _selectedTool.name,
       ),
     );
+    setState(() {
+      _statusText =
+          'Prompt подготовлен и скопирован. Откройте выбранный сервис и вставьте его вручную.';
+    });
     _showMessage('Prompt подготовлен и скопирован. Откройте выбранный сервис и вставьте его вручную.');
   }
 
   Future<void> _openExternal(BrowserAiTool tool) async {
+    final prompt = _promptController.text.trim();
     final opened = await launchUrl(
       Uri.parse(tool.url),
       mode: LaunchMode.externalApplication,
     );
     if (!mounted) return;
     if (opened) {
+      final job = _createBrowserJob(
+        status: ExecutionJobStatus.openedExternal,
+        prompt: prompt,
+        tool: tool,
+      );
+      ExecutionQueue.instance.add(job);
+      _recordExecutionJob(job);
       unawaited(
         FlutenRuntimeScope.read(context).addEvent(
           type: 'browser',
@@ -234,9 +263,17 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
       _showMessage('${tool.name} открыт во внешнем браузере.');
       return;
     }
-    await Clipboard.setData(ClipboardData(text: tool.url));
+    await Clipboard.setData(ClipboardData(text: prompt.isEmpty ? tool.url : prompt));
     if (!mounted) return;
-    _showMessage('Не удалось открыть сайт. Ссылка скопирована.');
+    final job = _createBrowserJob(
+      status: ExecutionJobStatus.manualOnly,
+      prompt: prompt,
+      tool: tool,
+      errorMessage: 'Не удалось открыть сайт. Prompt скопирован.',
+    );
+    ExecutionQueue.instance.add(job);
+    _recordExecutionJob(job);
+    _showMessage('Не удалось открыть сайт. Prompt скопирован.');
   }
 
   void _openInside() {
@@ -261,6 +298,47 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
       ),
     );
     _showMessage('Результат можно сохранить вручную после генерации во внешнем сервисе.');
+  }
+
+  ExecutionJob _createBrowserJob({
+    required ExecutionJobStatus status,
+    required String prompt,
+    BrowserAiTool? tool,
+    String? errorMessage,
+  }) {
+    final selected = tool ?? _selectedTool;
+    final now = DateTime.now();
+    return ExecutionJob(
+      id: 'browser-${now.microsecondsSinceEpoch}',
+      workspace: ExecutionJobWorkspace.browser,
+      providerId: selected.id,
+      providerName: selected.name,
+      capability: selected.category.name,
+      inputPrompt: prompt,
+      composedPrompt: prompt,
+      status: status,
+      executionMode: selected.executionMode == BrowserExecutionMode.manual
+          ? ExecutionJobMode.manual
+          : ExecutionJobMode.browser,
+      createdAt: now,
+      updatedAt: now,
+      errorMessage: errorMessage,
+      metadata: {'url': selected.url},
+    );
+  }
+
+  void _recordExecutionJob(ExecutionJob job) {
+    unawaited(
+      FlutenRuntimeScope.read(context).addGenerationJob(
+        workspaceType: 'browser',
+        providerId: job.providerId,
+        routeType: job.executionMode.name,
+        prompt: job.composedPrompt,
+        status: job.status.name,
+        resultLabel: '${job.providerName}: ${job.status.label}',
+        resultUrl: job.metadata['url'],
+      ),
+    );
   }
 
   void _showMessage(String text) {
@@ -347,7 +425,7 @@ class _DesktopBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
-        kIsWeb ? 'Web fallback' : 'Desktop WebView ready',
+        'External browser fallback',
         style: const TextStyle(
           color: Color(0xFF67E8F9),
           fontSize: 12,
@@ -594,6 +672,7 @@ class _BrowserWorkspace extends StatelessWidget {
     required this.statusText,
     required this.showInternalPlaceholder,
     required this.promptController,
+    required this.latestJob,
     required this.onCopyPrompt,
     required this.onOpenExternal,
     required this.onOpenInside,
@@ -605,6 +684,7 @@ class _BrowserWorkspace extends StatelessWidget {
   final String statusText;
   final bool showInternalPlaceholder;
   final TextEditingController promptController;
+  final ExecutionJob? latestJob;
   final VoidCallback onCopyPrompt;
   final VoidCallback onOpenExternal;
   final VoidCallback onOpenInside;
@@ -659,6 +739,10 @@ class _BrowserWorkspace extends StatelessWidget {
               _MiniPill(tool.status.label),
               const SizedBox(width: 8),
               _MiniPill(tool.accessType.label),
+              if (latestJob != null) ...[
+                const SizedBox(width: 8),
+                _MiniPill('Job: ${latestJob!.status.label}'),
+              ],
             ],
           ),
           const SizedBox(height: 14),
@@ -739,14 +823,14 @@ class _BrowserWorkspace extends StatelessWidget {
             runSpacing: 8,
             children: [
               FilledButton.icon(
-                onPressed: onOpenInside,
-                icon: const Icon(Icons.open_in_browser_rounded),
-                label: const Text('Открыть внутри STUDIO'),
-              ),
-              OutlinedButton.icon(
                 onPressed: onOpenExternal,
                 icon: const Icon(Icons.open_in_new_rounded),
                 label: const Text('Открыть во внешнем браузере'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onOpenInside,
+                icon: const Icon(Icons.open_in_browser_rounded),
+                label: const Text('Открыть внутри FLUTEN'),
               ),
               OutlinedButton.icon(
                 onPressed: onCopyPrompt,
