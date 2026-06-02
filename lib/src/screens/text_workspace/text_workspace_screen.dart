@@ -8,8 +8,10 @@ import '../../ai_operator_app.dart';
 import '../../data/seed_browser_ai_tools.dart';
 import '../../models/browser_ai_tool.dart';
 import '../../models/execution_job.dart';
+import '../../services/execution_queue.dart';
 import '../../services/ollama_execution_service.dart';
 import '../../services/ollama_prompt_brain_service.dart';
+import '../../services/openai_compatible_text_service.dart';
 import '../../state/app_settings.dart';
 import '../../widgets/current_session_strip.dart';
 
@@ -342,6 +344,10 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
       case TextRouteMode.browser:
         await _prepareInlineHandoff(prompt);
       case TextRouteMode.apiPlaceholder:
+        if (_provider.id == 'openrouter-api') {
+          await _runOpenRouter(prompt);
+          return;
+        }
         _addAssistant(
           'API для этого провайдера пока не подключен. Используйте Browser route или Ollama.',
         );
@@ -352,6 +358,123 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
         _showMessage('Промпт скопирован.');
         _recordEvent('Manual prompt copied');
     }
+  }
+
+  Future<void> _runOpenRouter(String prompt) async {
+    final settings = AppSettingsScope.of(context);
+    const settingsProviderId = 'openrouter';
+    final model = settings.providerModel(
+      settingsProviderId,
+      fallback: 'openai/gpt-4o-mini',
+    ).trim();
+    final baseUrl = _openRouterBaseUrl(
+      settings.providerBaseUrl(
+        settingsProviderId,
+        fallback: 'https://openrouter.ai/api/v1',
+      ),
+    );
+    final apiKey = settings.providerApiKey(settingsProviderId).trim();
+    final now = DateTime.now();
+    final job = ExecutionJob(
+      id: 'text-openrouter-${now.microsecondsSinceEpoch}',
+      workspace: ExecutionJobWorkspace.text,
+      providerId: settingsProviderId,
+      providerName: 'OpenRouter',
+      capability: 'textChat',
+      inputPrompt: prompt,
+      composedPrompt: prompt,
+      status: apiKey.isEmpty
+          ? ExecutionJobStatus.requiresApiKey
+          : ExecutionJobStatus.running,
+      executionMode: ExecutionJobMode.api,
+      createdAt: now,
+      updatedAt: now,
+      errorMessage: apiKey.isEmpty ? 'Нужен API-ключ OpenRouter.' : null,
+      metadata: {
+        'model': model.isEmpty ? 'openai/gpt-4o-mini' : model,
+        'baseUrl': baseUrl,
+        'settingsProviderId': settingsProviderId,
+      },
+    );
+    ExecutionQueue.instance.add(job);
+
+    if (apiKey.isEmpty) {
+      _recordTextExecutionJob(job);
+      _addAssistant(
+        'Нужен API-ключ OpenRouter. Добавьте его в Настройки запуска.',
+      );
+      _showMessage('Нужен API-ключ OpenRouter.');
+      _recordEvent('OpenRouter API key missing');
+      return;
+    }
+
+    setState(() => _running = true);
+    _addAssistant('OpenRouter отвечает...');
+    _recordEvent('OpenRouter request running');
+
+    final result = await const OpenAiCompatibleTextService().completeChat(
+      baseUrl: baseUrl,
+      apiKey: apiKey,
+      model: model.isEmpty ? 'openai/gpt-4o-mini' : model,
+      messages: [
+        const OpenAiChatMessage(
+          role: 'system',
+          content:
+              'You are FLUTEN Text Brain. Answer clearly and help with creative production tasks. Do not claim image/video/audio generation.',
+        ),
+        OpenAiChatMessage(role: 'user', content: prompt),
+      ],
+      temperature: 0.7,
+      maxTokens: 900,
+      timeout: const Duration(seconds: 45),
+    );
+    if (!mounted) return;
+    setState(() => _running = false);
+
+    if (result.success && (result.content?.trim().isNotEmpty ?? false)) {
+      final completed = ExecutionQueue.instance.update(
+        job.copyWith(
+          status: ExecutionJobStatus.completed,
+          updatedAt: DateTime.now(),
+          metadata: {
+            ...job.metadata,
+            if (result.responseId != null) 'responseId': result.responseId!,
+            if (result.usage != null) ...result.usage!,
+          },
+        ),
+      );
+      _recordTextExecutionJob(completed, resultText: result.content);
+      _addAssistant(result.content!);
+      await FlutenRuntimeScope.read(context).addAsset(
+        type: 'text',
+        title: 'OpenRouter text response',
+        description: result.content,
+        sourceProvider: 'OpenRouter',
+        prompt: prompt,
+        providerId: settingsProviderId,
+        providerName: 'OpenRouter',
+        sourceWorkspace: 'text',
+        notes: 'Model: ${completed.metadata['model']}',
+        status: 'completed',
+      );
+      if (!mounted) return;
+      _showMessage('Ответ получен через OpenRouter.');
+      _recordEvent('OpenRouter response received');
+      return;
+    }
+
+    final error = result.error ?? 'OpenRouter request failed.';
+    final failed = ExecutionQueue.instance.update(
+      job.copyWith(
+        status: ExecutionJobStatus.failed,
+        updatedAt: DateTime.now(),
+        errorMessage: error,
+      ),
+    );
+    _recordTextExecutionJob(failed);
+    _addAssistant('Ошибка OpenRouter: $error');
+    _showMessage('Ошибка OpenRouter: $error');
+    _recordEvent('OpenRouter request failed');
   }
 
   Future<void> _runOllama(String prompt) async {
@@ -386,6 +509,51 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
       'Локальная модель не отвечает. Запустите Ollama или выберите Browser mode.',
     );
     _recordEvent('Ollama unavailable');
+  }
+
+  void _recordTextExecutionJob(ExecutionJob job, {String? resultText}) {
+    unawaited(
+      FlutenRuntimeScope.read(context).addGenerationJob(
+        workspaceType: job.workspace.name,
+        providerId: job.providerId,
+        routeType: job.executionMode.name,
+        prompt: job.inputPrompt,
+        status: job.status.name,
+        resultLabel: job.status == ExecutionJobStatus.completed
+            ? '${job.providerName} text response'
+            : '${job.providerName}: ${job.status.label}',
+        resultUrl: null,
+      ),
+    );
+    if (resultText != null && resultText.trim().isNotEmpty) {
+      unawaited(
+        FlutenRuntimeScope.read(context).addEvent(
+          type: 'text',
+          title: 'OpenRouter text result saved',
+          detail: _previewText(resultText, 120),
+        ),
+      );
+    }
+  }
+
+  String _openRouterBaseUrl(String value) {
+    final raw = value.trim().isEmpty
+        ? 'https://openrouter.ai/api/v1'
+        : value.trim();
+    final uri = Uri.tryParse(raw);
+    if (uri == null) return 'https://openrouter.ai/api/v1';
+    final host = uri.host.toLowerCase();
+    final path = uri.path.replaceFirst(RegExp(r'/+$'), '');
+    if (host == 'openrouter.ai' && (path.isEmpty || path == '/')) {
+      return 'https://openrouter.ai/api/v1';
+    }
+    return raw.replaceFirst(RegExp(r'/+$'), '');
+  }
+
+  String _previewText(String value, int maxLength) {
+    final clean = value.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (clean.length <= maxLength) return clean;
+    return '${clean.substring(0, maxLength)}...';
   }
 
   Future<void> _prepareInlineHandoff(String prompt) async {
@@ -1088,6 +1256,8 @@ class _StatusCard extends StatelessWidget {
           Text(
             provider.mode == TextRouteMode.localOllama
                 ? '${provider.mode.label} · ${settings.ollamaModel}'
+                : provider.id == 'openrouter-api'
+                ? 'OpenRouter · ${settings.providerModel('openrouter', fallback: 'openai/gpt-4o-mini')}'
                 : provider.mode.label,
             style: const TextStyle(color: Color(0xFF67E8F9)),
           ),
@@ -1101,6 +1271,15 @@ class _StatusCard extends StatelessWidget {
             const Text(
               'Локальная модель видит только отправленный текст. Контекст приложения будет подключён позже.',
               style: TextStyle(color: Color(0xFFFFB86B), height: 1.35),
+            ),
+          ],
+          if (provider.id == 'openrouter-api') ...[
+            const SizedBox(height: 8),
+            Text(
+              settings.hasProviderApiKey('openrouter')
+                  ? 'API-ключ OpenRouter настроен. Реальный text execution включён.'
+                  : 'Нужен API-ключ OpenRouter в Настройки запуска.',
+              style: const TextStyle(color: Color(0xFFFFB86B), height: 1.35),
             ),
           ],
         ],

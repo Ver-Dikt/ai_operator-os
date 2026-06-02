@@ -187,6 +187,9 @@ class _RenderHistoryScreenState extends State<RenderHistoryScreen> {
 
   _HistoryEntryType _typeForAsset(FlutenAsset asset) {
     if (asset.type == 'manual') return _HistoryEntryType.manualResult;
+    if (asset.type == 'text' && asset.status == 'completed') {
+      return _HistoryEntryType.textResult;
+    }
     if (asset.type == 'prompt' || asset.type == 'text') {
       return _HistoryEntryType.promptDraft;
     }
@@ -425,6 +428,13 @@ class _HistoryActions extends StatelessWidget {
             icon: const Icon(Icons.copy_rounded, size: 16),
             label: const Text('Скопировать prompt'),
           ),
+        if (entry.type == _HistoryEntryType.textResult &&
+            entry.preview.trim().isNotEmpty)
+          OutlinedButton.icon(
+            onPressed: () => _copyResult(context),
+            icon: const Icon(Icons.text_snippet_outlined, size: 16),
+            label: const Text('Скопировать result'),
+          ),
         if (hasPrompt && entry.workspace != 'image')
           OutlinedButton.icon(
             onPressed: () => _sendToImage(context),
@@ -493,6 +503,16 @@ class _HistoryActions extends StatelessWidget {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Prompt скопирован.')));
+  }
+
+  Future<void> _copyResult(BuildContext context) async {
+    final result = entry.preview.trim();
+    if (result.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: result));
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Result скопирован.')));
   }
 
   void _sendToImage(BuildContext context) {
@@ -614,6 +634,7 @@ class _MiniPill extends StatelessWidget {
 enum _HistoryEntryType {
   promptDraft,
   providerHandoff,
+  textResult,
   directorPlan,
   shotPlan,
   manualResult,
@@ -625,6 +646,7 @@ extension _HistoryEntryTypeLabel on _HistoryEntryType {
     return switch (this) {
       _HistoryEntryType.promptDraft => 'Prompt Draft',
       _HistoryEntryType.providerHandoff => 'Provider Handoff',
+      _HistoryEntryType.textResult => 'Text Result',
       _HistoryEntryType.directorPlan => 'Director Plan',
       _HistoryEntryType.shotPlan => 'Shot Plan',
       _HistoryEntryType.manualResult => 'Manual Result',
