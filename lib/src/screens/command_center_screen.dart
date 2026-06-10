@@ -78,6 +78,33 @@ class _HeroPanel extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 820;
+          Widget actionButton({
+            required IconData icon,
+            required String label,
+            required VoidCallback onPressed,
+            required bool primary,
+          }) {
+            final buttonLabel = Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            );
+            final button = primary
+                ? FilledButton.icon(
+                    onPressed: onPressed,
+                    icon: Icon(icon),
+                    label: buttonLabel,
+                  )
+                : OutlinedButton.icon(
+                    onPressed: onPressed,
+                    icon: Icon(icon),
+                    label: buttonLabel,
+                  );
+            return compact
+                ? SizedBox(width: constraints.maxWidth, child: button)
+                : button;
+          }
+
           final text = Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -105,20 +132,23 @@ class _HeroPanel extends StatelessWidget {
                 spacing: 10,
                 runSpacing: 10,
                 children: [
-                  FilledButton.icon(
+                  actionButton(
                     onPressed: () => onNavigate(AppDestination.images),
-                    icon: const Icon(Icons.image_outlined),
-                    label: const Text('Открыть Image Studio'),
+                    icon: Icons.image_outlined,
+                    label: 'Image Studio',
+                    primary: true,
                   ),
-                  OutlinedButton.icon(
+                  actionButton(
                     onPressed: () => onNavigate(AppDestination.video),
-                    icon: const Icon(Icons.movie_creation_outlined),
-                    label: const Text('Открыть Video Studio'),
+                    icon: Icons.movie_creation_outlined,
+                    label: 'Video Studio',
+                    primary: false,
                   ),
-                  OutlinedButton.icon(
+                  actionButton(
                     onPressed: () => onNavigate(AppDestination.browserHub),
-                    icon: const Icon(Icons.public_rounded),
-                    label: const Text('Браузер нейронок'),
+                    icon: Icons.public_rounded,
+                    label: 'Browser Hub',
+                    primary: false,
                   ),
                 ],
               ),
@@ -296,7 +326,7 @@ class _StudioGrid extends StatelessWidget {
             crossAxisCount: columns,
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
-            childAspectRatio: columns == 1 ? 2.7 : 1.45,
+            childAspectRatio: columns == 1 ? 1.75 : 1.45,
           ),
           itemCount: cards.length,
           itemBuilder: (context, index) => _StudioCard(
@@ -317,9 +347,9 @@ class _StudioCardData {
     this.description,
     this.icon,
     this.destination,
-    this.accent,
-    {this.enabled = true}
-  );
+    this.accent, {
+    this.enabled = true,
+  });
 
   final String title;
   final String description;
@@ -352,7 +382,11 @@ class _StudioCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(data.icon, color: data.enabled ? data.accent : Colors.white38, size: 28),
+                Icon(
+                  data.icon,
+                  color: data.enabled ? data.accent : Colors.white38,
+                  size: 28,
+                ),
                 const Spacer(),
                 if (!data.enabled)
                   const Chip(

@@ -203,13 +203,15 @@ class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
               available: _comfyUiAvailable,
               endpoint: AppSettingsScope.of(context).localEndpoint(
                 'comfyui',
-                fallback: selectedProvider.localEndpoint ??
-                    'http://127.0.0.1:8188',
+                fallback:
+                    selectedProvider.localEndpoint ?? 'http://127.0.0.1:8188',
               ),
-              workflowPath:
-                  AppSettingsScope.of(context).localWorkflowPath('comfyui'),
-              outputFolder:
-                  AppSettingsScope.of(context).localOutputFolder('comfyui'),
+              workflowPath: AppSettingsScope.of(
+                context,
+              ).localWorkflowPath('comfyui'),
+              outputFolder: AppSettingsScope.of(
+                context,
+              ).localOutputFolder('comfyui'),
               onCheck: _checkComfyUi,
               onCopy: _copyImagePrompt,
               onPrepareWorkflow: _prepareComfyUiWorkflowLater,
@@ -264,9 +266,7 @@ class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
       return;
     }
     if (provider.type == GenerationProviderType.local) {
-      _showMessage(
-        'Локальный runtime будет подключён позже.',
-      );
+      _showMessage('Локальный runtime будет подключён позже.');
       return;
     }
     if (provider.type == GenerationProviderType.api &&
@@ -336,7 +336,8 @@ Execution note: prompt preparation only. Open the selected image service and pas
         'Camera / lens: $_lens perspective.\n'
         'Detail / quality: $_quality quality, crisp details, coherent anatomy.\n'
         'Negative prompt: ${_negativeController.text.trim().isEmpty ? 'blurry, low quality, distorted anatomy, random artifacts' : _negativeController.text.trim()}.';
-    final instruction = '''
+    final instruction =
+        '''
 You are FLUTEN Visual Engine. Improve this image generation prompt.
 Use subject, environment, visual style, composition, lighting, mood, camera/lens, detail/quality, and negative prompt.
 Keep the user's idea intact. Return a production-ready image prompt only.
@@ -670,10 +671,9 @@ Quality: $_quality
 
   void _recordProviderSelected(GenerationProvider provider) {
     unawaited(
-      FlutenRuntimeScope.read(context).setActiveProvider(
-        provider.id,
-        route: provider.type.name,
-      ),
+      FlutenRuntimeScope.read(
+        context,
+      ).setActiveProvider(provider.id, route: provider.type.name),
     );
     unawaited(
       FlutenRuntimeScope.read(context).addEvent(
@@ -700,7 +700,8 @@ Quality: $_quality
 
   String _messageForExecutionJob(ExecutionJob job) {
     return switch (job.status) {
-      ExecutionJobStatus.requiresApiKey => 'Нужен API-ключ ${job.providerName}.',
+      ExecutionJobStatus.requiresApiKey =>
+        'Нужен API-ключ ${job.providerName}.',
       ExecutionJobStatus.localUnavailable =>
         'Локальная ${job.providerName} не подключена.',
       ExecutionJobStatus.needsWorkflow =>
@@ -803,9 +804,7 @@ class _ImageHandoffBanner extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onUseBase,
                 icon: const Icon(Icons.edit_note_rounded),
-                label: const Text(
-                  'Использовать как основу',
-                ),
+                label: const Text('Использовать как основу'),
               ),
               OutlinedButton.icon(
                 onPressed: onCopy,
@@ -855,8 +854,7 @@ class _ImagePromptComposer extends StatelessWidget {
           const _PanelTitle(
             icon: Icons.image_outlined,
             title: 'Image prompt',
-            subtitle:
-                'Опиши объект, сцену, стиль, свет и настроение.',
+            subtitle: 'Опиши объект, сцену, стиль, свет и настроение.',
           ),
           if (source != _ImagePromptSource.unknown) ...[
             const SizedBox(height: 6),
@@ -889,9 +887,7 @@ class _ImagePromptComposer extends StatelessWidget {
               FilledButton.icon(
                 onPressed: onPrepare,
                 icon: const Icon(Icons.send_rounded),
-                label: const Text(
-                  'Подготовить prompt для генерации',
-                ),
+                label: const Text('Подготовить prompt для генерации'),
               ),
               OutlinedButton.icon(
                 onPressed: onImprove,
@@ -906,9 +902,7 @@ class _ImagePromptComposer extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onOpen,
                 icon: const Icon(Icons.open_in_new_rounded),
-                label: const Text(
-                  'Открыть выбранный сервис',
-                ),
+                label: const Text('Открыть выбранный сервис'),
               ),
               OutlinedButton.icon(
                 onPressed: onSaveManualResult,
@@ -958,8 +952,8 @@ class _ComfyUiLocalRouteCard extends StatelessWidget {
     final workflowReady = workflowPath.trim().isNotEmpty;
     final message = available == true
         ? workflowReady
-            ? 'ComfyUI доступна. Реальный запуск workflow будет подключён следующим этапом.'
-            : 'ComfyUI доступна, но workflow ещё не выбран.'
+              ? 'ComfyUI доступна. Реальный запуск workflow будет подключён следующим этапом.'
+              : 'ComfyUI доступна, но workflow ещё не выбран.'
         : 'ComfyUI не подключена. Запустите ComfyUI и нажмите Проверить.';
     return _GlassPanel(
       child: Column(
@@ -1073,8 +1067,7 @@ class _ImageControlPanel extends StatelessWidget {
           const _PanelTitle(
             icon: Icons.tune_rounded,
             title: 'Visual controls',
-            subtitle:
-                'Настройки сразу входят в собранный image prompt.',
+            subtitle: 'Настройки сразу входят в собранный image prompt.',
           ),
           const SizedBox(height: 10),
           _ChoiceField(
@@ -1301,9 +1294,7 @@ class _ImageWorkspacePreview extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               if (constraints.hasBoundedHeight)
-                Expanded(
-                  child: SingleChildScrollView(child: content),
-                )
+                Expanded(child: SingleChildScrollView(child: content))
               else
                 content,
             ],
@@ -1404,8 +1395,7 @@ class _ImageProviderPanel extends StatelessWidget {
           const _PanelTitle(
             icon: Icons.route_rounded,
             title: 'Image provider',
-            subtitle:
-                'Как запустить выбранный image-сервис.',
+            subtitle: 'Как запустить выбранный image-сервис.',
           ),
           const SizedBox(height: 10),
           Wrap(
@@ -1442,9 +1432,7 @@ class _ImageProviderPanel extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              Chip(
-                label: Text('Запуск: ${_runModeFor(selectedProvider)}'),
-              ),
+              Chip(label: Text('Запуск: ${_runModeFor(selectedProvider)}')),
               Chip(label: Text(_statusFor(selectedProvider))),
             ],
           ),
@@ -1471,9 +1459,7 @@ class _ImageProviderPanel extends StatelessWidget {
               FilledButton.icon(
                 onPressed: onPrepare,
                 icon: const Icon(Icons.send_rounded),
-                label: const Text(
-                  'Подготовить prompt для генерации',
-                ),
+                label: const Text('Подготовить prompt для генерации'),
               ),
               OutlinedButton.icon(
                 onPressed: onSaveManualResult,
@@ -1495,10 +1481,8 @@ class _ImageProviderPanel extends StatelessWidget {
     return switch (provider.type) {
       GenerationProviderType.api =>
         'Генерация внутри FLUTEN пока не подключена',
-      GenerationProviderType.browser =>
-        'Готово: можно открыть сайт',
-      GenerationProviderType.local =>
-        'Локальная модель не подключена',
+      GenerationProviderType.browser => 'Готово: можно открыть сайт',
+      GenerationProviderType.local => 'Локальная модель не подключена',
       GenerationProviderType.externalLink =>
         'Скопируйте prompt и вставьте вручную',
     };
@@ -1805,9 +1789,7 @@ class _ImageStudioActions extends StatelessWidget {
               FilledButton.icon(
                 onPressed: onPrepare,
                 icon: const Icon(Icons.send_rounded),
-                label: const Text(
-                  'Подготовить prompt для генерации',
-                ),
+                label: const Text('Подготовить prompt для генерации'),
               ),
               OutlinedButton.icon(
                 onPressed: onImprove,
@@ -1822,9 +1804,7 @@ class _ImageStudioActions extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onOpen,
                 icon: const Icon(Icons.open_in_new_rounded),
-                label: const Text(
-                  'Открыть выбранный сервис',
-                ),
+                label: const Text('Открыть выбранный сервис'),
               ),
               TextButton.icon(
                 onPressed: onClear,
@@ -1916,7 +1896,15 @@ class _WorkspaceHeader extends StatelessWidget {
             ],
           ),
         ),
-        modeSelector,
+        ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: MediaQuery.sizeOf(context).width - 32,
+          ),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: modeSelector,
+          ),
+        ),
       ],
     );
   }

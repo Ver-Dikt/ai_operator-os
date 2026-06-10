@@ -131,7 +131,7 @@ class _StudioTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < 780;
+    final compact = MediaQuery.sizeOf(context).width < 900;
     return Container(
       height: compact ? 94 : 50,
       padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 18),
@@ -179,7 +179,11 @@ class _StudioTopBar extends StatelessWidget {
           height: 47,
           child: Row(
             children: [
-              _Logo(onTap: () => onSelect(AppDestination.commandCenter)),
+              Flexible(
+                child: _Logo(
+                  onTap: () => onSelect(AppDestination.commandCenter),
+                ),
+              ),
               const Spacer(),
               _TopIconButton(
                 tooltip: 'Модели и провайдеры',
@@ -222,6 +226,7 @@ class _Logo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final showWordmark = MediaQuery.sizeOf(context).width >= 360;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(9),
@@ -240,16 +245,22 @@ class _Logo extends StatelessWidget {
               size: 17,
             ),
           ),
-          const SizedBox(width: 8),
-          const Text(
-            'OpenGenerativeAI',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0,
+          if (showWordmark) ...[
+            const SizedBox(width: 8),
+            const Flexible(
+              child: Text(
+                'OpenGenerativeAI',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0,
+                ),
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );

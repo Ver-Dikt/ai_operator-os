@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../ai_operator_app.dart';
@@ -17,12 +17,13 @@ class CurrentSessionStrip extends StatelessWidget {
     final lastEvent = events.isEmpty ? null : events.first;
     final lastAsset = assets.isEmpty ? null : assets.first;
     final draft = session.activePromptDraft?.trim();
-    final status = lastEvent?.title ?? (draft == null ? 'Runtime ready' : 'Draft ready');
+    final status =
+        lastEvent?.title ?? (draft == null ? 'Runtime ready' : 'Draft ready');
     final provider = session.activeProviderId == null
         ? null
         : session.activeRoute == null
-            ? session.activeProviderId!
-            : '${session.activeProviderId} / ${session.activeRoute}';
+        ? session.activeProviderId!
+        : '${session.activeProviderId} / ${session.activeRoute}';
 
     return Container(
       width: double.infinity,
@@ -38,7 +39,10 @@ class CurrentSessionStrip extends StatelessWidget {
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           _Pill(icon: Icons.folder_rounded, text: project.name),
-          _Pill(icon: Icons.radio_button_checked_rounded, text: 'Текущая сессия'),
+          _Pill(
+            icon: Icons.radio_button_checked_rounded,
+            text: 'Текущая сессия',
+          ),
           _Pill(
             icon: Icons.dashboard_customize_rounded,
             text: _workspaceLabel(session.activeWorkspace),
@@ -103,9 +107,9 @@ class CurrentSessionStrip extends StatelessWidget {
   static Future<void> _copyDraft(BuildContext context, String draft) async {
     await Clipboard.setData(ClipboardData(text: draft));
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Active prompt скопирован.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Active prompt скопирован.')));
   }
 
   static Future<void> _confirmClear(BuildContext context) async {
@@ -131,9 +135,9 @@ class CurrentSessionStrip extends StatelessWidget {
     if (confirmed != true || !context.mounted) return;
     await FlutenRuntimeScope.read(context).clearCurrentSession();
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Текущая сессия очищена.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Текущая сессия очищена.')));
   }
 }
 
@@ -201,12 +205,16 @@ class _SessionAction extends StatelessWidget {
             children: [
               Icon(icon, color: color, size: 14),
               const SizedBox(width: 5),
-              Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: color,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ),
             ],

@@ -373,7 +373,8 @@ Execution note: copy/paste handoff only; no API generation is claimed.
         'Mood: emotionally focused, cinematic, coherent.\n'
         'Pacing: $_pacing rhythm, opening clarity, controlled middle movement, final hold.\n'
         'Final gesture: ${_extractFinalGesture(source)}';
-    final instruction = '''
+    final instruction =
+        '''
 You are FLUTEN Director Engine. Improve this video generation prompt.
 Use scene, action, camera movement with dramatic reason, duration, pacing, lighting, mood, continuity, and final gesture.
 Keep the user's idea intact. Do not claim generation. Return a production-ready video prompt only.
@@ -607,10 +608,9 @@ Output quality: $_quality
 
   void _recordProviderSelected(GenerationProvider provider) {
     unawaited(
-      FlutenRuntimeScope.read(context).setActiveProvider(
-        provider.id,
-        route: provider.type.name,
-      ),
+      FlutenRuntimeScope.read(
+        context,
+      ).setActiveProvider(provider.id, route: provider.type.name),
     );
     _recordEvent('Video provider selected', detail: provider.name);
   }
@@ -631,7 +631,8 @@ Output quality: $_quality
 
   String _messageForExecutionJob(ExecutionJob job) {
     return switch (job.status) {
-      ExecutionJobStatus.requiresApiKey => 'Нужен API-ключ ${job.providerName}.',
+      ExecutionJobStatus.requiresApiKey =>
+        'Нужен API-ключ ${job.providerName}.',
       ExecutionJobStatus.localUnavailable =>
         'Локальная ${job.providerName} не подключена.',
       ExecutionJobStatus.manualOnly =>
@@ -1471,6 +1472,7 @@ class _VideoProviderPanel extends StatelessWidget {
             initialValue: providers.any((item) => item.id == selectedProviderId)
                 ? selectedProviderId
                 : providers.first.id,
+            isExpanded: true,
             decoration: const InputDecoration(
               labelText: 'Выбранный video provider',
             ),
@@ -1480,6 +1482,7 @@ class _VideoProviderPanel extends StatelessWidget {
                   value: provider.id,
                   child: Text(
                     '${provider.name} · ${_typeLabel(provider.type)}',
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
             ],

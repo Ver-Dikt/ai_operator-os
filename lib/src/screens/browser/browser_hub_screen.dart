@@ -76,10 +76,9 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
     unawaited(FlutenRuntimeScope.read(context).setActivePromptDraft(prompt));
     if (tool != null) {
       unawaited(
-        FlutenRuntimeScope.read(context).setActiveProvider(
-          tool.id,
-          route: 'browser',
-        ),
+        FlutenRuntimeScope.read(
+          context,
+        ).setActiveProvider(tool.id, route: 'browser'),
       );
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -146,7 +145,7 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
                 const SizedBox(height: 12),
                 const CurrentSessionStrip(),
                 const SizedBox(height: 12),
-                SizedBox(height: 560, child: workspace),
+                SizedBox(height: 1160, child: workspace),
                 const SizedBox(height: 12),
                 SizedBox(height: 720, child: toolsPanel),
               ],
@@ -188,10 +187,9 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
           'Сервис выбран. Можно открыть сайт во внешнем браузере или подготовить prompt handoff.';
     });
     unawaited(
-      FlutenRuntimeScope.read(context).setActiveProvider(
-        tool.id,
-        route: 'browser',
-      ),
+      FlutenRuntimeScope.read(
+        context,
+      ).setActiveProvider(tool.id, route: 'browser'),
     );
     unawaited(
       FlutenRuntimeScope.read(context).addEvent(
@@ -237,7 +235,9 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
       _statusText =
           'Prompt подготовлен и скопирован. Откройте выбранный сервис и вставьте его вручную.';
     });
-    _showMessage('Prompt подготовлен и скопирован. Откройте выбранный сервис и вставьте его вручную.');
+    _showMessage(
+      'Prompt подготовлен и скопирован. Откройте выбранный сервис и вставьте его вручную.',
+    );
   }
 
   Future<void> _openExternal(BrowserAiTool tool) async {
@@ -266,7 +266,9 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
       _showMessage('${tool.name} открыт во внешнем браузере.');
       return;
     }
-    await Clipboard.setData(ClipboardData(text: prompt.isEmpty ? tool.url : prompt));
+    await Clipboard.setData(
+      ClipboardData(text: prompt.isEmpty ? tool.url : prompt),
+    );
     if (!mounted) return;
     final job = _createBrowserJob(
       status: ExecutionJobStatus.manualOnly,
@@ -368,27 +370,24 @@ class _HubHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = MediaQuery.sizeOf(context).width < 680;
-    final title = const Expanded(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Браузер нейронок',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-              height: 1,
-            ),
+    final title = const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Браузер нейронок',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 24,
+            fontWeight: FontWeight.w900,
+            height: 1,
           ),
-          SizedBox(height: 6),
-          Text(
-            'Командный центр для внешних AI-сайтов: текст, ресерч, картинки, видео, аудио, промпты и creative tools.',
-            style: TextStyle(color: Color(0xFFA7B1C1), height: 1.35),
-          ),
-        ],
-      ),
+        ),
+        SizedBox(height: 6),
+        Text(
+          'Командный центр для внешних AI-сайтов: текст, ресерч, картинки, видео, аудио, промпты и creative tools.',
+          style: TextStyle(color: Color(0xFFA7B1C1), height: 1.35),
+        ),
+      ],
     );
     final leading = Container(
       width: 44,
@@ -400,31 +399,42 @@ class _HubHeader extends StatelessWidget {
       child: const Icon(Icons.public_rounded, color: Colors.black),
     );
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xA6070A0F),
-        border: Border.all(color: const Color(0x24FFFFFF)),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: compact
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [leading, const SizedBox(width: 14), title]),
-                const SizedBox(height: 12),
-                const _DesktopBadge(),
-              ],
-            )
-          : Row(
-              children: [
-                leading,
-                const SizedBox(width: 14),
-                title,
-                const SizedBox(width: 14),
-                const _DesktopBadge(),
-              ],
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 520;
+        return Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xA6070A0F),
+            border: Border.all(color: const Color(0x24FFFFFF)),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: compact
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        leading,
+                        const SizedBox(width: 14),
+                        Expanded(child: title),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    const _DesktopBadge(),
+                  ],
+                )
+              : Row(
+                  children: [
+                    leading,
+                    const SizedBox(width: 14),
+                    Expanded(child: title),
+                    const SizedBox(width: 14),
+                    const _DesktopBadge(),
+                  ],
+                ),
+        );
+      },
     );
   }
 }
@@ -657,22 +667,30 @@ class _ToolCard extends StatelessWidget {
                     Icons.check_circle_outline_rounded,
                     size: 18,
                   ),
-                  label: const Text('\u0412\u044b\u0431\u0440\u0430\u0442\u044c'),
+                  label: const Text(
+                    '\u0412\u044b\u0431\u0440\u0430\u0442\u044c',
+                  ),
                 ),
                 OutlinedButton.icon(
                   onPressed: onOpenSite,
                   icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                  label: const Text('\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0441\u0430\u0439\u0442'),
+                  label: const Text(
+                    '\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0441\u0430\u0439\u0442',
+                  ),
                 ),
                 OutlinedButton.icon(
                   onPressed: tool.promptRelevant ? onCopyPrompt : null,
                   icon: const Icon(Icons.copy_rounded, size: 18),
-                  label: const Text('\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c prompt'),
+                  label: const Text(
+                    '\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c prompt',
+                  ),
                 ),
                 OutlinedButton.icon(
                   onPressed: tool.promptRelevant ? onPreparePaste : null,
                   icon: const Icon(Icons.input_rounded, size: 18),
-                  label: const Text('\u041f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u0438\u0442\u044c \u0434\u043b\u044f \u0441\u0435\u0440\u0432\u0438\u0441\u0430'),
+                  label: const Text(
+                    '\u041f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u0438\u0442\u044c \u0434\u043b\u044f \u0441\u0435\u0440\u0432\u0438\u0441\u0430',
+                  ),
                 ),
               ],
             ),
@@ -749,17 +767,19 @@ class _BrowserWorkspace extends StatelessWidget {
                   ],
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
               _MiniPill(tool.category.label),
-              const SizedBox(width: 8),
               _MiniPill(tool.executionMode.label),
-              const SizedBox(width: 8),
               _MiniPill(tool.status.label),
-              const SizedBox(width: 8),
               _MiniPill(tool.accessType.label),
-              if (latestJob != null) ...[
-                const SizedBox(width: 8),
+              if (latestJob != null)
                 _MiniPill('Job: ${latestJob!.status.label}'),
-              ],
             ],
           ),
           const SizedBox(height: 14),

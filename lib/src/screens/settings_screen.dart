@@ -233,7 +233,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _saveLocalProvider(AiProvider provider) async {
     final settings = AppSettingsScope.of(context);
     final endpoint =
-        _endpointControllers[provider.id]?.text ?? _defaultEndpointFor(provider);
+        _endpointControllers[provider.id]?.text ??
+        _defaultEndpointFor(provider);
     await settings.saveLocalProviderSettings(
       providerId: provider.id,
       enabled: _localEnabled[provider.id] ?? false,
@@ -391,9 +392,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         detail: result.error ?? endpoint,
       ),
     );
-    _showMessage(
-      'ComfyUI не отвечает. Запустите ComfyUI на 127.0.0.1:8188.',
-    );
+    _showMessage('ComfyUI не отвечает. Запустите ComfyUI на 127.0.0.1:8188.');
   }
 
   Future<void> _clearLocalWorkflow(AiProvider provider) async {
@@ -517,7 +516,8 @@ class _GeneralSettings extends StatelessWidget {
         children: [
           const SectionHeader(
             title: 'Общие настройки',
-            subtitle: 'Тема, стартовый экран и предпочтительный режим маршрута.',
+            subtitle:
+                'Тема, стартовый экран и предпочтительный режим маршрута.',
           ),
           SwitchListTile(
             value: settings.darkMode,
@@ -553,7 +553,7 @@ class _DestinationTile extends StatelessWidget {
       title: const Text('Стартовый экран'),
       subtitle: const Text('Где FLUTEN откроется в следующий раз.'),
       trailing: SizedBox(
-        width: 240,
+        width: 132,
         child: DropdownButton<AppDestination>(
           value: settings.startupDestination,
           isExpanded: true,
@@ -582,16 +582,22 @@ class _ModeTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       title: const Text('Режим по умолчанию'),
-      subtitle: const Text('Предпочтение маршрутизации: local / cloud / hybrid.'),
-      trailing: DropdownButton<OperatorMode>(
-        value: settings.operatorMode,
-        onChanged: (value) {
-          if (value != null) settings.setOperatorMode(value);
-        },
-        items: [
-          for (final mode in OperatorMode.values)
-            DropdownMenuItem(value: mode, child: Text(mode.label)),
-        ],
+      subtitle: const Text(
+        'Предпочтение маршрутизации: local / cloud / hybrid.',
+      ),
+      trailing: SizedBox(
+        width: 132,
+        child: DropdownButton<OperatorMode>(
+          value: settings.operatorMode,
+          isExpanded: true,
+          onChanged: (value) {
+            if (value != null) settings.setOperatorMode(value);
+          },
+          items: [
+            for (final mode in OperatorMode.values)
+              DropdownMenuItem(value: mode, child: Text(mode.label)),
+          ],
+        ),
       ),
     );
   }
@@ -723,7 +729,9 @@ class _ApiProviderCard extends StatelessWidget {
             obscureText: true,
             decoration: InputDecoration(
               labelText: 'API key',
-              hintText: hasKey ? settings.maskedProviderApiKey(provider.id) : '',
+              hintText: hasKey
+                  ? settings.maskedProviderApiKey(provider.id)
+                  : '',
               helperText: 'Не печатается в логах и не показывается полностью.',
             ),
           ),
@@ -829,7 +837,8 @@ class _LocalProviderSettings extends StatelessWidget {
                         provider: provider,
                         enabled: enabled[provider.id] ?? false,
                         endpointController: endpointControllers[provider.id]!,
-                        uiEndpointController: uiEndpointControllers[provider.id],
+                        uiEndpointController:
+                            uiEndpointControllers[provider.id],
                         modelController: modelControllers[provider.id],
                         workflowController: workflowControllers[provider.id],
                         outputFolderController:
@@ -1126,7 +1135,8 @@ String _localStatusFor(AiProvider provider) {
   return switch (provider.id) {
     'ollama' => 'local text/prompt brain',
     'comfyui' => 'image/video pipeline later',
-    'ace-step' => 'audio/music generation later; UI обычно http://localhost:3001',
+    'ace-step' =>
+      'audio/music generation later; UI обычно http://localhost:3001',
     'local-browser' => 'Встроенный браузер пока не подключен',
     _ => provider.notes,
   };
