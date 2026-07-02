@@ -723,6 +723,13 @@ class _ApiProviderCard extends StatelessWidget {
               if (hasKey) _InfoChip(settings.maskedProviderApiKey(provider.id)),
             ],
           ),
+          if (provider.notes.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              provider.notes,
+              style: const TextStyle(color: Color(0xFFFFD29D), height: 1.35),
+            ),
+          ],
           const SizedBox(height: 10),
           TextField(
             controller: keyController,
@@ -738,12 +745,23 @@ class _ApiProviderCard extends StatelessWidget {
           const SizedBox(height: 8),
           TextField(
             controller: baseUrlController,
-            decoration: const InputDecoration(labelText: 'Base URL optional'),
+            decoration: InputDecoration(
+              labelText: provider.id == 'omniroute'
+                  ? 'Base URL OmniRoute'
+                  : 'Base URL optional',
+              helperText: provider.id == 'omniroute'
+                  ? 'Configurable OpenAI-compatible endpoint; placeholder may be local or remote.'
+                  : null,
+            ),
           ),
           const SizedBox(height: 8),
           TextField(
             controller: modelController,
-            decoration: const InputDecoration(labelText: 'Model optional'),
+            decoration: InputDecoration(
+              labelText: provider.id == 'omniroute'
+                  ? 'Model / Router profile'
+                  : 'Model optional',
+            ),
           ),
           const SizedBox(height: 10),
           Wrap(
@@ -1113,6 +1131,7 @@ String _defaultModelFor(AiProvider provider) {
     'gemini' => 'gemini-1.5-pro',
     'claude' => 'claude-3.5-sonnet',
     'openrouter' => 'openrouter/auto',
+    'omniroute' => 'auto',
     'runway' => 'gen-3',
     'kling' => 'kling-video',
     'stability' => 'stable-image',

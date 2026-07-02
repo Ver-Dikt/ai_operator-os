@@ -411,17 +411,17 @@ const browserAiTools = <BrowserAiTool>[
       BrowserLaunchMode.clipboardOnly,
     ],
     description:
-        'Multi-model text routing and OpenAI-compatible gateway candidate. Catalog only; API execution is not connected.',
-    executionMode: BrowserExecutionMode.unavailable,
-    status: BrowserProviderStatus.researchNeeded,
+        'Multi-model text routing and OpenAI-compatible gateway candidate. API route is available when configured in Execution Settings.',
+    executionMode: BrowserExecutionMode.api,
+    status: BrowserProviderStatus.apiKeyRequired,
     recommendedUseCase:
         'Multi-model text routing, OpenAI-compatible gateway research, free/low-cost route comparison.',
     freeTierNotes: _freeTierNote,
     apiNotes:
-        'API-кандидат: endpoint, tokens, rate limits, self-host mode and license must be verified before settings are added.',
+        'API-кандидат: FLUTEN calls only the configured OpenAI-compatible endpoint. Endpoint, tokens, rate limits, self-host mode and license must be verified by the user.',
     localInstallNotes: _localInstallNote,
-    riskNotes: _safeRepoNote,
-    recommendedPhase: 'Phase 3 provider/API research',
+    riskNotes: 'Free tier/limits must be verified. $_safeRepoNote',
+    recommendedPhase: 'Phase 2.3 configurable OpenAI-compatible text route',
     supportedWorkflows: ['providerDiscovery', 'textRouting', 'browserHandoff'],
     promptRelevant: false,
     tags: ['router', 'text', 'api candidate', 'mcp candidate', 'experimental'],

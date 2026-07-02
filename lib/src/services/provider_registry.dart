@@ -38,7 +38,22 @@ const seedProviders = <AiProvider>[
     description: 'API gateway for text models and agent routing.',
     baseUrl: 'https://openrouter.ai',
     apiKeyRequired: true,
-    notes: 'Foundation only. API key storage and real calls are not connected.',
+    notes:
+        'OpenAI-compatible text execution is available when API key, base URL, and model are configured.',
+  ),
+  AiProvider(
+    id: 'omniroute',
+    name: 'OmniRoute',
+    type: AiProviderType.api,
+    executionModes: [ExecutionMode.api],
+    status: AiProviderStatus.notConfigured,
+    supportedWorkspaces: ['text', 'agents'],
+    description:
+        'Experimental OpenAI-compatible text router. Endpoint and free tier must be verified by the user.',
+    baseUrl: 'http://localhost:3000/v1',
+    apiKeyRequired: true,
+    notes:
+        'API-кандидат. FLUTEN calls only the configured OpenAI-compatible endpoint; no OmniRoute repo is installed or run.',
   ),
   AiProvider(
     id: 'openai',
@@ -311,6 +326,7 @@ class ProviderRegistry {
       'openai' || 'dall-e' || 'chatgpt-image' => 'openai',
       'claude' => 'claude',
       'openrouter' => 'openrouter',
+      'omniroute' => 'omniroute',
       'gemini' || 'gemini-image-tools' => 'gemini',
       'replicate' => 'replicate',
       'runway' => 'runway',

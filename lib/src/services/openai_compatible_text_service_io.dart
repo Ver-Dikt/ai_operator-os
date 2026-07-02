@@ -37,6 +37,7 @@ class OpenAiCompatibleTextService {
     required String apiKey,
     required String model,
     required List<OpenAiChatMessage> messages,
+    String providerName = 'OpenAI-compatible provider',
     double temperature = 0.7,
     int maxTokens = 900,
     Duration timeout = const Duration(seconds: 45),
@@ -45,9 +46,9 @@ class OpenAiCompatibleTextService {
     final uri = Uri.parse('$normalizedBase/chat/completions');
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
     try {
-      final request = await client.postUrl(uri).timeout(
-        const Duration(seconds: 8),
-      );
+      final request = await client
+          .postUrl(uri)
+          .timeout(const Duration(seconds: 8));
       request.headers.contentType = ContentType.json;
       request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $apiKey');
       request.write(
@@ -95,19 +96,19 @@ class OpenAiCompatibleTextService {
         usage: _usage(decoded['usage']),
       );
     } on TimeoutException {
-      return const OpenAiTextResult(
+      return OpenAiTextResult(
         success: false,
-        error: 'OpenRouter не ответил вовремя.',
+        error: '$providerName не ответил вовремя.',
       );
     } on SocketException {
-      return const OpenAiTextResult(
+      return OpenAiTextResult(
         success: false,
-        error: 'Network error while calling OpenRouter.',
+        error: 'Network error while calling $providerName.',
       );
     } catch (_) {
-      return const OpenAiTextResult(
+      return OpenAiTextResult(
         success: false,
-        error: 'OpenRouter request failed.',
+        error: '$providerName request failed.',
       );
     } finally {
       client.close(force: true);

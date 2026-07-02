@@ -29,6 +29,7 @@ class OpenAiCompatibleTextService {
     required String apiKey,
     required String model,
     required List<OpenAiChatMessage> messages,
+    String providerName = 'OpenAI-compatible provider',
     double temperature = 0.7,
     int maxTokens = 900,
     Duration timeout = const Duration(seconds: 45),
