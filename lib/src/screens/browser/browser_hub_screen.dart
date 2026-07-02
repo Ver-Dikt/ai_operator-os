@@ -977,38 +977,40 @@ class _BrowserWorkspace extends StatelessWidget {
                       constraints: const BoxConstraints(maxWidth: 620),
                       child: Padding(
                         padding: const EdgeInsets.all(16),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.web_asset_rounded,
-                              color: Color(0xFF556174),
-                              size: 72,
-                            ),
-                            const SizedBox(height: 14),
-                            Text(
-                              showInternalPlaceholder
-                                  ? 'Встроенный браузер STUDIO'
-                                  : 'Рабочая область ${tool.name}',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 24,
-                                fontWeight: FontWeight.w900,
+                        child: SingleChildScrollView(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.web_asset_rounded,
+                                color: Color(0xFF556174),
+                                size: 56,
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              showInternalPlaceholder
-                                  ? 'Встроенный браузер будет доступен в desktop-версии после подключения WebView runtime.\n${tool.url}'
-                                  : 'Сервис выбран. Можно открыть сайт во внешнем браузере или подготовить prompt handoff.\n${tool.url}',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: Color(0xFF9AA6B8),
-                                height: 1.45,
+                              const SizedBox(height: 10),
+                              Text(
+                                showInternalPlaceholder
+                                    ? 'Встроенный браузер STUDIO'
+                                    : 'Рабочая область ${tool.name}',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w900,
+                                ),
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 8),
+                              Text(
+                                showInternalPlaceholder
+                                    ? 'Встроенный браузер будет доступен в desktop-версии после подключения WebView runtime.\n${tool.url}'
+                                    : 'Сервис выбран. Можно открыть сайт во внешнем браузере или подготовить prompt handoff.\n${tool.url}',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Color(0xFF9AA6B8),
+                                  height: 1.45,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),

@@ -7,6 +7,7 @@ import '../ai_operator_app.dart';
 import '../models/ai_provider.dart';
 import '../services/ace_step_health_service.dart';
 import '../services/comfyui_health_service.dart';
+import '../services/openai_compatible_text_service.dart';
 import '../services/ollama_execution_service.dart';
 import '../services/provider_registry.dart';
 import '../state/app_settings.dart';
@@ -32,8 +33,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final Map<String, TextEditingController> _outputFolderControllers = {};
   final Map<String, bool> _apiEnabled = {};
   final Map<String, bool> _localEnabled = {};
+  final Map<String, _ProviderHealthState> _apiHealth = {};
   final Map<String, String> _localStatus = {};
   final Map<String, List<String>> _localModels = {};
+  final Set<String> _checkingApi = <String>{};
   final Set<String> _checkingLocal = <String>{};
   bool _hydrated = false;
   bool _openedEventSent = false;
@@ -159,10 +162,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             baseUrlControllers: _baseUrlControllers,
             modelControllers: _modelControllers,
             settings: settings,
+            healthStates: _apiHealth,
+            checking: _checkingApi,
             onToggle: (provider, value) =>
                 setState(() => _apiEnabled[provider.id] = value),
             onSave: _saveApiProvider,
             onClear: _clearApiProvider,
+            onCheck: _checkApiProvider,
           ),
           const SizedBox(height: 18),
           _LocalProviderSettings(
@@ -218,7 +224,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final settings = AppSettingsScope.of(context);
     await settings.clearProviderApiKey(provider.id);
     _keyControllers[provider.id]?.clear();
-    setState(() => _apiEnabled[provider.id] = false);
+    setState(() {
+      _apiEnabled[provider.id] = false;
+      _apiHealth.remove(provider.id);
+    });
     if (!mounted) return;
     unawaited(
       FlutenRuntimeScope.read(context).addEvent(
@@ -228,6 +237,80 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
     _showMessage('${provider.name}: ключ очищен.');
+  }
+
+  Future<void> _checkApiProvider(AiProvider provider) async {
+    if (!_isOpenAiCompatibleProvider(provider)) {
+      _showMessage('Проверка будет подключена следующим этапом.');
+      return;
+    }
+    final settings = AppSettingsScope.of(context);
+    final enteredKey = _keyControllers[provider.id]?.text.trim() ?? '';
+    final apiKey = enteredKey.isNotEmpty
+        ? enteredKey
+        : settings.providerApiKey(provider.id).trim();
+    final baseUrl = _normalizedHealthBaseUrl(
+      provider,
+      _baseUrlControllers[provider.id]?.text.trim() ?? '',
+    );
+    final enteredModel = _modelControllers[provider.id]?.text.trim() ?? '';
+    final model = enteredModel.isNotEmpty
+        ? enteredModel
+        : _defaultModelFor(provider);
+
+    final blocked = _blockedHealthState(
+      apiKey: apiKey,
+      baseUrl: baseUrl,
+      model: model,
+    );
+    if (blocked != null) {
+      setState(() => _apiHealth[provider.id] = blocked);
+      _showMessage('${provider.name}: ${blocked.statusLabel}.');
+      return;
+    }
+
+    final runtime = FlutenRuntimeScope.read(context);
+    setState(() {
+      _checkingApi.add(provider.id);
+      _apiHealth[provider.id] = const _ProviderHealthState(
+        statusLabel: 'Проверка...',
+        message: 'Проверяем OpenAI-compatible endpoint.',
+      );
+    });
+    unawaited(
+      runtime.addEvent(
+        type: 'settings',
+        title: 'Provider health check started',
+        detail: provider.name,
+      ),
+    );
+
+    final result = await const OpenAiCompatibleTextService().checkConnection(
+      baseUrl: baseUrl,
+      apiKey: apiKey,
+      model: model,
+      providerName: provider.name,
+    );
+    if (!mounted) return;
+    final health = _ProviderHealthState(
+      statusLabel: _healthStatusLabel(result.status),
+      message: result.message,
+      testedAt: DateTime.now(),
+    );
+    setState(() {
+      _checkingApi.remove(provider.id);
+      _apiHealth[provider.id] = health;
+    });
+    unawaited(
+      runtime.addEvent(
+        type: 'settings',
+        title: result.success
+            ? 'Provider health check ready'
+            : 'Provider health check failed',
+        detail: '${provider.name}: ${health.statusLabel}',
+      ),
+    );
+    _showMessage('${provider.name}: ${health.message}');
   }
 
   Future<void> _saveLocalProvider(AiProvider provider) async {
@@ -611,9 +694,12 @@ class _ApiProviderSettings extends StatelessWidget {
     required this.baseUrlControllers,
     required this.modelControllers,
     required this.settings,
+    required this.healthStates,
+    required this.checking,
     required this.onToggle,
     required this.onSave,
     required this.onClear,
+    required this.onCheck,
   });
 
   final List<AiProvider> providers;
@@ -622,9 +708,12 @@ class _ApiProviderSettings extends StatelessWidget {
   final Map<String, TextEditingController> baseUrlControllers;
   final Map<String, TextEditingController> modelControllers;
   final AppSettings settings;
+  final Map<String, _ProviderHealthState> healthStates;
+  final Set<String> checking;
   final void Function(AiProvider provider, bool value) onToggle;
   final ValueChanged<AiProvider> onSave;
   final ValueChanged<AiProvider> onClear;
+  final ValueChanged<AiProvider> onCheck;
 
   @override
   Widget build(BuildContext context) {
@@ -656,9 +745,12 @@ class _ApiProviderSettings extends StatelessWidget {
                         baseUrlController: baseUrlControllers[provider.id]!,
                         modelController: modelControllers[provider.id]!,
                         settings: settings,
+                        healthState: healthStates[provider.id],
+                        checking: checking.contains(provider.id),
                         onToggle: (value) => onToggle(provider, value),
                         onSave: () => onSave(provider),
                         onClear: () => onClear(provider),
+                        onCheck: () => onCheck(provider),
                       ),
                     ),
                 ],
@@ -679,9 +771,12 @@ class _ApiProviderCard extends StatelessWidget {
     required this.baseUrlController,
     required this.modelController,
     required this.settings,
+    required this.healthState,
+    required this.checking,
     required this.onToggle,
     required this.onSave,
     required this.onClear,
+    required this.onCheck,
   });
 
   final AiProvider provider;
@@ -690,9 +785,12 @@ class _ApiProviderCard extends StatelessWidget {
   final TextEditingController baseUrlController;
   final TextEditingController modelController;
   final AppSettings settings;
+  final _ProviderHealthState? healthState;
+  final bool checking;
   final ValueChanged<bool> onToggle;
   final VoidCallback onSave;
   final VoidCallback onClear;
+  final VoidCallback onCheck;
 
   @override
   Widget build(BuildContext context) {
@@ -703,6 +801,9 @@ class _ApiProviderCard extends StatelessWidget {
         ? 'Требуется проверка'
         : 'Не настроено';
 
+    final openAiCompatible = _isOpenAiCompatibleProvider(provider);
+    final health = healthState ?? _initialHealthState(enabled: enabled);
+
     return _SettingsCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -712,7 +813,11 @@ class _ApiProviderCard extends StatelessWidget {
             value: enabled,
             onChanged: onToggle,
             title: Text(provider.name),
-            subtitle: Text(provider.description),
+            subtitle: Text(
+              provider.description,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           Wrap(
             spacing: 6,
@@ -720,9 +825,19 @@ class _ApiProviderCard extends StatelessWidget {
             children: [
               _InfoChip(provider.type.label),
               _InfoChip(status),
+              if (openAiCompatible) _InfoChip(health.statusLabel),
+              if (openAiCompatible && health.testedAt != null)
+                _InfoChip('Проверено: ${_formatHealthTime(health.testedAt!)}'),
               if (hasKey) _InfoChip(settings.maskedProviderApiKey(provider.id)),
             ],
           ),
+          if (openAiCompatible && health.message.trim().isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              health.message,
+              style: const TextStyle(color: Color(0xFFA7B1C1), height: 1.35),
+            ),
+          ],
           if (provider.notes.trim().isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
@@ -779,9 +894,15 @@ class _ApiProviderCard extends StatelessWidget {
                 label: const Text('Очистить'),
               ),
               OutlinedButton.icon(
-                onPressed: null,
+                onPressed: openAiCompatible && !checking ? onCheck : null,
                 icon: const Icon(Icons.fact_check_outlined),
-                label: const Text('Проверить позже'),
+                label: Text(
+                  checking
+                      ? 'Проверка...'
+                      : openAiCompatible
+                      ? 'Проверить подключение'
+                      : 'Проверить позже',
+                ),
               ),
             ],
           ),
@@ -931,7 +1052,11 @@ class _LocalProviderCard extends StatelessWidget {
             value: enabled,
             onChanged: onToggle,
             title: Text(provider.name),
-            subtitle: Text(_localStatusFor(provider)),
+            subtitle: Text(
+              _localStatusFor(provider),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           TextField(
             controller: endpointController,
@@ -1168,4 +1293,79 @@ String _checkLabelFor(AiProvider provider) {
     'ace-step' => 'Проверить ACE-Step',
     _ => 'Проверить',
   };
+}
+
+class _ProviderHealthState {
+  const _ProviderHealthState({
+    required this.statusLabel,
+    required this.message,
+    this.testedAt,
+  });
+
+  final String statusLabel;
+  final String message;
+  final DateTime? testedAt;
+}
+
+bool _isOpenAiCompatibleProvider(AiProvider provider) {
+  return provider.id == 'openrouter' || provider.id == 'omniroute';
+}
+
+_ProviderHealthState _initialHealthState({required bool enabled}) {
+  return _ProviderHealthState(
+    statusLabel: enabled ? 'Нужен API-ключ' : 'Не настроено',
+    message: '',
+  );
+}
+
+_ProviderHealthState? _blockedHealthState({
+  required String apiKey,
+  required String baseUrl,
+  required String model,
+}) {
+  if (apiKey.trim().isEmpty) {
+    return const _ProviderHealthState(
+      statusLabel: 'Нужен API-ключ',
+      message: 'Добавьте API-ключ и повторите проверку.',
+    );
+  }
+  if (baseUrl.trim().isEmpty) {
+    return const _ProviderHealthState(
+      statusLabel: 'Нужен Base URL',
+      message: 'Укажите OpenAI-compatible Base URL.',
+    );
+  }
+  if (model.trim().isEmpty) {
+    return const _ProviderHealthState(
+      statusLabel: 'Нужна модель / router profile',
+      message: 'Укажите модель или router profile.',
+    );
+  }
+  return null;
+}
+
+String _normalizedHealthBaseUrl(AiProvider provider, String value) {
+  final trimmed = value.trim().replaceFirst(RegExp(r'/+$'), '');
+  if (provider.id == 'openrouter' &&
+      (trimmed == 'https://openrouter.ai' ||
+          trimmed == 'http://openrouter.ai')) {
+    return '$trimmed/api/v1';
+  }
+  return trimmed;
+}
+
+String _healthStatusLabel(OpenAiHealthCheckStatus status) {
+  return switch (status) {
+    OpenAiHealthCheckStatus.ready => 'Готово',
+    OpenAiHealthCheckStatus.apiError => 'Ошибка API',
+    OpenAiHealthCheckStatus.networkError => 'Ошибка сети',
+    OpenAiHealthCheckStatus.invalidResponse => 'Неверный ответ провайдера',
+  };
+}
+
+String _formatHealthTime(DateTime value) {
+  final local = value.toLocal();
+  final hour = local.hour.toString().padLeft(2, '0');
+  final minute = local.minute.toString().padLeft(2, '0');
+  return '$hour:$minute';
 }

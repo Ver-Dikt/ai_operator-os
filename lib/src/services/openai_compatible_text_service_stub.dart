@@ -21,6 +21,20 @@ class OpenAiTextResult {
   final Map<String, String>? usage;
 }
 
+enum OpenAiHealthCheckStatus { ready, apiError, networkError, invalidResponse }
+
+class OpenAiHealthCheckResult {
+  const OpenAiHealthCheckResult({
+    required this.success,
+    required this.status,
+    required this.message,
+  });
+
+  final bool success;
+  final OpenAiHealthCheckStatus status;
+  final String message;
+}
+
 class OpenAiCompatibleTextService {
   const OpenAiCompatibleTextService();
 
@@ -37,6 +51,20 @@ class OpenAiCompatibleTextService {
     return const OpenAiTextResult(
       success: false,
       error: 'OpenAI-compatible API unavailable on this platform.',
+    );
+  }
+
+  Future<OpenAiHealthCheckResult> checkConnection({
+    required String baseUrl,
+    required String apiKey,
+    required String model,
+    String providerName = 'OpenAI-compatible provider',
+    Duration timeout = const Duration(seconds: 20),
+  }) async {
+    return const OpenAiHealthCheckResult(
+      success: false,
+      status: OpenAiHealthCheckStatus.networkError,
+      message: 'Провайдер не отвечает.',
     );
   }
 }

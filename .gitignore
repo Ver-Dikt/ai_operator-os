@@ -29,6 +29,7 @@ migrate_working_dir/
 # Flutter/Dart/Pub related
 .codex-home/
 .dart-appdata/
+.dart_appdata/
 .tools/
 android/local.properties
 **/doc/api/

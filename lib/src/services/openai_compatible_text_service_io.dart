@@ -29,6 +29,20 @@ class OpenAiTextResult {
   final Map<String, String>? usage;
 }
 
+enum OpenAiHealthCheckStatus { ready, apiError, networkError, invalidResponse }
+
+class OpenAiHealthCheckResult {
+  const OpenAiHealthCheckResult({
+    required this.success,
+    required this.status,
+    required this.message,
+  });
+
+  final bool success;
+  final OpenAiHealthCheckStatus status;
+  final String message;
+}
+
 class OpenAiCompatibleTextService {
   const OpenAiCompatibleTextService();
 
@@ -115,6 +129,80 @@ class OpenAiCompatibleTextService {
     }
   }
 
+  Future<OpenAiHealthCheckResult> checkConnection({
+    required String baseUrl,
+    required String apiKey,
+    required String model,
+    String providerName = 'OpenAI-compatible provider',
+    Duration timeout = const Duration(seconds: 20),
+  }) async {
+    final normalizedBase = baseUrl.trim().replaceFirst(RegExp(r'/+$'), '');
+    final uri = Uri.parse('$normalizedBase/chat/completions');
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 8);
+    try {
+      final request = await client
+          .postUrl(uri)
+          .timeout(const Duration(seconds: 8));
+      request.headers.contentType = ContentType.json;
+      request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $apiKey');
+      request.write(
+        jsonEncode({
+          'model': model,
+          'messages': const [
+            {'role': 'system', 'content': 'You are a connection test.'},
+            {'role': 'user', 'content': 'Reply with OK only.'},
+          ],
+          'temperature': 0,
+          'max_tokens': 5,
+        }),
+      );
+
+      final response = await request.close().timeout(timeout);
+      final body = await response.transform(utf8.decoder).join();
+      final decoded = _tryDecode(body);
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return OpenAiHealthCheckResult(
+          success: false,
+          status: OpenAiHealthCheckStatus.apiError,
+          message: _safeHealthError(response.statusCode),
+        );
+      }
+      if (_hasValidChoices(decoded)) {
+        return const OpenAiHealthCheckResult(
+          success: true,
+          status: OpenAiHealthCheckStatus.ready,
+          message: 'Готово',
+        );
+      }
+      return const OpenAiHealthCheckResult(
+        success: false,
+        status: OpenAiHealthCheckStatus.invalidResponse,
+        message: 'Неверный ответ провайдера.',
+      );
+    } on TimeoutException {
+      return const OpenAiHealthCheckResult(
+        success: false,
+        status: OpenAiHealthCheckStatus.networkError,
+        message: 'Провайдер не отвечает.',
+      );
+    } on SocketException {
+      return const OpenAiHealthCheckResult(
+        success: false,
+        status: OpenAiHealthCheckStatus.networkError,
+        message: 'Провайдер не отвечает.',
+      );
+    } catch (_) {
+      return const OpenAiHealthCheckResult(
+        success: false,
+        status: OpenAiHealthCheckStatus.networkError,
+        message: 'Провайдер не отвечает.',
+      );
+    } finally {
+      client.close(force: true);
+    }
+  }
+
   Object? _tryDecode(String body) {
     try {
       return jsonDecode(body);
@@ -140,8 +228,45 @@ class OpenAiCompatibleTextService {
     return 'HTTP $statusCode';
   }
 
+  String _safeHealthError(int statusCode) {
+    return switch (statusCode) {
+      401 || 403 => 'Ключ отклонён или нет доступа.',
+      404 => 'Endpoint не найден. Проверь Base URL.',
+      429 => 'Лимит или rate limit.',
+      >= 500 && < 600 => 'Ошибка провайдера.',
+      _ => 'Ошибка API.',
+    };
+  }
+
   String _redact(String value) {
-    return value.replaceAll(RegExp(r'sk-[A-Za-z0-9_\-]+'), 'sk-***');
+    return value
+        .replaceAll(
+          RegExp(
+            r'Authorization\s*:\s*[A-Za-z]+\s+[^\s,;]+',
+            caseSensitive: false,
+          ),
+          'Authorization: ***',
+        )
+        .replaceAll(RegExp(r'sk-[A-Za-z0-9_\-]+'), 'sk-***')
+        .replaceAll(
+          RegExp(r'Bearer\s+[A-Za-z0-9_\-\.]+', caseSensitive: false),
+          'Bearer ***',
+        )
+        .replaceAll(RegExp(r'\b[A-Za-z0-9_\-]{32,}\b'), '***');
+  }
+
+  bool _hasValidChoices(Object? decoded) {
+    if (decoded is! Map<String, dynamic>) return false;
+    final choices = decoded['choices'];
+    if (choices is! List || choices.isEmpty) return false;
+    final firstChoice = choices.first;
+    if (firstChoice is! Map) return false;
+    final message = firstChoice['message'];
+    if (message is Map) {
+      final content = message['content'];
+      if (content is String && content.trim().isNotEmpty) return true;
+    }
+    return firstChoice.isNotEmpty;
   }
 
   Map<String, String>? _usage(Object? value) {
