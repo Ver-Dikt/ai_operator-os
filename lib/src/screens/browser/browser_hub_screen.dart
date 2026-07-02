@@ -15,6 +15,71 @@ import '../../services/manual_result_service.dart';
 import '../../widgets/current_session_strip.dart';
 import '../../widgets/generation/manual_result_dialog.dart';
 
+enum _ToolFilter {
+  all,
+  text,
+  image,
+  video,
+  audio,
+  social,
+  agents,
+  workflow,
+  editors,
+  localSelfHost,
+  apiCandidates,
+  experimental,
+  researchOnly,
+}
+
+extension _ToolFilterLabel on _ToolFilter {
+  String get label {
+    return switch (this) {
+      _ToolFilter.all => 'Все',
+      _ToolFilter.text => 'Text',
+      _ToolFilter.image => 'Image',
+      _ToolFilter.video => 'Video',
+      _ToolFilter.audio => 'Audio',
+      _ToolFilter.social => 'Social',
+      _ToolFilter.agents => 'Agents',
+      _ToolFilter.workflow => 'Workflow',
+      _ToolFilter.editors => 'Editors',
+      _ToolFilter.localSelfHost => 'Local/Self-host',
+      _ToolFilter.apiCandidates => 'API Candidates',
+      _ToolFilter.experimental => 'Experimental',
+      _ToolFilter.researchOnly => 'Research only',
+    };
+  }
+
+  bool matches(BrowserAiTool tool) {
+    final categories = tool.effectiveCategories;
+    return switch (this) {
+      _ToolFilter.all => true,
+      _ToolFilter.text => categories.contains(BrowserAiCategory.text),
+      _ToolFilter.image => categories.contains(BrowserAiCategory.image),
+      _ToolFilter.video => categories.contains(BrowserAiCategory.video),
+      _ToolFilter.audio => categories.contains(BrowserAiCategory.audio),
+      _ToolFilter.social => categories.contains(BrowserAiCategory.social),
+      _ToolFilter.agents => categories.contains(BrowserAiCategory.agent),
+      _ToolFilter.workflow => categories.contains(BrowserAiCategory.workflow),
+      _ToolFilter.editors => categories.contains(BrowserAiCategory.editor),
+      _ToolFilter.localSelfHost =>
+        categories.contains(BrowserAiCategory.localModel) ||
+            tool.integrationModes.contains(
+              BrowserIntegrationMode.localSelfHostCandidate,
+            ),
+      _ToolFilter.apiCandidates => tool.integrationModes.contains(
+        BrowserIntegrationMode.apiCandidate,
+      ),
+      _ToolFilter.experimental =>
+        tool.integrationModes.contains(BrowserIntegrationMode.experimental) ||
+            tool.status == BrowserProviderStatus.experimental,
+      _ToolFilter.researchOnly => tool.integrationModes.contains(
+        BrowserIntegrationMode.researchOnly,
+      ),
+    };
+  }
+}
+
 class BrowserHubScreen extends StatefulWidget {
   const BrowserHubScreen({super.key});
 
@@ -29,7 +94,7 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
   );
   final _searchController = TextEditingController();
 
-  BrowserAiCategory? _category;
+  _ToolFilter _filter = _ToolFilter.all;
   late BrowserAiTool _selectedTool;
   bool _handoffLoaded = false;
   bool _showInternalPlaceholder = false;
@@ -116,12 +181,14 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
           final compact = constraints.maxWidth < 980;
           final toolsPanel = _ToolsPanel(
             selectedTool: _selectedTool,
-            category: _category,
+            filter: _filter,
             searchController: _searchController,
-            onCategoryChanged: (value) => setState(() => _category = value),
+            onFilterChanged: (value) => setState(() => _filter = value),
             onToolSelected: _selectTool,
             onCopyPrompt: _copyPrompt,
             onOpenTool: _openExternal,
+            onOpenGitHub: _openGitHub,
+            onCopyNotes: _copyToolNotes,
             onPreparePaste: _preparePaste,
           );
           final workspace = _BrowserWorkspace(
@@ -132,6 +199,10 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
             latestJob: _latestExecutionJob,
             onCopyPrompt: _copyPrompt,
             onOpenExternal: () => _openExternal(_selectedTool),
+            onOpenGitHub: _selectedTool.githubUrl == null
+                ? null
+                : () => _openGitHub(_selectedTool),
+            onCopyNotes: () => _copyToolNotes(_selectedTool),
             onOpenInside: _openInside,
             onPreparePaste: _preparePaste,
             onSaveManualResult: _saveManualResult,
@@ -214,6 +285,19 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
     _showMessage('Prompt скопирован в буфер.');
   }
 
+  Future<void> _copyToolNotes(BrowserAiTool tool) async {
+    await Clipboard.setData(ClipboardData(text: _toolNotes(tool)));
+    if (!mounted) return;
+    unawaited(
+      FlutenRuntimeScope.read(context).addEvent(
+        type: 'browser',
+        title: 'External tool notes copied',
+        detail: tool.name,
+      ),
+    );
+    _showMessage('Notes copied for ${tool.name}.');
+  }
+
   Future<void> _preparePaste() async {
     final prompt = _promptController.text.trim();
     await Clipboard.setData(ClipboardData(text: prompt));
@@ -241,9 +325,31 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
   }
 
   Future<void> _openExternal(BrowserAiTool tool) async {
+    await _openExternalLink(
+      tool: tool,
+      url: tool.url,
+      eventTitle: 'External site opened',
+    );
+  }
+
+  Future<void> _openGitHub(BrowserAiTool tool) async {
+    final url = tool.githubUrl;
+    if (url == null || url.trim().isEmpty) return;
+    await _openExternalLink(
+      tool: tool,
+      url: url,
+      eventTitle: 'External GitHub opened',
+    );
+  }
+
+  Future<void> _openExternalLink({
+    required BrowserAiTool tool,
+    required String url,
+    required String eventTitle,
+  }) async {
     final prompt = _promptController.text.trim();
     final opened = await launchUrl(
-      Uri.parse(tool.url),
+      Uri.parse(url),
       mode: LaunchMode.externalApplication,
     );
     if (!mounted) return;
@@ -252,28 +358,26 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
         status: ExecutionJobStatus.openedExternal,
         prompt: prompt,
         tool: tool,
+        externalUrl: url,
       );
       ExecutionQueue.instance.add(job);
       _recordExecutionJob(job);
       unawaited(
-        FlutenRuntimeScope.read(context).addEvent(
-          type: 'browser',
-          title: 'External site opened',
-          detail: tool.name,
-        ),
+        FlutenRuntimeScope.read(
+          context,
+        ).addEvent(type: 'browser', title: eventTitle, detail: tool.name),
       );
       setState(() => _statusText = '${tool.name} открыт во внешнем браузере.');
       _showMessage('${tool.name} открыт во внешнем браузере.');
       return;
     }
-    await Clipboard.setData(
-      ClipboardData(text: prompt.isEmpty ? tool.url : prompt),
-    );
+    await Clipboard.setData(ClipboardData(text: prompt.isEmpty ? url : prompt));
     if (!mounted) return;
     final job = _createBrowserJob(
       status: ExecutionJobStatus.manualOnly,
       prompt: prompt,
       tool: tool,
+      externalUrl: url,
       errorMessage: 'Не удалось открыть сайт. Prompt скопирован.',
     );
     ExecutionQueue.instance.add(job);
@@ -323,6 +427,7 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
     required ExecutionJobStatus status,
     required String prompt,
     BrowserAiTool? tool,
+    String? externalUrl,
     String? errorMessage,
   }) {
     final selected = tool ?? _selectedTool;
@@ -342,8 +447,28 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
       createdAt: now,
       updatedAt: now,
       errorMessage: errorMessage,
-      metadata: {'url': selected.url},
+      metadata: {'url': externalUrl ?? selected.url},
     );
+  }
+
+  String _toolNotes(BrowserAiTool tool) {
+    return [
+      tool.name,
+      'URL: ${tool.url}',
+      if (tool.githubUrl != null) 'GitHub: ${tool.githubUrl}',
+      if (tool.docsUrl != null) 'Docs: ${tool.docsUrl}',
+      'Types: ${tool.effectiveCategories.map((item) => item.label).join(', ')}',
+      'Integration: ${tool.integrationModes.map((item) => item.label).join(', ')}',
+      'Status: ${tool.status.label}',
+      if (tool.recommendedUseCase != null)
+        'Best for: ${tool.recommendedUseCase}',
+      if (tool.freeTierNotes != null) 'Free/API: ${tool.freeTierNotes}',
+      if (tool.apiNotes != null) 'API notes: ${tool.apiNotes}',
+      if (tool.localInstallNotes != null)
+        'Local notes: ${tool.localInstallNotes}',
+      if (tool.riskNotes != null) 'Risk: ${tool.riskNotes}',
+      if (tool.recommendedPhase != null) 'Phase: ${tool.recommendedPhase}',
+    ].join('\n');
   }
 
   void _recordExecutionJob(ExecutionJob job) {
@@ -466,22 +591,26 @@ class _DesktopBadge extends StatelessWidget {
 class _ToolsPanel extends StatelessWidget {
   const _ToolsPanel({
     required this.selectedTool,
-    required this.category,
+    required this.filter,
     required this.searchController,
-    required this.onCategoryChanged,
+    required this.onFilterChanged,
     required this.onToolSelected,
     required this.onCopyPrompt,
     required this.onOpenTool,
+    required this.onOpenGitHub,
+    required this.onCopyNotes,
     required this.onPreparePaste,
   });
 
   final BrowserAiTool selectedTool;
-  final BrowserAiCategory? category;
+  final _ToolFilter filter;
   final TextEditingController searchController;
-  final ValueChanged<BrowserAiCategory?> onCategoryChanged;
+  final ValueChanged<_ToolFilter> onFilterChanged;
   final ValueChanged<BrowserAiTool> onToolSelected;
   final VoidCallback onCopyPrompt;
   final ValueChanged<BrowserAiTool> onOpenTool;
+  final ValueChanged<BrowserAiTool> onOpenGitHub;
+  final ValueChanged<BrowserAiTool> onCopyNotes;
   final VoidCallback onPreparePaste;
 
   @override
@@ -491,8 +620,7 @@ class _ToolsPanel extends StatelessWidget {
       builder: (context, setLocalState) {
         final query = searchController.text;
         final visible = browserAiTools.where((tool) {
-          final matchesCategory = category == null || tool.category == category;
-          return matchesCategory && tool.matches(query);
+          return filter.matches(tool) && tool.matches(query);
         }).toList();
 
         return Container(
@@ -506,7 +634,7 @@ class _ToolsPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'AI-сервисы',
+                'External Tools / Новые сервисы',
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -530,14 +658,16 @@ class _ToolsPanel extends StatelessWidget {
                 children: [
                   ChoiceChip(
                     label: const Text('Все'),
-                    selected: category == null,
-                    onSelected: (_) => onCategoryChanged(null),
+                    selected: filter == _ToolFilter.all,
+                    onSelected: (_) => onFilterChanged(_ToolFilter.all),
                   ),
-                  for (final item in BrowserAiCategory.values)
+                  for (final item in _ToolFilter.values.where(
+                    (item) => item != _ToolFilter.all,
+                  ))
                     ChoiceChip(
                       label: Text(item.label),
-                      selected: category == item,
-                      onSelected: (_) => onCategoryChanged(item),
+                      selected: filter == item,
+                      onSelected: (_) => onFilterChanged(item),
                     ),
                 ],
               ),
@@ -554,6 +684,10 @@ class _ToolsPanel extends StatelessWidget {
                       onSelect: () => onToolSelected(tool),
                       onCopyPrompt: onCopyPrompt,
                       onOpenSite: () => onOpenTool(tool),
+                      onOpenGitHub: tool.githubUrl == null
+                          ? null
+                          : () => onOpenGitHub(tool),
+                      onCopyNotes: () => onCopyNotes(tool),
                       onPreparePaste: onPreparePaste,
                     );
                   },
@@ -574,6 +708,8 @@ class _ToolCard extends StatelessWidget {
     required this.onSelect,
     required this.onCopyPrompt,
     required this.onOpenSite,
+    required this.onOpenGitHub,
+    required this.onCopyNotes,
     required this.onPreparePaste,
   });
 
@@ -582,6 +718,8 @@ class _ToolCard extends StatelessWidget {
   final VoidCallback onSelect;
   final VoidCallback onCopyPrompt;
   final VoidCallback onOpenSite;
+  final VoidCallback? onOpenGitHub;
+  final VoidCallback onCopyNotes;
   final VoidCallback onPreparePaste;
 
   @override
@@ -637,9 +775,12 @@ class _ToolCard extends StatelessWidget {
               runSpacing: 6,
               children: [
                 _MiniPill(tool.category.label),
-                _MiniPill(tool.executionMode.label),
+                for (final category in tool.effectiveCategories.where(
+                  (category) => category != tool.category,
+                ))
+                  _MiniPill(category.label),
+                for (final mode in tool.integrationModes) _MiniPill(mode.label),
                 _MiniPill(tool.status.label),
-                _MiniPill(tool.accessType.label),
               ],
             ),
             if (tool.recommendedUseCase != null) ...[
@@ -653,6 +794,20 @@ class _ToolCard extends StatelessWidget {
                   height: 1.3,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+            if (tool.riskNotes != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                tool.riskNotes!,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFFFFD29D),
+                  height: 1.3,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
@@ -677,6 +832,16 @@ class _ToolCard extends StatelessWidget {
                   label: const Text(
                     '\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u0441\u0430\u0439\u0442',
                   ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: onOpenGitHub,
+                  icon: const Icon(Icons.code_rounded, size: 18),
+                  label: const Text('Открыть GitHub'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: onCopyNotes,
+                  icon: const Icon(Icons.summarize_outlined, size: 18),
+                  label: const Text('Скопировать notes'),
                 ),
                 OutlinedButton.icon(
                   onPressed: tool.promptRelevant ? onCopyPrompt : null,
@@ -710,6 +875,8 @@ class _BrowserWorkspace extends StatelessWidget {
     required this.latestJob,
     required this.onCopyPrompt,
     required this.onOpenExternal,
+    required this.onOpenGitHub,
+    required this.onCopyNotes,
     required this.onOpenInside,
     required this.onPreparePaste,
     required this.onSaveManualResult,
@@ -722,6 +889,8 @@ class _BrowserWorkspace extends StatelessWidget {
   final ExecutionJob? latestJob;
   final VoidCallback onCopyPrompt;
   final VoidCallback onOpenExternal;
+  final VoidCallback? onOpenGitHub;
+  final VoidCallback onCopyNotes;
   final VoidCallback onOpenInside;
   final VoidCallback onPreparePaste;
   final VoidCallback onSaveManualResult;
@@ -775,15 +944,20 @@ class _BrowserWorkspace extends StatelessWidget {
             runSpacing: 8,
             children: [
               _MiniPill(tool.category.label),
-              _MiniPill(tool.executionMode.label),
+              for (final category in tool.effectiveCategories.where(
+                (category) => category != tool.category,
+              ))
+                _MiniPill(category.label),
+              for (final mode in tool.integrationModes) _MiniPill(mode.label),
               _MiniPill(tool.status.label),
-              _MiniPill(tool.accessType.label),
               if (latestJob != null)
                 _MiniPill('Job: ${latestJob!.status.label}'),
             ],
           ),
           const SizedBox(height: 14),
           _StatusPanel(text: statusText, isWarning: kIsWeb),
+          const SizedBox(height: 10),
+          _ToolNotesPanel(tool: tool),
           const SizedBox(height: 14),
           Expanded(
             child: Container(
@@ -870,6 +1044,16 @@ class _BrowserWorkspace extends StatelessWidget {
                 label: const Text('Открыть внутри FLUTEN'),
               ),
               OutlinedButton.icon(
+                onPressed: onOpenGitHub,
+                icon: const Icon(Icons.code_rounded),
+                label: const Text('Открыть GitHub'),
+              ),
+              OutlinedButton.icon(
+                onPressed: onCopyNotes,
+                icon: const Icon(Icons.summarize_outlined),
+                label: const Text('Скопировать notes'),
+              ),
+              OutlinedButton.icon(
                 onPressed: onCopyPrompt,
                 icon: const Icon(Icons.copy_rounded),
                 label: const Text('Скопировать prompt'),
@@ -887,6 +1071,76 @@ class _BrowserWorkspace extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ToolNotesPanel extends StatelessWidget {
+  const _ToolNotesPanel({required this.tool});
+
+  final BrowserAiTool tool;
+
+  @override
+  Widget build(BuildContext context) {
+    final notes = <String>[
+      if (tool.recommendedUseCase != null)
+        'Best for: ${tool.recommendedUseCase}',
+      if (tool.freeTierNotes != null) 'Free/API: ${tool.freeTierNotes}',
+      if (tool.apiNotes != null) 'API: ${tool.apiNotes}',
+      if (tool.localInstallNotes != null) 'Local: ${tool.localInstallNotes}',
+      if (tool.riskNotes != null) 'Risk: ${tool.riskNotes}',
+      if (tool.recommendedPhase != null) 'Phase: ${tool.recommendedPhase}',
+    ];
+    if (notes.isEmpty && tool.githubUrl == null && tool.docsUrl == null) {
+      return const SizedBox.shrink();
+    }
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0x660B0F16),
+        border: Border.all(color: const Color(0x22FFFFFF)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Discovery notes',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          if (tool.githubUrl != null) _NoteLine('GitHub', tool.githubUrl!),
+          if (tool.docsUrl != null) _NoteLine('Docs', tool.docsUrl!),
+          for (final note in notes) _NoteLine(null, note),
+        ],
+      ),
+    );
+  }
+}
+
+class _NoteLine extends StatelessWidget {
+  const _NoteLine(this.label, this.text);
+
+  final String? label;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Text(
+        label == null ? text : '$label: $text',
+        style: const TextStyle(
+          color: Color(0xFFD7E1EE),
+          height: 1.35,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

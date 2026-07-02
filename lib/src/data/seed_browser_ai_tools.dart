@@ -6,6 +6,17 @@ const _browserModes = [
   BrowserLaunchMode.clipboardOnly,
 ];
 
+const _safeRepoNote =
+    'Сначала анализ. Не запускать код из репозитория без проверки.';
+const _localInstallNote =
+    'Локальная установка будет добавлена отдельным этапом после проверки зависимостей и лицензии.';
+const _freeTierNote =
+    'Free tier нужно проверить: лимиты, регистрация, регион, устойчивость.';
+const _safeModeNote =
+    'Безопасный режим: FLUTEN не запускает сторонние репозитории автоматически. Сначала анализ, потом отдельный install patch.';
+const _experimentalModelNote =
+    'Экспериментальная модель. Не используется по умолчанию.';
+
 const browserAiTools = <BrowserAiTool>[
   BrowserAiTool(
     id: 'chatgpt',
@@ -14,8 +25,10 @@ const browserAiTools = <BrowserAiTool>[
     category: BrowserAiCategory.text,
     accessType: BrowserToolAccessType.freemium,
     launchModes: _browserModes,
-    description: 'Текстовый ассистент для идей, сценариев, анализа, prompt building и creative direction.',
-    recommendedUseCase: 'AI Chat, prompt builder, сценарии, ресерч и текстовая стратегия.',
+    description:
+        'Текстовый ассистент для идей, сценариев, анализа, prompt building и creative direction.',
+    recommendedUseCase:
+        'AI Chat, prompt builder, сценарии, ресерч и текстовая стратегия.',
     supportedWorkflows: ['textChat', 'promptBuilder', 'browserHandoff'],
     tags: ['text', 'assistant', 'prompt', 'research'],
     workflowHints: ['Content Factory', 'Research', 'Prompt polish'],
@@ -40,8 +53,10 @@ const browserAiTools = <BrowserAiTool>[
     category: BrowserAiCategory.text,
     accessType: BrowserToolAccessType.freemium,
     launchModes: _browserModes,
-    description: 'AI-инструмент для текста, поиска, идей и multimodal-подготовки.',
-    recommendedUseCase: 'Быстрый ресерч, идеи, текст и browser-assisted workflows.',
+    description:
+        'AI-инструмент для текста, поиска, идей и multimodal-подготовки.',
+    recommendedUseCase:
+        'Быстрый ресерч, идеи, текст и browser-assisted workflows.',
     supportedWorkflows: ['textChat', 'promptBuilder', 'browserHandoff'],
     tags: ['assistant', 'google', 'research'],
     workflowHints: ['Research', 'Content Factory'],
@@ -92,7 +107,8 @@ const browserAiTools = <BrowserAiTool>[
     category: BrowserAiCategory.image,
     accessType: BrowserToolAccessType.freemium,
     launchModes: _browserModes,
-    description: 'Image generation через внешний сайт. FLUTEN готовит prompt, генерация выполняется вручную.',
+    description:
+        'Image generation через внешний сайт. FLUTEN готовит prompt, генерация выполняется вручную.',
     recommendedUseCase: 'Key visuals, art direction, stylized image prompts.',
     supportedWorkflows: ['textToImage', 'browserHandoff'],
     tags: ['image', 'art', 'style'],
@@ -144,7 +160,8 @@ const browserAiTools = <BrowserAiTool>[
     category: BrowserAiCategory.image,
     accessType: BrowserToolAccessType.freemium,
     launchModes: _browserModes,
-    description: 'Image/design workflow через сайт: prompt, векторный стиль, брендовые visual assets.',
+    description:
+        'Image/design workflow через сайт: prompt, векторный стиль, брендовые visual assets.',
     recommendedUseCase: 'Brand images, design assets, visual iterations.',
     supportedWorkflows: ['textToImage', 'imageToImage', 'browserHandoff'],
     tags: ['image', 'design', 'brand'],
@@ -157,7 +174,8 @@ const browserAiTools = <BrowserAiTool>[
     category: BrowserAiCategory.video,
     accessType: BrowserToolAccessType.freemium,
     launchModes: _browserModes,
-    description: 'Видеогенерация, image-to-video и cinematic motion через сайт.',
+    description:
+        'Видеогенерация, image-to-video и cinematic motion через сайт.',
     recommendedUseCase: 'Text-to-video, image-to-video, short cinematic shots.',
     supportedWorkflows: ['textToVideo', 'imageToVideo', 'browserHandoff'],
     tags: ['video', 'image to video', 'cinema'],
@@ -170,7 +188,8 @@ const browserAiTools = <BrowserAiTool>[
     category: BrowserAiCategory.video,
     accessType: BrowserToolAccessType.freemium,
     launchModes: _browserModes,
-    description: 'Кинематографичные видео, движения камеры и social clips через сайт.',
+    description:
+        'Кинематографичные видео, движения камеры и social clips через сайт.',
     recommendedUseCase: 'Cinematic camera moves, creator clips, ads.',
     supportedWorkflows: ['textToVideo', 'imageToVideo', 'browserHandoff'],
     tags: ['video', 'camera', 'reels'],
@@ -235,7 +254,8 @@ const browserAiTools = <BrowserAiTool>[
     category: BrowserAiCategory.audio,
     accessType: BrowserToolAccessType.freemium,
     launchModes: _browserModes,
-    description: 'Music generation через сайт. FLUTEN пока готовит текст/prompt вручную.',
+    description:
+        'Music generation через сайт. FLUTEN пока готовит текст/prompt вручную.',
     recommendedUseCase: 'Music generation and song idea drafts.',
     supportedWorkflows: ['musicGeneration', 'browserHandoff'],
     tags: ['audio', 'music', 'song'],
@@ -274,7 +294,8 @@ const browserAiTools = <BrowserAiTool>[
     category: BrowserAiCategory.audio,
     accessType: BrowserToolAccessType.freemium,
     launchModes: _browserModes,
-    description: 'Audio generation через сайт. Внутри FLUTEN генерация не подключена.',
+    description:
+        'Audio generation через сайт. Внутри FLUTEN генерация не подключена.',
     recommendedUseCase: 'Sound beds, audio ideas and music drafts.',
     supportedWorkflows: ['textToAudio', 'musicGeneration', 'browserHandoff'],
     tags: ['audio', 'music', 'sound'],
@@ -286,7 +307,10 @@ const browserAiTools = <BrowserAiTool>[
     url: 'http://localhost:3001',
     category: BrowserAiCategory.audio,
     accessType: BrowserToolAccessType.free,
-    launchModes: [BrowserLaunchMode.externalBrowser, BrowserLaunchMode.clipboardOnly],
+    launchModes: [
+      BrowserLaunchMode.externalBrowser,
+      BrowserLaunchMode.clipboardOnly,
+    ],
     description:
         'Локальный music/audio runtime. FLUTEN пока только проверяет статус и готовит prompt.',
     executionMode: BrowserExecutionMode.local,
@@ -303,8 +327,10 @@ const browserAiTools = <BrowserAiTool>[
     category: BrowserAiCategory.utility,
     accessType: BrowserToolAccessType.freemium,
     launchModes: _browserModes,
-    description: 'Models, datasets, Spaces and research hub. Это browser utility, не встроенный runtime.',
-    recommendedUseCase: 'Model research, datasets, Spaces and technical lookup.',
+    description:
+        'Models, datasets, Spaces and research hub. Это browser utility, не встроенный runtime.',
+    recommendedUseCase:
+        'Model research, datasets, Spaces and technical lookup.',
     supportedWorkflows: ['utility', 'browserHandoff'],
     tags: ['models', 'datasets', 'spaces', 'utility'],
     workflowHints: ['Research', 'Model discovery'],
@@ -316,7 +342,8 @@ const browserAiTools = <BrowserAiTool>[
     category: BrowserAiCategory.utility,
     accessType: BrowserToolAccessType.account,
     launchModes: _browserModes,
-    description: 'Model routing and API gateway. В FLUTEN API-ключи пока не подключены.',
+    description:
+        'Model routing and API gateway. В FLUTEN API-ключи пока не подключены.',
     executionMode: BrowserExecutionMode.api,
     status: BrowserProviderStatus.apiKeyRequired,
     recommendedUseCase: 'Provider comparison and future API routing.',
@@ -331,10 +358,12 @@ const browserAiTools = <BrowserAiTool>[
     category: BrowserAiCategory.utility,
     accessType: BrowserToolAccessType.account,
     launchModes: _browserModes,
-    description: 'Model hosting and inference catalog. FLUTEN пока не выполняет API-запуск.',
+    description:
+        'Model hosting and inference catalog. FLUTEN пока не выполняет API-запуск.',
     executionMode: BrowserExecutionMode.api,
     status: BrowserProviderStatus.apiKeyRequired,
-    recommendedUseCase: 'Model catalog, hosted inference and future API routes.',
+    recommendedUseCase:
+        'Model catalog, hosted inference and future API routes.',
     supportedWorkflows: ['utility', 'browserHandoff'],
     tags: ['api', 'models', 'inference'],
     workflowHints: ['Provider routing'],
@@ -345,13 +374,435 @@ const browserAiTools = <BrowserAiTool>[
     url: 'http://127.0.0.1:8188/',
     category: BrowserAiCategory.utility,
     accessType: BrowserToolAccessType.free,
-    launchModes: [BrowserLaunchMode.externalBrowser, BrowserLaunchMode.clipboardOnly],
-    description: 'Localhost tool placeholder. FLUTEN не запускает ComfyUI автоматически.',
+    launchModes: [
+      BrowserLaunchMode.externalBrowser,
+      BrowserLaunchMode.clipboardOnly,
+    ],
+    description:
+        'Localhost tool placeholder. FLUTEN не запускает ComfyUI автоматически.',
     executionMode: BrowserExecutionMode.local,
     status: BrowserProviderStatus.localNotConnected,
-    recommendedUseCase: 'Future local visual workflows and node-based generation.',
-    supportedWorkflows: ['utility', 'textToImage', 'imageToImage', 'browserHandoff'],
+    recommendedUseCase:
+        'Future local visual workflows and node-based generation.',
+    supportedWorkflows: [
+      'utility',
+      'textToImage',
+      'imageToImage',
+      'browserHandoff',
+    ],
     tags: ['local', 'comfyui', 'image', 'nodes'],
     workflowHints: ['Local runtime'],
+  ),
+  BrowserAiTool(
+    id: 'omniroute',
+    name: 'OmniRoute',
+    url: 'https://github.com/diegosouzapw/OmniRoute',
+    githubUrl: 'https://github.com/diegosouzapw/OmniRoute',
+    category: BrowserAiCategory.router,
+    categories: [BrowserAiCategory.router, BrowserAiCategory.text],
+    integrationModes: [
+      BrowserIntegrationMode.apiCandidate,
+      BrowserIntegrationMode.mcpCandidate,
+      BrowserIntegrationMode.experimental,
+    ],
+    accessType: BrowserToolAccessType.account,
+    launchModes: [
+      BrowserLaunchMode.externalBrowser,
+      BrowserLaunchMode.clipboardOnly,
+    ],
+    description:
+        'Multi-model text routing and OpenAI-compatible gateway candidate. Catalog only; API execution is not connected.',
+    executionMode: BrowserExecutionMode.unavailable,
+    status: BrowserProviderStatus.researchNeeded,
+    recommendedUseCase:
+        'Multi-model text routing, OpenAI-compatible gateway research, free/low-cost route comparison.',
+    freeTierNotes: _freeTierNote,
+    apiNotes:
+        'API-кандидат: endpoint, tokens, rate limits, self-host mode and license must be verified before settings are added.',
+    localInstallNotes: _localInstallNote,
+    riskNotes: _safeRepoNote,
+    recommendedPhase: 'Phase 3 provider/API research',
+    supportedWorkflows: ['providerDiscovery', 'textRouting', 'browserHandoff'],
+    promptRelevant: false,
+    tags: ['router', 'text', 'api candidate', 'mcp candidate', 'experimental'],
+    workflowHints: ['Provider routing', 'Research'],
+  ),
+  BrowserAiTool(
+    id: 'hyperframes',
+    name: 'HyperFrames',
+    url: 'https://github.com/heygen-com/hyperframes',
+    githubUrl: 'https://github.com/heygen-com/hyperframes',
+    category: BrowserAiCategory.video,
+    categories: [
+      BrowserAiCategory.video,
+      BrowserAiCategory.workflow,
+      BrowserAiCategory.agent,
+    ],
+    integrationModes: [
+      BrowserIntegrationMode.localSelfHostCandidate,
+      BrowserIntegrationMode.researchOnly,
+    ],
+    accessType: BrowserToolAccessType.free,
+    launchModes: [
+      BrowserLaunchMode.externalBrowser,
+      BrowserLaunchMode.clipboardOnly,
+    ],
+    description:
+        'HTML/CSS/JS deterministic video renderer candidate for captions, explainers, promos and social motion graphics.',
+    executionMode: BrowserExecutionMode.unavailable,
+    status: BrowserProviderStatus.researchNeeded,
+    recommendedUseCase:
+        'Future local render route for deterministic video, captions and product/social videos.',
+    localInstallNotes: _localInstallNote,
+    riskNotes: _safeRepoNote,
+    recommendedPhase: 'Future HyperFrames local render route',
+    supportedWorkflows: ['videoWorkflow', 'providerDiscovery'],
+    promptRelevant: false,
+    tags: ['video', 'workflow', 'local candidate', 'renderer'],
+    workflowHints: ['Video Studio', 'Content Factory'],
+  ),
+  BrowserAiTool(
+    id: 'openmontage',
+    name: 'OpenMontage',
+    url: 'https://github.com/calesthio/OpenMontage',
+    githubUrl: 'https://github.com/calesthio/OpenMontage',
+    category: BrowserAiCategory.workflow,
+    categories: [
+      BrowserAiCategory.video,
+      BrowserAiCategory.agent,
+      BrowserAiCategory.workflow,
+    ],
+    integrationModes: [
+      BrowserIntegrationMode.localSelfHostCandidate,
+      BrowserIntegrationMode.researchOnly,
+    ],
+    accessType: BrowserToolAccessType.free,
+    launchModes: [
+      BrowserLaunchMode.externalBrowser,
+      BrowserLaunchMode.clipboardOnly,
+    ],
+    description:
+        'Agentic video pipeline reference for ads, trailers, educational videos and script-to-assets-to-edit workflows.',
+    executionMode: BrowserExecutionMode.unavailable,
+    status: BrowserProviderStatus.researchNeeded,
+    recommendedUseCase:
+        'Architecture reference for future workflow templates and content factory planning.',
+    localInstallNotes: _localInstallNote,
+    riskNotes: _safeRepoNote,
+    recommendedPhase: 'Research-only architecture review',
+    supportedWorkflows: [
+      'videoWorkflow',
+      'contentFactory',
+      'providerDiscovery',
+    ],
+    promptRelevant: false,
+    tags: ['video', 'agent', 'workflow', 'research only'],
+    workflowHints: ['Content Factory', 'Research'],
+  ),
+  BrowserAiTool(
+    id: 'aitoearn',
+    name: 'AiToEarn',
+    url: 'https://github.com/yikart/AiToEarn',
+    githubUrl: 'https://github.com/yikart/AiToEarn',
+    category: BrowserAiCategory.social,
+    categories: [
+      BrowserAiCategory.social,
+      BrowserAiCategory.agent,
+      BrowserAiCategory.workflow,
+    ],
+    integrationModes: [BrowserIntegrationMode.researchOnly],
+    accessType: BrowserToolAccessType.account,
+    launchModes: [
+      BrowserLaunchMode.externalBrowser,
+      BrowserLaunchMode.clipboardOnly,
+    ],
+    description:
+        'Content factory and social publishing reference. No autoposting or login automation is connected.',
+    executionMode: BrowserExecutionMode.unavailable,
+    status: BrowserProviderStatus.researchNeeded,
+    recommendedUseCase:
+        'Future Social Publishing block research: multi-platform posting, monetization and content operations.',
+    localInstallNotes: _localInstallNote,
+    riskNotes:
+        'Social APIs, logins and token scopes are risky. No autoposting in this phase. $_safeRepoNote',
+    recommendedPhase: 'Future Social Publishing research',
+    supportedWorkflows: [
+      'socialPublishing',
+      'contentFactory',
+      'providerDiscovery',
+    ],
+    promptRelevant: false,
+    tags: ['social', 'agent', 'publishing', 'research only'],
+    workflowHints: ['Social Intelligence', 'Content Factory'],
+  ),
+  BrowserAiTool(
+    id: 'videosos',
+    name: 'VideoSOS',
+    url: 'https://videosos.vercel.app/ru',
+    githubUrl: 'https://github.com/timoncool/videosos',
+    category: BrowserAiCategory.video,
+    categories: [
+      BrowserAiCategory.video,
+      BrowserAiCategory.editor,
+      BrowserAiCategory.workflow,
+    ],
+    integrationModes: [
+      BrowserIntegrationMode.browserManual,
+      BrowserIntegrationMode.localSelfHostCandidate,
+    ],
+    accessType: BrowserToolAccessType.freemium,
+    launchModes: _browserModes,
+    description:
+        'AI video editing and timeline reference with provider switching, cost comparison, lip-sync and upscale workflow ideas.',
+    status: BrowserProviderStatus.readyBrowser,
+    recommendedUseCase:
+        'Browser/manual video editing workflow now; possible local module candidate later.',
+    freeTierNotes: _freeTierNote,
+    localInstallNotes: _localInstallNote,
+    riskNotes: _safeModeNote,
+    recommendedPhase: 'Browser Hub now, local module research later',
+    supportedWorkflows: ['textToVideo', 'videoEdit', 'browserHandoff'],
+    tags: ['video', 'editor', 'timeline', 'browser manual'],
+    workflowHints: ['Video Studio', 'Post-production'],
+  ),
+  BrowserAiTool(
+    id: 'palmier',
+    name: 'Palmier',
+    url: 'https://www.palmier.io/',
+    category: BrowserAiCategory.editor,
+    categories: [BrowserAiCategory.video, BrowserAiCategory.editor],
+    integrationModes: [
+      BrowserIntegrationMode.browserManual,
+      BrowserIntegrationMode.mcpCandidate,
+    ],
+    accessType: BrowserToolAccessType.account,
+    launchModes: _browserModes,
+    description:
+        'Agent-controlled video editing candidate for shorts cutting, subtitles, transitions and timeline control.',
+    status: BrowserProviderStatus.researchNeeded,
+    recommendedUseCase:
+        'Browser/manual video editing now; MCP control research later.',
+    apiNotes:
+        'MCP/API capabilities require verification before any integration.',
+    riskNotes: 'May be macOS-focused. Do not assume Windows local support.',
+    recommendedPhase: 'Browser/manual now, MCP research later',
+    supportedWorkflows: ['videoEdit', 'browserHandoff'],
+    tags: ['video', 'editor', 'mcp candidate', 'browser manual'],
+    workflowHints: ['Video Studio', 'Post-production'],
+  ),
+  BrowserAiTool(
+    id: 'tiktok-creative-center',
+    name: 'TikTok Creative Center / Symphony',
+    url: 'https://ads.tiktok.com/creative/',
+    docsUrl:
+        'https://ads.tiktok.com/creative/creativeCenter/tools/creativeTools',
+    category: BrowserAiCategory.social,
+    categories: [
+      BrowserAiCategory.social,
+      BrowserAiCategory.video,
+      BrowserAiCategory.research,
+    ],
+    integrationModes: [BrowserIntegrationMode.browserManual],
+    accessType: BrowserToolAccessType.account,
+    launchModes: _browserModes,
+    description:
+        'Official TikTok trend, ad inspiration and creative tools surface for short-form social research.',
+    status: BrowserProviderStatus.readyBrowser,
+    recommendedUseCase:
+        'TikTok trends, ad inspiration, creative tools and short-form ad workflow research.',
+    riskNotes:
+        'Official TikTok tool; login, region and feature availability may vary.',
+    recommendedPhase: 'Browser Hub / Research workflow',
+    supportedWorkflows: ['socialResearch', 'videoResearch', 'browserHandoff'],
+    tags: ['social', 'video', 'ads', 'research', 'tiktok'],
+    workflowHints: ['Social Intelligence', 'Ads research'],
+  ),
+  BrowserAiTool(
+    id: 'google-ai-studio-veo',
+    name: 'Google Gemini / Veo / AI Studio',
+    url: 'https://aistudio.google.com/',
+    docsUrl: 'https://gemini.google/overview/video-generation/',
+    category: BrowserAiCategory.text,
+    categories: [
+      BrowserAiCategory.text,
+      BrowserAiCategory.image,
+      BrowserAiCategory.video,
+    ],
+    integrationModes: [
+      BrowserIntegrationMode.browserManual,
+      BrowserIntegrationMode.apiCandidate,
+    ],
+    accessType: BrowserToolAccessType.account,
+    launchModes: _browserModes,
+    description:
+        'Gemini text, image/video generation and Veo workflow surface. Browser/manual now; API candidate later.',
+    executionMode: BrowserExecutionMode.browser,
+    status: BrowserProviderStatus.readyBrowser,
+    recommendedUseCase:
+        'Gemini text, image/video generation and Veo workflows.',
+    freeTierNotes: _freeTierNote,
+    apiNotes:
+        'Google API settings should reuse existing Gemini provider support where available.',
+    riskNotes:
+        'Availability and plan limits must be checked per account and region.',
+    recommendedPhase: 'Browser/manual now, API candidate later',
+    supportedWorkflows: [
+      'textChat',
+      'textToImage',
+      'textToVideo',
+      'browserHandoff',
+    ],
+    tags: ['text', 'image', 'video', 'gemini', 'veo', 'api candidate'],
+    workflowHints: ['Video Studio', 'Image Studio', 'Research'],
+  ),
+  BrowserAiTool(
+    id: 'tencent-hunyuan',
+    name: 'Tencent AI Studio / Hunyuan',
+    url: 'https://aistudio.tencent.com',
+    githubUrl: 'https://github.com/Tencent-Hunyuan/HunyuanVideo',
+    category: BrowserAiCategory.video,
+    categories: [BrowserAiCategory.video, BrowserAiCategory.image],
+    integrationModes: [
+      BrowserIntegrationMode.apiCandidate,
+      BrowserIntegrationMode.localSelfHostCandidate,
+      BrowserIntegrationMode.researchOnly,
+    ],
+    accessType: BrowserToolAccessType.account,
+    launchModes: _browserModes,
+    description:
+        'Hunyuan video/image generation research entry for cloud/API and future local route evaluation.',
+    executionMode: BrowserExecutionMode.browser,
+    status: BrowserProviderStatus.researchNeeded,
+    recommendedUseCase:
+        'Hunyuan video/image generation research; cloud/API route is more realistic than local on GTX 1080.',
+    freeTierNotes: _freeTierNote,
+    apiNotes: 'API/cloud contract must be verified before adding settings.',
+    localInstallNotes:
+        'Local video models may be too heavy for GTX 1080. Do not install in this phase.',
+    riskNotes: _safeRepoNote,
+    recommendedPhase: 'Research/provider entry now',
+    supportedWorkflows: ['textToVideo', 'textToImage', 'providerDiscovery'],
+    tags: ['video', 'image', 'hunyuan', 'api candidate', 'local candidate'],
+    workflowHints: ['Video Studio', 'Model discovery'],
+  ),
+  BrowserAiTool(
+    id: 'geminigen',
+    name: 'GeminiGen',
+    url: 'https://geminigen.ai/',
+    category: BrowserAiCategory.video,
+    categories: [BrowserAiCategory.image, BrowserAiCategory.video],
+    integrationModes: [
+      BrowserIntegrationMode.browserManual,
+      BrowserIntegrationMode.experimental,
+      BrowserIntegrationMode.unsafeUnverified,
+    ],
+    accessType: BrowserToolAccessType.account,
+    launchModes: _browserModes,
+    description:
+        'Experimental Gemini-like image/video generation browser workflow. Treat as unverified.',
+    status: BrowserProviderStatus.experimental,
+    recommendedUseCase: 'Experimental Browser Hub image/video workflow only.',
+    riskNotes:
+        'Do not trust as API until verified. Do not store keys for it yet.',
+    recommendedPhase: 'Experimental Browser Hub only',
+    supportedWorkflows: ['textToImage', 'textToVideo', 'browserHandoff'],
+    tags: ['image', 'video', 'experimental', 'unverified'],
+    workflowHints: ['Experimental'],
+  ),
+  BrowserAiTool(
+    id: 'godmode-research',
+    name: 'GodMode / GodMode 3 research',
+    url: 'https://www.google.com/search?q=GodMode+multi+chat+browser',
+    category: BrowserAiCategory.research,
+    categories: [BrowserAiCategory.text, BrowserAiCategory.research],
+    integrationModes: [
+      BrowserIntegrationMode.researchOnly,
+      BrowserIntegrationMode.experimental,
+      BrowserIntegrationMode.unsafeUnverified,
+    ],
+    accessType: BrowserToolAccessType.free,
+    launchModes: [
+      BrowserLaunchMode.externalBrowser,
+      BrowserLaunchMode.clipboardOnly,
+    ],
+    description:
+        'Research-only multi-provider browser UI idea: send a prompt to multiple web apps and compare outputs safely.',
+    executionMode: BrowserExecutionMode.unavailable,
+    status: BrowserProviderStatus.unsafeUnverified,
+    recommendedUseCase:
+        'Safe browser UX ideas for multi-chat comparison. No uncensored or jailbreak modes.',
+    riskNotes:
+        'Do not add uncensored/jailbreak modes. Only safe browser UX inspiration is allowed.',
+    recommendedPhase: 'Research-only UI inspiration',
+    supportedWorkflows: ['research'],
+    promptRelevant: false,
+    tags: ['text', 'browser', 'research', 'experimental', 'unsafe unverified'],
+    workflowHints: ['Research'],
+  ),
+  BrowserAiTool(
+    id: 'local-model-candidates',
+    name: 'Local model candidates',
+    url: 'https://huggingface.co/models',
+    category: BrowserAiCategory.localModel,
+    categories: [
+      BrowserAiCategory.localModel,
+      BrowserAiCategory.text,
+      BrowserAiCategory.code,
+    ],
+    integrationModes: [
+      BrowserIntegrationMode.researchOnly,
+      BrowserIntegrationMode.experimental,
+      BrowserIntegrationMode.unsafeUnverified,
+    ],
+    accessType: BrowserToolAccessType.free,
+    launchModes: [
+      BrowserLaunchMode.externalBrowser,
+      BrowserLaunchMode.clipboardOnly,
+    ],
+    description:
+        'Custom local model registry candidates for Ollama/LM Studio and coding assistant evaluation.',
+    executionMode: BrowserExecutionMode.unavailable,
+    status: BrowserProviderStatus.experimental,
+    recommendedUseCase:
+        'Future Local Model Registry candidates. Do not call them Claude/Fable replacements or make defaults.',
+    localInstallNotes:
+        'User can add custom local models later through a separate Local Model Registry phase.',
+    riskNotes: _experimentalModelNote,
+    recommendedPhase: 'Future Local Model Registry',
+    supportedWorkflows: ['localModelResearch'],
+    promptRelevant: false,
+    tags: ['local model', 'text', 'code', 'experimental', 'unverified'],
+    workflowHints: ['Model discovery', 'Local runtime'],
+  ),
+  BrowserAiTool(
+    id: 'arena-glm-design-models',
+    name: 'Arena / GLM / Design Arena models',
+    url: 'https://chat.lmsys.org/',
+    category: BrowserAiCategory.code,
+    categories: [
+      BrowserAiCategory.text,
+      BrowserAiCategory.code,
+      BrowserAiCategory.research,
+    ],
+    integrationModes: [
+      BrowserIntegrationMode.apiCandidate,
+      BrowserIntegrationMode.researchOnly,
+    ],
+    accessType: BrowserToolAccessType.account,
+    launchModes: _browserModes,
+    description:
+        'Research candidates for HTML/CSS/UI generation, code assistance and web design prompt comparison.',
+    executionMode: BrowserExecutionMode.browser,
+    status: BrowserProviderStatus.researchNeeded,
+    recommendedUseCase:
+        'HTML/CSS/UI generation, code assistant and web design prompt research if API exists.',
+    apiNotes:
+        'API availability and contracts must be verified before adding provider settings.',
+    riskNotes: _freeTierNote,
+    recommendedPhase:
+        'Research-only now, future text/code provider if API is available',
+    supportedWorkflows: ['codeResearch', 'designResearch', 'browserHandoff'],
+    tags: ['text', 'code', 'design', 'api candidate', 'research'],
+    workflowHints: ['Prompt Studio', 'Research'],
   ),
 ];
