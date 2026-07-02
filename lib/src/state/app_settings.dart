@@ -111,6 +111,18 @@ extension AppDestinationRoute on AppDestination {
   }
 }
 
+class ProviderHealthSnapshot {
+  const ProviderHealthSnapshot({
+    required this.statusLabel,
+    required this.message,
+    required this.testedAt,
+  });
+
+  final String statusLabel;
+  final String message;
+  final DateTime testedAt;
+}
+
 class AppSettings extends ChangeNotifier {
   AppSettings({required SharedPreferences preferences})
     : _preferences = preferences {
@@ -135,6 +147,8 @@ class AppSettings extends ChangeNotifier {
     ollamaModel = _preferences.getString(_ollamaModelKey) ?? defaultOllamaModel;
     themeAccent = _preferences.getString(_accentKey) ?? 'cyan';
     darkMode = _preferences.getBool(_darkModeKey) ?? true;
+    lastTextProviderId = _preferences.getString(_lastTextProviderKey) ?? '';
+    lastTextModel = _preferences.getString(_lastTextModelKey) ?? '';
 
     final savedDestination = _preferences.getString(_startupKey);
     startupDestination = AppDestination.values.firstWhere(
@@ -159,6 +173,8 @@ class AppSettings extends ChangeNotifier {
   static const _providerApiKeyPrefix = 'execution_provider_api_key_';
   static const _providerBaseUrlPrefix = 'execution_provider_base_url_';
   static const _providerModelPrefix = 'execution_provider_model_';
+  static const _lastTextProviderKey = 'last_text_provider_id';
+  static const _lastTextModelKey = 'last_text_model';
   static const _localEnabledPrefix = 'execution_local_enabled_';
   static const _localEndpointPrefix = 'execution_local_endpoint_';
   static const _localUiEndpointPrefix = 'execution_local_ui_endpoint_';
@@ -195,6 +211,10 @@ class AppSettings extends ChangeNotifier {
   String? pendingImagePromptDraft;
   String? pendingVideoPromptDraft;
   String? pendingAudioPromptDraft;
+  String lastTextProviderId = '';
+  String lastTextModel = '';
+  final Map<String, ProviderHealthSnapshot> _providerHealth =
+      <String, ProviderHealthSnapshot>{};
 
   Set<String> get favoriteIds => Set.unmodifiable(_favoriteIds);
   Set<String> get favoriteAgentIds => Set.unmodifiable(_favoriteAgentIds);
@@ -389,6 +409,35 @@ class AppSettings extends ChangeNotifier {
         fallback;
   }
 
+  ProviderHealthSnapshot? providerHealth(String providerId) {
+    return _providerHealth[providerId];
+  }
+
+  Future<void> setLastTextSelection({
+    required String providerId,
+    required String model,
+  }) async {
+    lastTextProviderId = providerId.trim();
+    lastTextModel = model.trim();
+    await _preferences.setString(_lastTextProviderKey, lastTextProviderId);
+    await _preferences.setString(_lastTextModelKey, lastTextModel);
+    notifyListeners();
+  }
+
+  void setProviderHealth({
+    required String providerId,
+    required String statusLabel,
+    required String message,
+    DateTime? testedAt,
+  }) {
+    _providerHealth[providerId] = ProviderHealthSnapshot(
+      statusLabel: statusLabel,
+      message: message,
+      testedAt: testedAt ?? DateTime.now(),
+    );
+    notifyListeners();
+  }
+
   String maskedProviderApiKey(String providerId) {
     return maskSecret(providerApiKey(providerId));
   }
@@ -421,6 +470,7 @@ class AppSettings extends ChangeNotifier {
   Future<void> clearProviderApiKey(String providerId) async {
     await _preferences.remove('$_providerApiKeyPrefix$providerId');
     await _preferences.setBool('$_providerEnabledPrefix$providerId', false);
+    _providerHealth.remove(providerId);
     notifyListeners();
   }
 
@@ -453,7 +503,10 @@ class AppSettings extends ChangeNotifier {
   }) async {
     final normalized = endpoint.trim();
     await _preferences.setBool('$_localEnabledPrefix$providerId', enabled);
-    await _preferences.setString('$_localEndpointPrefix$providerId', normalized);
+    await _preferences.setString(
+      '$_localEndpointPrefix$providerId',
+      normalized,
+    );
     if (providerId == 'ollama') {
       ollamaBaseUrl = normalized;
       await _preferences.setString(_ollamaBaseUrlKey, normalized);

@@ -87,7 +87,7 @@ class OpenAiCompatibleTextService {
       if (decoded is! Map<String, dynamic>) {
         return const OpenAiTextResult(
           success: false,
-          error: 'Invalid API response.',
+          error: 'Неверный ответ провайдера.',
         );
       }
       final choices = decoded['choices'];
@@ -100,7 +100,7 @@ class OpenAiCompatibleTextService {
       if (clean == null || clean.isEmpty) {
         return const OpenAiTextResult(
           success: false,
-          error: 'API response did not contain assistant content.',
+          error: 'Неверный ответ провайдера.',
         );
       }
       return OpenAiTextResult(
@@ -110,19 +110,19 @@ class OpenAiCompatibleTextService {
         usage: _usage(decoded['usage']),
       );
     } on TimeoutException {
-      return OpenAiTextResult(
+      return const OpenAiTextResult(
         success: false,
-        error: '$providerName не ответил вовремя.',
+        error: 'Провайдер не отвечает.',
       );
     } on SocketException {
-      return OpenAiTextResult(
+      return const OpenAiTextResult(
         success: false,
-        error: 'Network error while calling $providerName.',
+        error: 'Провайдер не отвечает.',
       );
     } catch (_) {
-      return OpenAiTextResult(
+      return const OpenAiTextResult(
         success: false,
-        error: '$providerName request failed.',
+        error: 'Ошибка провайдера.',
       );
     } finally {
       client.close(force: true);
@@ -217,15 +217,21 @@ class OpenAiCompatibleTextService {
       if (error is Map) {
         final message = error['message'] as String?;
         if (message != null && message.trim().isNotEmpty) {
-          return 'HTTP $statusCode: ${_redact(message)}';
+          return _classifyProviderError(
+            statusCode: statusCode,
+            message: _redact(message),
+          );
         }
       }
       final message = decoded['message'] as String?;
       if (message != null && message.trim().isNotEmpty) {
-        return 'HTTP $statusCode: ${_redact(message)}';
+        return _classifyProviderError(
+          statusCode: statusCode,
+          message: _redact(message),
+        );
       }
     }
-    return 'HTTP $statusCode';
+    return _safeHealthError(statusCode);
   }
 
   String _safeHealthError(int statusCode) {
@@ -233,9 +239,36 @@ class OpenAiCompatibleTextService {
       401 || 403 => 'Ключ отклонён или нет доступа.',
       404 => 'Endpoint не найден. Проверь Base URL.',
       429 => 'Лимит или rate limit.',
-      >= 500 && < 600 => 'Ошибка провайдера.',
-      _ => 'Ошибка API.',
+      >= 500 && < 600 => 'Провайдер не отвечает.',
+      _ => 'Ошибка провайдера.',
     };
+  }
+
+  String _classifyProviderError({
+    required int statusCode,
+    required String message,
+  }) {
+    final lower = message.toLowerCase();
+    if (statusCode == 401 ||
+        statusCode == 403 ||
+        lower.contains('auth') ||
+        lower.contains('key') ||
+        lower.contains('token')) {
+      return 'Ключ отклонён или нет доступа.';
+    }
+    if (statusCode == 404 || lower.contains('not found')) {
+      return 'Endpoint не найден. Проверь Base URL.';
+    }
+    if (statusCode == 429 || lower.contains('rate limit')) {
+      return 'Лимит или rate limit.';
+    }
+    if (statusCode >= 500 && statusCode < 600) {
+      return 'Провайдер не отвечает.';
+    }
+    if (lower.contains('invalid') || lower.contains('schema')) {
+      return 'Неверный ответ провайдера.';
+    }
+    return 'Ошибка провайдера.';
   }
 
   String _redact(String value) {

@@ -265,6 +265,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
     if (blocked != null) {
       setState(() => _apiHealth[provider.id] = blocked);
+      settings.setProviderHealth(
+        providerId: provider.id,
+        statusLabel: blocked.statusLabel,
+        message: blocked.message,
+      );
       _showMessage('${provider.name}: ${blocked.statusLabel}.');
       return;
     }
@@ -301,6 +306,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _checkingApi.remove(provider.id);
       _apiHealth[provider.id] = health;
     });
+    settings.setProviderHealth(
+      providerId: provider.id,
+      statusLabel: health.statusLabel,
+      message: health.message,
+      testedAt: health.testedAt,
+    );
     unawaited(
       runtime.addEvent(
         type: 'settings',

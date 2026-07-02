@@ -17,6 +17,16 @@ void main() {
     await settings.setOperatorMode(OperatorMode.local);
     await settings.setOllamaBaseUrl('http://127.0.0.1:11434');
     await settings.setStartupDestination(AppDestination.tools);
+    await settings.setLastTextSelection(
+      providerId: 'openrouter-api',
+      model: 'openai/gpt-4o-mini',
+    );
+    settings.setProviderHealth(
+      providerId: 'openrouter',
+      statusLabel: 'Готово',
+      message: 'Готово',
+      testedAt: DateTime(2026, 7, 2, 12),
+    );
 
     final restored = AppSettings(preferences: preferences);
 
@@ -28,5 +38,9 @@ void main() {
     expect(restored.operatorMode, OperatorMode.local);
     expect(restored.ollamaBaseUrl, 'http://127.0.0.1:11434');
     expect(restored.startupDestination, AppDestination.tools);
+    expect(restored.lastTextProviderId, 'openrouter-api');
+    expect(restored.lastTextModel, 'openai/gpt-4o-mini');
+    expect(restored.providerHealth('openrouter'), isNull);
+    expect(settings.providerHealth('openrouter')?.statusLabel, 'Готово');
   });
 }

@@ -107,8 +107,6 @@ class _OpenAiCompatibleProviderConfig {
     required this.providerName,
     required this.defaultModel,
     required this.defaultBaseUrl,
-    required this.missingApiKeyMessage,
-    required this.missingApiKeySnack,
     this.missingBaseUrlMessage,
   });
 
@@ -116,8 +114,6 @@ class _OpenAiCompatibleProviderConfig {
   final String providerName;
   final String defaultModel;
   final String defaultBaseUrl;
-  final String missingApiKeyMessage;
-  final String missingApiKeySnack;
   final String? missingBaseUrlMessage;
 }
 
@@ -135,6 +131,27 @@ String _defaultModelForTextProvider(TextAiProvider provider) {
     'omniroute-api' => 'auto',
     _ => '',
   };
+}
+
+String _configStatusForProvider({
+  required AppSettings settings,
+  required String settingsProviderId,
+  required String model,
+}) {
+  if (!settings.hasProviderApiKey(settingsProviderId)) {
+    return 'Нужен API-ключ';
+  }
+  final savedBaseUrl = settings.providerBaseUrl(settingsProviderId).trim();
+  if (settingsProviderId == 'omniroute' && savedBaseUrl.isEmpty) {
+    return 'Нужен Base URL';
+  }
+  if (model.trim().isEmpty) {
+    return 'Нужна модель / router profile';
+  }
+  if (!settings.isProviderEnabled(settingsProviderId)) {
+    return 'Проверь настройки';
+  }
+  return 'Готов к отправке';
 }
 
 class TextWorkspaceScreen extends StatefulWidget {
@@ -167,6 +184,7 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
   _BrowserHandoff? _handoff;
   bool _showInlineWebViewPlaceholder = false;
   bool _runtimeWorkspaceOpened = false;
+  bool _settingsSelectionHydrated = false;
 
   TextAiProvider get _provider =>
       textAiProviders.firstWhere((item) => item.id == _providerId);
@@ -188,6 +206,17 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    if (!_settingsSelectionHydrated) {
+      _settingsSelectionHydrated = true;
+      final savedProviderId = AppSettingsScope.of(context).lastTextProviderId;
+      final validSavedProvider = textAiProviders.any(
+        (item) => item.id == savedProviderId,
+      );
+      if (validSavedProvider) {
+        _providerId = savedProviderId;
+        _cachedProviderId = savedProviderId;
+      }
+    }
     if (_runtimeWorkspaceOpened) return;
     _runtimeWorkspaceOpened = true;
     unawaited(FlutenRuntimeScope.read(context).updateCurrentWorkspace('text'));
@@ -273,7 +302,9 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
                               else
                                 _ControlPanel(
                                   providerId: _providerId,
+                                  settings: settings,
                                   onProviderChanged: _setProvider,
+                                  onOpenSettings: _openExecutionSettings,
                                   onImagePrompt: () =>
                                       unawaited(_buildImagePrompt()),
                                   onVideoPrompt: () =>
@@ -317,7 +348,9 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
                                       )
                                     : _ControlPanel(
                                         providerId: _providerId,
+                                        settings: settings,
                                         onProviderChanged: _setProvider,
+                                        onOpenSettings: _openExecutionSettings,
                                         onImagePrompt: () =>
                                             unawaited(_buildImagePrompt()),
                                         onVideoPrompt: () =>
@@ -360,12 +393,27 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
       }
     });
     _persistSession();
+    unawaited(_persistLastTextSelection());
     unawaited(
       FlutenRuntimeScope.read(
         context,
       ).setActiveProvider(_provider.id, route: _provider.mode.name),
     );
     _recordEvent('Выбран провайдер: ${_provider.name}');
+  }
+
+  Future<void> _persistLastTextSelection() async {
+    final settings = AppSettingsScope.of(context);
+    final settingsProviderId = _settingsProviderIdForTextProvider(_provider);
+    final model = settingsProviderId == null
+        ? ''
+        : settings
+              .providerModel(
+                settingsProviderId,
+                fallback: _defaultModelForTextProvider(_provider),
+              )
+              .trim();
+    await settings.setLastTextSelection(providerId: _provider.id, model: model);
   }
 
   Future<void> _send() async {
@@ -393,9 +441,6 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
               providerName: 'OpenRouter',
               defaultModel: 'openai/gpt-4o-mini',
               defaultBaseUrl: 'https://openrouter.ai/api/v1',
-              missingApiKeyMessage:
-                  'Нужен API-ключ OpenRouter. Добавьте его в Настройки запуска.',
-              missingApiKeySnack: 'Нужен API-ключ OpenRouter.',
             ),
           );
           return;
@@ -408,12 +453,7 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
               providerName: 'OmniRoute',
               defaultModel: 'auto',
               defaultBaseUrl: 'http://localhost:3000/v1',
-              missingApiKeyMessage:
-                  'Нужен API-ключ OmniRoute или настроенный локальный endpoint.',
-              missingApiKeySnack:
-                  'Нужен API-ключ OmniRoute или настроенный локальный endpoint.',
-              missingBaseUrlMessage:
-                  'Укажи Base URL OmniRoute в Execution Settings.',
+              missingBaseUrlMessage: 'Нужен Base URL для OmniRoute.',
             ),
           );
           return;
@@ -435,22 +475,35 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
     _OpenAiCompatibleProviderConfig config,
   ) async {
     final settings = AppSettingsScope.of(context);
-    final model = settings
+    final configuredModel = settings
         .providerModel(config.settingsProviderId, fallback: config.defaultModel)
+        .trim();
+    final model = configuredModel.isEmpty
+        ? config.defaultModel.trim()
+        : configuredModel;
+    final savedBaseUrl = settings
+        .providerBaseUrl(config.settingsProviderId)
         .trim();
     final configuredBaseUrl = settings.providerBaseUrl(
       config.settingsProviderId,
       fallback: config.defaultBaseUrl,
     );
     final baseUrl =
-        configuredBaseUrl.trim().isEmpty &&
-            config.settingsProviderId == 'omniroute'
+        savedBaseUrl.isEmpty && config.settingsProviderId == 'omniroute'
         ? ''
         : _openAiCompatibleBaseUrl(
             configuredBaseUrl,
             fallback: config.defaultBaseUrl,
           );
     final apiKey = settings.providerApiKey(config.settingsProviderId).trim();
+    final missingConfigMessage = apiKey.isEmpty
+        ? 'Нужен API-ключ для ${config.providerName}. Открой настройки провайдера.'
+        : baseUrl.isEmpty
+        ? (config.missingBaseUrlMessage ??
+              'Нужен Base URL для ${config.providerName}.')
+        : model.isEmpty
+        ? 'Нужна модель или router profile для ${config.providerName}.'
+        : null;
     final now = DateTime.now();
     final job = ExecutionJob(
       id: 'text-${config.settingsProviderId}-${now.microsecondsSinceEpoch}',
@@ -460,44 +513,40 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
       capability: 'textChat',
       inputPrompt: prompt,
       composedPrompt: prompt,
-      status: apiKey.isEmpty || baseUrl.isEmpty
+      status: missingConfigMessage == null
+          ? ExecutionJobStatus.running
+          : apiKey.isEmpty
           ? ExecutionJobStatus.requiresApiKey
-          : ExecutionJobStatus.running,
+          : ExecutionJobStatus.failed,
       executionMode: ExecutionJobMode.api,
       createdAt: now,
       updatedAt: now,
-      errorMessage: apiKey.isEmpty
-          ? config.missingApiKeySnack
-          : baseUrl.isEmpty
-          ? (config.missingBaseUrlMessage ?? 'Укажите Base URL.')
-          : null,
+      errorMessage: missingConfigMessage,
       metadata: {
-        'model': model.isEmpty ? config.defaultModel : model,
+        'model': model,
         'baseUrl': baseUrl,
         'settingsProviderId': config.settingsProviderId,
       },
     );
     ExecutionQueue.instance.add(job);
 
-    if (apiKey.isEmpty || baseUrl.isEmpty) {
+    if (missingConfigMessage != null) {
       _recordTextExecutionJob(job);
-      final message = apiKey.isEmpty
-          ? config.missingApiKeyMessage
-          : config.missingBaseUrlMessage ?? 'Укажите Base URL.';
-      _addAssistant(message);
-      _showMessage(apiKey.isEmpty ? config.missingApiKeySnack : message);
+      _showMessage(missingConfigMessage);
       _recordEvent('${config.providerName} configuration missing');
       return;
     }
 
+    unawaited(
+      settings.setLastTextSelection(providerId: _provider.id, model: model),
+    );
     setState(() => _running = true);
-    _addAssistant('${config.providerName} отвечает...');
     _recordEvent('${config.providerName} request running');
 
     final result = await const OpenAiCompatibleTextService().completeChat(
       baseUrl: baseUrl,
       apiKey: apiKey,
-      model: model.isEmpty ? config.defaultModel : model,
+      model: model,
       messages: [
         const OpenAiChatMessage(
           role: 'system',
@@ -1074,6 +1123,11 @@ Final clean prompt: $source, cinematic short video shot, strong blocking, layere
     );
     _showMessage('Промпт скопирован. Открываю Browser Hub.');
     widget.onNavigate(AppDestination.browserHub);
+  }
+
+  void _openExecutionSettings() {
+    _recordEvent('Открыты настройки провайдера');
+    widget.onNavigate(AppDestination.settings);
   }
 
   void _addPromptDraft(
@@ -1661,7 +1715,9 @@ class _MessageBubble extends StatelessWidget {
 class _ControlPanel extends StatelessWidget {
   const _ControlPanel({
     required this.providerId,
+    required this.settings,
     required this.onProviderChanged,
+    required this.onOpenSettings,
     required this.onImagePrompt,
     required this.onVideoPrompt,
     required this.onCopy,
@@ -1672,7 +1728,9 @@ class _ControlPanel extends StatelessWidget {
   });
 
   final String providerId;
+  final AppSettings settings;
   final ValueChanged<String> onProviderChanged;
+  final VoidCallback onOpenSettings;
   final VoidCallback onImagePrompt;
   final VoidCallback onVideoPrompt;
   final VoidCallback onCopy;
@@ -1683,6 +1741,10 @@ class _ControlPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final provider = textAiProviders.firstWhere(
+      (item) => item.id == providerId,
+      orElse: () => textAiProviders.first,
+    );
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -1717,6 +1779,12 @@ class _ControlPanel extends StatelessWidget {
             onChanged: (value) {
               if (value != null) onProviderChanged(value);
             },
+          ),
+          const SizedBox(height: 16),
+          _ProviderRuntimeStatusPanel(
+            provider: provider,
+            settings: settings,
+            onOpenSettings: onOpenSettings,
           ),
           const SizedBox(height: 16),
           const _AttachmentNotice(),
@@ -1779,6 +1847,140 @@ class _ControlPanel extends StatelessWidget {
                   ),
                 ),
               ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProviderRuntimeStatusPanel extends StatelessWidget {
+  const _ProviderRuntimeStatusPanel({
+    required this.provider,
+    required this.settings,
+    required this.onOpenSettings,
+  });
+
+  final TextAiProvider provider;
+  final AppSettings settings;
+  final VoidCallback onOpenSettings;
+
+  @override
+  Widget build(BuildContext context) {
+    final settingsProviderId = _settingsProviderIdForTextProvider(provider);
+    final isOpenAiCompatible = settingsProviderId != null;
+    final model = settingsProviderId == null
+        ? ''
+        : settings
+              .providerModel(
+                settingsProviderId,
+                fallback: _defaultModelForTextProvider(provider),
+              )
+              .trim();
+    final health = settingsProviderId == null
+        ? null
+        : settings.providerHealth(settingsProviderId);
+    final status = settingsProviderId == null
+        ? provider.mode.label
+        : _configStatusForProvider(
+            settings: settings,
+            settingsProviderId: settingsProviderId,
+            model: model,
+          );
+    final healthLabel = health == null
+        ? 'Проверка ещё не запускалась'
+        : 'Последняя проверка: ${health.statusLabel}';
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFF0B0F16),
+        border: Border.all(color: const Color(0x1FFFFFFF)),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.verified_user_outlined,
+                  color: Color(0xFF67E8F9),
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    provider.name,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            _ProviderStatusLine(
+              label: 'Тип',
+              value: isOpenAiCompatible
+                  ? 'OpenAI-compatible'
+                  : provider.mode.label,
+            ),
+            if (isOpenAiCompatible)
+              _ProviderStatusLine(
+                label: 'Модель',
+                value: model.isEmpty ? 'Не выбрана' : model,
+              ),
+            _ProviderStatusLine(label: 'Статус', value: status),
+            _ProviderStatusLine(label: 'Health', value: healthLabel),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: onOpenSettings,
+                icon: const Icon(Icons.tune_rounded, size: 18),
+                label: const Text('Открыть настройки'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ProviderStatusLine extends StatelessWidget {
+  const _ProviderStatusLine({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 62,
+            child: Text(
+              label,
+              style: const TextStyle(color: Color(0xFF8B97A8), fontSize: 12),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: Color(0xFFE8EEF8),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
         ],
       ),
     );
