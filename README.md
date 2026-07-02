@@ -1,60 +1,104 @@
-# AI Operator OS
+# FLUTEN / AI Operator OS — MVP
 
-Flutter-приложение-каталог AI-инструментов. Один код используется для web, Android и будущих desktop-сборок.
+FLUTEN сейчас зафиксирован как локальный MVP: один Flutter Desktop проект без backend, Docker и сторонних runtime-репозиториев. Основной сценарий — подготовить prompt, открыть нужный внешний сервис вручную, сохранить результат в History / Assets.
 
-## Локальный запуск
+## Что уже работает
 
-```powershell
-flutter pub get
-flutter run -d chrome
-```
+- AI Chat: OpenRouter и OmniRoute как реальные OpenAI-compatible text routes при наличии настроек.
+- Execution Settings: API keys, Base URL, model/router profile и health checks.
+- Browser Hub: каталог внешних AI tools, copy/open handoff, ручной переход на сайт.
+- Image Studio: подготовка prompt, provider handoff, manual result saving.
+- Video Studio: подготовка prompt/shot plan, provider handoff, manual result saving.
+- Audio Studio: подготовка music/voice/sound prompt, provider handoff, manual result saving.
+- History / Assets: сохранённые prompt, handoff, text results и ручные результаты.
+- Local health foundation: Ollama, ComfyUI, ACE-Step checks/settings как основа для следующих этапов.
 
-## Проверка
-
-```powershell
-flutter analyze
-flutter test
-flutter build web --release --base-href /ai_operator-os/
-```
-
-## Android APK
-
-Стабильный Android package:
-
-```text
-com.verdikt.aioperatoros
-```
-
-Это значение нельзя менять после первой раздачи APK, иначе Android будет считать сборку другим приложением.
-
-Локальная сборка installable APK:
+## Как запустить в dev mode
 
 ```powershell
-flutter build apk --release
+powershell -ExecutionPolicy Bypass -File .\run_fluten.ps1
 ```
 
-Готовый файл появится здесь:
+Скрипт использует локальный Flutter из `.tools\flutter\bin\flutter.bat`, при необходимости запускает `pub get`, затем открывает приложение через:
+
+```powershell
+flutter run -d windows
+```
+
+## Как собрать Windows release
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\build_fluten_windows.ps1
+```
+
+Скрипт выполняет:
+
+```powershell
+.\.tools\flutter\bin\flutter.bat pub get
+.\.tools\flutter\bin\flutter.bat analyze --no-pub
+.\.tools\flutter\bin\flutter.bat build windows
+```
+
+Если путь к репозиторию содержит пробелы, build script пытается использовать no-spaces junction:
 
 ```text
-build/app/outputs/flutter-apk/app-release.apk
+G:\AI\STUDIO_WORK
 ```
 
-В репозитории есть workflow `.github/workflows/build-android-apk.yml`. После push в `main` или ручного запуска через `Actions -> Build Android APK` GitHub соберет APK и прикрепит его как artifact `ai-operator-os-apk`.
+Flutter Windows build может ломаться в путях с пробелами. Junction нужен только как безопасная рабочая точка для сборки; исходники остаются в текущем репозитории.
 
-Текущая release-сборка подписывается debug-ключом, чтобы APK можно было быстро ставить вручную. Перед публичной раздачей нужно один раз завести приватный release-keystore и хранить его вне git или в GitHub Secrets.
+## Как открыть release
 
-## GitHub Pages
+```powershell
+powershell -ExecutionPolicy Bypass -File .\open_fluten_release.ps1
+```
 
-Workflow `.github/workflows/deploy-pages.yml` собирает Flutter Web и публикует сайт через ветку `gh-pages`.
-
-Рабочий адрес:
+Если release ещё не собран, скрипт напечатает:
 
 ```text
-https://ver-dikt.github.io/ai_operator-os/
+Release build not found. Run build_fluten_windows.ps1 first.
 ```
 
-## Платформенные заметки
+## Где лежит exe
 
-- Android: нужен установленный Android SDK для локальной сборки APK.
-- Windows: для сборки с Flutter-плагинами нужно включить Developer Mode в Windows, чтобы работали symlink.
-- iOS: bundle id уже приведен к `com.verdikt.aioperatoros`, но сборка требует macOS/Xcode.
+```text
+build\windows\x64\runner\Release\ai_operator_os.exe
+```
+
+## Что требует API keys
+
+- OpenRouter: нужен API key, Base URL и model/router profile.
+- OmniRoute: нужен API key и настроенный Base URL, если используется remote/router endpoint.
+- Остальные external providers зависят от своих сайтов/API и сейчас в основном работают через Browser Hub/manual handoff.
+
+API keys не должны попадать в UI, History, logs, console output, screenshots, GitHub или README.
+
+## Что пока manual/browser
+
+- Browser Hub providers: открыть сайт, вставить prompt, сохранить результат вручную.
+- Image / Video / Audio external tools: prompt подготовлен в FLUTEN, генерация выполняется во внешнем сервисе.
+- Local services без запущенного runtime показываются как недоступные или экспериментальные.
+
+## Что не коммитить
+
+```text
+build/
+.dart_tool/
+windows/flutter/ephemeral/
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+.dart_appdata/
+*.log
+build_windows_verbose*.log
+STUDIO.code-workspace
+```
+
+## MVP workflow
+
+1. Открой AI Chat.
+2. Выбери OpenRouter или OmniRoute и проверь статус провайдера.
+3. Собери prompt.
+4. Отправь prompt в Image / Video / Audio Studio.
+5. Открой внешний provider через Browser Hub или кнопку handoff.
+6. Сохрани готовый результат вручную в History / Assets.
+7. Вернись к сохранённому результату позже и переиспользуй prompt/result.

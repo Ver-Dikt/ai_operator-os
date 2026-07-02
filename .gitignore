@@ -2,12 +2,14 @@
 *.class
 *.err
 *.log
+build_windows_verbose*.log
 *.pid
 *.pyc
 *.swp
 .DS_Store
 .atom/
 .codex-gitconfig
+STUDIO.code-workspace
 .build/
 .buildlog/
 .history
