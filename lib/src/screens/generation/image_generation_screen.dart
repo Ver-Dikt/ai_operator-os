@@ -10,16 +10,20 @@ import '../../models/generation/generation_job.dart';
 import '../../models/generation/generation_provider.dart';
 import '../../models/generation/generation_request.dart';
 import '../../models/manual_result_asset.dart';
+import '../../services/comfyui_execution_service.dart';
 import '../../services/comfyui_health_service.dart';
 import '../../services/execution_queue.dart';
 import '../../services/generation/generation_provider_registry.dart';
 import '../../services/generation/mock_generation_service.dart';
 import '../../services/manual_result_service.dart';
 import '../../services/ollama_prompt_brain_service.dart';
+import '../../services/openai_image_service.dart';
 import '../../services/provider_executor.dart';
 import '../../widgets/current_session_strip.dart';
 import '../../widgets/generation/manual_result_dialog.dart';
 import '../../widgets/generation/render_history_rail.dart';
+import '../../widgets/generation/result_media.dart';
+import '../../widgets/generation/studio_workflow_steps.dart';
 
 class ImageGenerationScreen extends StatefulWidget {
   const ImageGenerationScreen({super.key});
@@ -114,8 +118,8 @@ class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
     unawaited(
       FlutenRuntimeScope.read(context).addEvent(
         type: 'image',
-        title: 'Prompt received from AI Chat',
-        detail: 'Image Studio',
+        title: 'Prompt получен из промпт-чата',
+        detail: 'Изображения',
       ),
     );
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -130,9 +134,9 @@ class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
     final selectedProvider = _registry.byId(_providerId);
     return _StudioWorkspace(
       eyebrow: 'Генерация изображений',
-      title: 'Image Studio',
+      title: 'Изображения',
       subtitle:
-          'Создавай кадры, постеры, концепты и вариации по референсам из одного focused prompt workflow.',
+          'Подготовьте кадр, постер или концепт, выберите сервис и сохраните результат.',
       modeSelector: SegmentedButton<GenerationCapability>(
         segments: const [
           ButtonSegment(
@@ -156,6 +160,11 @@ class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
       promptBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          const StudioWorkflowSteps(
+            steps: ['Идея', 'Prompt', 'Сервис', 'Сохранение'],
+            activeStep: 1,
+          ),
+          const SizedBox(height: 8),
           if (_handoffVisible &&
               _promptSource == _ImagePromptSource.aiChat) ...[
             _ImageHandoffBanner(
@@ -214,7 +223,7 @@ class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
               ).localOutputFolder('comfyui'),
               onCheck: _checkComfyUi,
               onCopy: _copyImagePrompt,
-              onPrepareWorkflow: _prepareComfyUiWorkflowLater,
+              onPrepareWorkflow: _generateWithComfyUi,
               onOpen: _openComfyUi,
             ),
           ],
@@ -224,6 +233,7 @@ class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
         prompt: _currentPrompt,
         composedPrompt: _composedImagePrompt,
         provider: selectedProvider,
+        job: _selectedJob,
       ),
       providerPanel: _ImageProviderPanel(
         providers: providers,
@@ -297,7 +307,7 @@ class _ImageGenerationScreenState extends State<ImageGenerationScreen> {
 
   String get _composedImagePrompt {
     final base = _currentPrompt.trim().isEmpty
-        ? 'Напиши, что хочешь создать, или используй prompt из AI Chat.'
+        ? 'Напишите, что хотите создать, или используйте prompt из промпт-чата.'
         : _currentPrompt.trim();
     final negative = _negativeController.text.trim();
     return '''
@@ -434,7 +444,7 @@ Quality: $_quality
       ExecutionJobStatus.needsWorkflow =>
         'ComfyUI доступна. Выберите workflow перед локальным запуском.',
       _ =>
-        'ComfyUI готова. Реальный запуск workflow будет подключён следующим этапом.',
+        'ComfyUI готова к запуску API-workflow.',
     };
     final job = _createComfyUiExecutionJob(
       provider: provider,
@@ -495,7 +505,6 @@ Quality: $_quality
   Future<void> _copyImagePrompt() async {
     await Clipboard.setData(ClipboardData(text: _composedImagePrompt.trim()));
     if (!mounted) return;
-    _showMessage('Prompt скопирован');
     _showMessage('Prompt скопирован.');
   }
 
@@ -523,8 +532,12 @@ Quality: $_quality
 
   Future<void> _openSelectedProvider() async {
     final provider = _registry.byId(_providerId);
+    if (provider.id == 'api-gpt-image') {
+      await _generateWithOpenAi(provider);
+      return;
+    }
     if (provider.id == 'local-comfyui') {
-      await _openComfyUi();
+      await _generateWithComfyUi();
       return;
     }
     final job = await const ProviderExecutionService().start(
@@ -539,6 +552,339 @@ Quality: $_quality
     _recordExecutionJob(job);
     _showMessage(_messageForExecutionJob(job));
   }
+
+  Future<void> _generateWithOpenAi(GenerationProvider provider) async {
+    if (_currentPrompt.trim().isEmpty) {
+      _showMessage('Сначала опишите изображение.');
+      return;
+    }
+    final settings = AppSettingsScope.of(context);
+    final apiKey = settings.providerApiKey('openai').trim();
+    final configuredModel = settings.providerModel('openai').trim();
+    final imageModel = configuredModel.startsWith('gpt-image')
+        ? configuredModel
+        : 'gpt-image-2';
+    if (apiKey.isEmpty) {
+      final now = DateTime.now();
+      final missingKeyJob = ExecutionJob(
+        id: 'openai-image-${now.microsecondsSinceEpoch}',
+        workspace: ExecutionJobWorkspace.image,
+        providerId: provider.id,
+        providerName: provider.name,
+        capability: _capability.name,
+        inputPrompt: _currentPrompt.trim(),
+        composedPrompt: _apiImagePrompt,
+        status: ExecutionJobStatus.requiresApiKey,
+        executionMode: ExecutionJobMode.api,
+        createdAt: now,
+        updatedAt: now,
+        errorMessage: 'Добавьте API-ключ OpenAI в настройках.',
+        metadata: const {'settingsProviderId': 'openai'},
+      );
+      ExecutionQueue.instance.add(missingKeyJob);
+      _recordExecutionJob(missingKeyJob);
+      _showMessage('Добавьте API-ключ OpenAI в настройках.');
+      return;
+    }
+
+    final now = DateTime.now();
+    var executionJob = ExecutionJob(
+      id: 'openai-image-${now.microsecondsSinceEpoch}',
+      workspace: ExecutionJobWorkspace.image,
+      providerId: provider.id,
+      providerName: provider.name,
+      capability: _capability.name,
+      inputPrompt: _currentPrompt.trim(),
+      composedPrompt: _apiImagePrompt,
+      status: ExecutionJobStatus.running,
+      executionMode: ExecutionJobMode.api,
+      createdAt: now,
+      updatedAt: now,
+      metadata: {
+        'settingsProviderId': 'openai',
+        'model': imageModel,
+        'size': _openAiImageSize,
+      },
+    );
+    ExecutionQueue.instance.add(executionJob);
+    final runtime = FlutenRuntimeScope.read(context);
+    final runtimeJob = await runtime.addGenerationJob(
+      workspaceType: 'image',
+      providerId: provider.id,
+      routeType: 'api',
+      prompt: _apiImagePrompt,
+      status: 'running',
+      resultLabel: '${provider.name}: выполняется',
+    );
+    if (!mounted) return;
+    _showMessage('GPT Image: генерация запущена…');
+
+    final result = await const OpenAiImageService().generate(
+      baseUrl: settings.providerBaseUrl(
+        'openai',
+        fallback: 'https://api.openai.com/v1',
+      ),
+      apiKey: apiKey,
+      model: imageModel,
+      prompt: _apiImagePrompt,
+      size: _openAiImageSize,
+      quality: _openAiImageQuality,
+      count: _outputCount,
+    );
+    if (!mounted) return;
+
+    if (!result.success) {
+      executionJob = executionJob.copyWith(
+        status: ExecutionJobStatus.failed,
+        updatedAt: DateTime.now(),
+        errorMessage: result.error,
+      );
+      ExecutionQueue.instance.update(executionJob);
+      await runtime.updateGenerationJob(
+        runtimeJob.id,
+        status: 'failed',
+        resultLabel: result.error ?? 'Ошибка GPT Image',
+      );
+      if (!mounted) return;
+      _showMessage(result.error ?? 'Не удалось создать изображение.');
+      return;
+    }
+
+    final completedAt = DateTime.now();
+    executionJob = executionJob.copyWith(
+      status: ExecutionJobStatus.completed,
+      updatedAt: completedAt,
+      resultAssets: result.localPaths,
+    );
+    ExecutionQueue.instance.update(executionJob);
+    final request = GenerationRequest(
+      prompt: _currentPrompt.trim(),
+      providerId: provider.id,
+      capability: _capability,
+      aspectRatio: _aspectRatio,
+      modelId: imageModel,
+      negativePrompt: _negativeController.text.trim(),
+      quality: _quality,
+      referencePaths: List<String>.from(_references),
+    );
+    final visibleJob = GenerationJob(
+      id: executionJob.id,
+      title: _imageJobTitle,
+      request: request,
+      providerName: provider.name,
+      status: GenerationJobStatus.completed,
+      createdAt: now,
+      updatedAt: completedAt,
+      progress: 1,
+      previewUrl: result.localPaths.first,
+      outputUrl: result.localPaths.first,
+    );
+    setState(() {
+      _jobs.insert(0, visibleJob);
+      _selectedJob = visibleJob;
+    });
+    _persistHistory();
+    await runtime.updateGenerationJob(
+      runtimeJob.id,
+      status: 'completed',
+      resultLabel: '${provider.name}: готово',
+      resultUrl: result.localPaths.first,
+    );
+    for (var index = 0; index < result.localPaths.length; index++) {
+      await runtime.addAsset(
+        type: 'image',
+        title: result.localPaths.length == 1
+            ? _imageJobTitle
+            : '$_imageJobTitle ${index + 1}',
+        jobId: runtimeJob.id,
+        localPath: result.localPaths[index],
+        prompt: _apiImagePrompt,
+        providerId: provider.id,
+        providerName: provider.name,
+        sourceProvider: provider.name,
+        sourceWorkspace: 'image',
+        status: 'completed',
+      );
+    }
+    if (!mounted) return;
+    _showMessage(
+      'Готово: ${result.localPaths.length} изображение(я) сохранено в библиотеке.',
+    );
+  }
+
+  String get _apiImagePrompt {
+    final negative = _negativeController.text.trim();
+    return '''
+${_currentPrompt.trim()}
+
+Visual direction: $_style. Lighting: $_lighting. Composition: $_composition.
+Camera / lens: $_lens. Color mood: $_colorMood. Quality: $_quality.
+${negative.isEmpty ? '' : 'Avoid: $negative.'}
+'''.trim();
+  }
+
+  String get _openAiImageSize => switch (_aspectRatio) {
+    '16:9' => '1536x864',
+    '9:16' => '864x1536',
+    '4:5' => '1024x1280',
+    '3:2' => '1536x1024',
+    _ => '1024x1024',
+  };
+
+  String get _openAiImageQuality => switch (_quality.toLowerCase()) {
+    'high' || 'высокое' => 'high',
+    'low' || 'низкое' => 'low',
+    'auto' => 'auto',
+    _ => 'medium',
+  };
+
+  String get _imageJobTitle {
+    final prompt = _currentPrompt.trim();
+    if (prompt.length <= 42) return prompt;
+    return '${prompt.substring(0, 42)}…';
+  }
+
+  Future<void> _generateWithComfyUi() async {
+    if (_currentPrompt.trim().isEmpty) {
+      _showMessage('Сначала опишите изображение.');
+      return;
+    }
+    final provider = _registry.byId('local-comfyui');
+    final settings = AppSettingsScope.of(context);
+    final endpoint = settings.localEndpoint(
+      'comfyui',
+      fallback: provider.localEndpoint ?? 'http://127.0.0.1:8188',
+    );
+    final workflow = settings.localWorkflowPath('comfyui').trim();
+    if (workflow.isEmpty) {
+      await _prepareComfyUiPrompt(provider);
+      return;
+    }
+    final now = DateTime.now();
+    var executionJob = _createComfyUiExecutionJob(
+      provider: provider,
+      endpoint: endpoint,
+      workflow: workflow,
+      status: ExecutionJobStatus.running,
+    );
+    ExecutionQueue.instance.add(executionJob);
+    final runtime = FlutenRuntimeScope.read(context);
+    final runtimeJob = await runtime.addGenerationJob(
+      workspaceType: 'image',
+      providerId: provider.id,
+      routeType: 'local',
+      prompt: _apiImagePrompt,
+      status: 'running',
+      resultLabel: 'ComfyUI: выполняется',
+    );
+    if (!mounted) return;
+    setState(() {
+      _comfyUiAvailable = true;
+      _comfyUiStatus = 'Workflow выполняется…';
+    });
+    _showMessage('ComfyUI: workflow отправлен…');
+    final dimensions = _imageDimensions;
+    final result = await const ComfyUiExecutionService().generate(
+      endpoint: endpoint,
+      workflowPath: workflow,
+      outputFolder: settings.localOutputFolder('comfyui'),
+      prompt: _currentPrompt.trim(),
+      negativePrompt: _negativeController.text.trim(),
+      width: dimensions.$1,
+      height: dimensions.$2,
+    );
+    if (!mounted) return;
+    if (!result.success) {
+      executionJob = executionJob.copyWith(
+        status: ExecutionJobStatus.failed,
+        updatedAt: DateTime.now(),
+        errorMessage: result.error,
+      );
+      ExecutionQueue.instance.update(executionJob);
+      await runtime.updateGenerationJob(
+        runtimeJob.id,
+        status: 'failed',
+        resultLabel: result.error ?? 'Ошибка ComfyUI',
+      );
+      if (!mounted) return;
+      setState(() {
+        _comfyUiAvailable = false;
+        _comfyUiStatus = 'Ошибка workflow';
+      });
+      _showMessage(result.error ?? 'Не удалось выполнить workflow ComfyUI.');
+      return;
+    }
+    final completedAt = DateTime.now();
+    executionJob = executionJob.copyWith(
+      status: ExecutionJobStatus.completed,
+      updatedAt: completedAt,
+      resultAssets: result.localPaths,
+      metadata: {
+        ...executionJob.metadata,
+        if (result.promptId != null) 'promptId': result.promptId!,
+      },
+    );
+    ExecutionQueue.instance.update(executionJob);
+    final visibleJob = GenerationJob(
+      id: executionJob.id,
+      title: _imageJobTitle,
+      request: GenerationRequest(
+        prompt: _currentPrompt.trim(),
+        providerId: provider.id,
+        capability: _capability,
+        aspectRatio: _aspectRatio,
+        negativePrompt: _negativeController.text.trim(),
+        quality: _quality,
+        referencePaths: List<String>.from(_references),
+      ),
+      providerName: provider.name,
+      status: GenerationJobStatus.completed,
+      createdAt: now,
+      updatedAt: completedAt,
+      progress: 1,
+      previewUrl: result.localPaths.first,
+      outputUrl: result.localPaths.first,
+    );
+    setState(() {
+      _jobs.insert(0, visibleJob);
+      _selectedJob = visibleJob;
+      _comfyUiAvailable = true;
+      _comfyUiStatus = 'Workflow завершён';
+    });
+    _persistHistory();
+    await runtime.updateGenerationJob(
+      runtimeJob.id,
+      status: 'completed',
+      resultLabel: 'ComfyUI: готово',
+      resultUrl: result.localPaths.first,
+    );
+    for (var index = 0; index < result.localPaths.length; index++) {
+      await runtime.addAsset(
+        type: 'image',
+        title: result.localPaths.length == 1
+            ? _imageJobTitle
+            : '$_imageJobTitle ${index + 1}',
+        jobId: runtimeJob.id,
+        localPath: result.localPaths[index],
+        prompt: _apiImagePrompt,
+        providerId: provider.id,
+        providerName: provider.name,
+        sourceProvider: provider.name,
+        sourceWorkspace: 'image',
+        status: 'completed',
+      );
+    }
+    if (!mounted) return;
+    _showMessage('ComfyUI: результат сохранён в библиотеке.');
+  }
+
+  (int, int) get _imageDimensions => switch (_aspectRatio) {
+    '16:9' => (1344, 768),
+    '9:16' => (768, 1344),
+    '4:5' => (1024, 1280),
+    '3:2' => (1216, 832),
+    _ => (1024, 1024),
+  };
 
   Future<void> _checkComfyUi() async {
     final settings = AppSettingsScope.of(context);
@@ -598,19 +944,6 @@ Quality: $_quality
     if (!opened) {
       await Clipboard.setData(ClipboardData(text: endpoint));
     }
-  }
-
-  void _prepareComfyUiWorkflowLater() {
-    unawaited(
-      FlutenRuntimeScope.read(context).addEvent(
-        type: 'image',
-        title: 'ComfyUI workflow preparation requested',
-        detail: 'Workflow submit is not implemented yet.',
-      ),
-    );
-    _showMessage(
-      'Workflow будет подготовлен следующим этапом. Сейчас prompt можно скопировать вручную.',
-    );
   }
 
   void _clearPrompt() {
@@ -731,7 +1064,7 @@ Quality: $_quality
     if (request == null || !mounted) return;
     await const ManualResultService().save(context, request);
     if (!mounted) return;
-    _showMessage('Результат сохранён в History / Assets.');
+    _showMessage('Результат сохранён в библиотеке.');
   }
 
   ExecutionJob? _latestExecutionJob(String providerId) {
@@ -756,8 +1089,8 @@ enum _ImagePromptSource { unknown, aiChat, imageStudio }
 extension _ImagePromptSourceLabel on _ImagePromptSource {
   String get label {
     return switch (this) {
-      _ImagePromptSource.aiChat => 'AI Chat / Image Prompt',
-      _ImagePromptSource.imageStudio => 'Image Studio',
+      _ImagePromptSource.aiChat => 'Промпт-чат',
+      _ImagePromptSource.imageStudio => 'Изображения',
       _ImagePromptSource.unknown => '',
     };
   }
@@ -788,7 +1121,7 @@ class _ImageHandoffBanner extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Источник: AI Chat / Image Prompt',
+            'Источник: промпт-чат',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 4),
@@ -870,7 +1203,7 @@ class _ImagePromptComposer extends StatelessWidget {
             maxLines: 9,
             decoration: const InputDecoration(
               hintText:
-                  'Напиши, что хочешь создать, или используй prompt из AI Chat.',
+                  'Напишите, что хотите создать, или используйте prompt из промпт-чата.',
               border: OutlineInputBorder(),
             ),
           ),
@@ -952,7 +1285,7 @@ class _ComfyUiLocalRouteCard extends StatelessWidget {
     final workflowReady = workflowPath.trim().isNotEmpty;
     final message = available == true
         ? workflowReady
-              ? 'ComfyUI доступна. Реальный запуск workflow будет подключён следующим этапом.'
+              ? 'ComfyUI доступна. Можно отправить API-workflow и получить результат внутри FLUTEN.'
               : 'ComfyUI доступна, но workflow ещё не выбран.'
         : 'ComfyUI не подключена. Запустите ComfyUI и нажмите Проверить.';
     return _GlassPanel(
@@ -963,7 +1296,7 @@ class _ComfyUiLocalRouteCard extends StatelessWidget {
             icon: Icons.memory_rounded,
             title: 'Локальный запуск через ComfyUI',
             subtitle:
-                'Статус локального route. FLUTEN пока не отправляет workflow в ComfyUI.',
+                'Укажите API-workflow JSON с токенами {{prompt}}, {{negative_prompt}}, {{width}}, {{height}} и {{seed}}.',
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -1004,7 +1337,7 @@ class _ComfyUiLocalRouteCard extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onPrepareWorkflow,
                 icon: const Icon(Icons.account_tree_rounded),
-                label: const Text('Подготовить workflow позже'),
+                label: const Text('Запустить workflow'),
               ),
               OutlinedButton.icon(
                 onPressed: onOpen,
@@ -1066,8 +1399,8 @@ class _ImageControlPanel extends StatelessWidget {
         children: [
           const _PanelTitle(
             icon: Icons.tune_rounded,
-            title: 'Visual controls',
-            subtitle: 'Настройки сразу входят в собранный image prompt.',
+            title: 'Параметры изображения',
+            subtitle: 'Все настройки входят в итоговый prompt.',
           ),
           const SizedBox(height: 10),
           _ChoiceField(
@@ -1206,11 +1539,13 @@ class _ImageWorkspacePreview extends StatelessWidget {
     required this.prompt,
     required this.composedPrompt,
     required this.provider,
+    required this.job,
   });
 
   final String prompt;
   final String composedPrompt;
   final GenerationProvider provider;
+  final GenerationJob? job;
 
   @override
   Widget build(BuildContext context) {
@@ -1231,7 +1566,15 @@ class _ImageWorkspacePreview extends StatelessWidget {
                     border: Border.all(color: const Color(0x24FFFFFF)),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: hasPrompt
+                  child: job?.outputUrl != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: ResultMedia(
+                            source: job!.outputUrl,
+                            isVideo: false,
+                          ),
+                        )
+                      : hasPrompt
                       ? SingleChildScrollView(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1253,10 +1596,13 @@ class _ImageWorkspacePreview extends StatelessWidget {
                               ),
                               const SizedBox(height: 14),
                               Text(
-                                provider.type == GenerationProviderType.api ||
-                                        provider.type ==
-                                            GenerationProviderType.local
-                                    ? 'Генерация внутри FLUTEN будет подключена отдельным этапом.'
+                                provider.id == 'api-gpt-image'
+                                    ? 'GPT Image запускается прямо в Windows-приложении и сохраняет результат в библиотеку.'
+                                    : provider.type ==
+                                              GenerationProviderType.api ||
+                                          provider.type ==
+                                              GenerationProviderType.local
+                                    ? 'Для этого маршрута прямой запуск ещё не подключён.'
                                     : 'Скопируйте prompt и откройте выбранный image-сервис.',
                                 style: const TextStyle(
                                   color: Color(0xFFA7B1C1),
@@ -1289,8 +1635,8 @@ class _ImageWorkspacePreview extends StatelessWidget {
             children: [
               const _PanelTitle(
                 icon: Icons.photo_size_select_actual_outlined,
-                title: 'Image workspace',
-                subtitle: 'Здесь будет результат изображения.',
+                title: 'Рабочая область',
+                subtitle: 'Здесь появится подготовленный prompt или результат.',
               ),
               const SizedBox(height: 12),
               if (constraints.hasBoundedHeight)
@@ -1324,7 +1670,7 @@ class _ComposedImagePromptCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Собранный image prompt',
+            'Готовый prompt для изображения',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 8),
@@ -1394,8 +1740,8 @@ class _ImageProviderPanel extends StatelessWidget {
         children: [
           const _PanelTitle(
             icon: Icons.route_rounded,
-            title: 'Image provider',
-            subtitle: 'Как запустить выбранный image-сервис.',
+            title: 'Сервис изображения',
+            subtitle: 'Выберите способ запуска и следующий шаг.',
           ),
           const SizedBox(height: 10),
           Wrap(
@@ -1447,19 +1793,29 @@ class _ImageProviderPanel extends StatelessWidget {
             runSpacing: 8,
             children: [
               OutlinedButton.icon(
-                onPressed: selectedProvider.launchUrl == null ? null : onOpen,
-                icon: const Icon(Icons.open_in_new_rounded),
-                label: const Text('Открыть сайт'),
-              ),
-              OutlinedButton.icon(
                 onPressed: onCopy,
                 icon: const Icon(Icons.copy_rounded),
                 label: const Text('Скопировать prompt'),
               ),
-              FilledButton.icon(
+              OutlinedButton.icon(
                 onPressed: onPrepare,
-                icon: const Icon(Icons.send_rounded),
-                label: const Text('Подготовить prompt для генерации'),
+                icon: const Icon(Icons.tune_rounded),
+                label: const Text('Подготовить prompt'),
+              ),
+              FilledButton.icon(
+                onPressed: onOpen,
+                icon: Icon(
+                  selectedProvider.type == GenerationProviderType.api ||
+                          selectedProvider.type == GenerationProviderType.local
+                      ? Icons.auto_awesome_rounded
+                      : Icons.open_in_new_rounded,
+                ),
+                label: Text(
+                  selectedProvider.type == GenerationProviderType.api ||
+                          selectedProvider.type == GenerationProviderType.local
+                      ? 'Запустить генерацию'
+                      : 'Открыть сервис',
+                ),
               ),
               OutlinedButton.icon(
                 onPressed: onSaveManualResult,
@@ -1474,6 +1830,8 @@ class _ImageProviderPanel extends StatelessWidget {
   }
 
   String _statusFor(GenerationProvider provider) {
+    if (provider.id == 'api-gpt-image') return 'API подключён';
+    if (provider.id == 'local-comfyui') return 'Workflow API подключён';
     if (provider.type == GenerationProviderType.api &&
         provider.requiresApiKey) {
       return 'Нужен API-ключ';
@@ -1732,7 +2090,7 @@ class _ImagePromptNotice extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
       ),
       child: const Text(
-        'Источник: AI Chat / Image Prompt',
+        'Источник: промпт-чат',
         style: TextStyle(
           color: Color(0xFFC8FFF4),
           fontSize: 12,
@@ -1773,7 +2131,7 @@ class _ImageStudioActions extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Напиши, что хочешь создать, или используй prompt из AI Chat.',
+            'Напишите, что хотите создать, или используйте prompt из промпт-чата.',
             style: TextStyle(color: Color(0xFFA7B1C1), fontSize: 12),
           ),
           const SizedBox(height: 6),
@@ -1834,7 +2192,7 @@ class _ChatPromptNotice extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
       ),
       child: const Text(
-        'Промпт получен из AI Chat',
+        'Prompt получен из промпт-чата',
         style: TextStyle(
           color: Color(0xFFC8FFF4),
           fontSize: 12,

@@ -62,10 +62,11 @@ const seedProviders = <AiProvider>[
     executionModes: [ExecutionMode.api],
     status: AiProviderStatus.notConfigured,
     supportedWorkspaces: ['text', 'image', 'agents'],
-    description: 'API provider for future text, image, and prompt execution.',
+    description: 'OpenAI Images API provider for direct image generation.',
     baseUrl: 'https://api.openai.com/v1',
     apiKeyRequired: true,
-    notes: 'Settings only. Real OpenAI API calls are not connected yet.',
+    notes:
+        'GPT Image запускается напрямую в Windows-приложении и сохраняет PNG локально.',
   ),
   AiProvider(
     id: 'gemini',
@@ -75,9 +76,10 @@ const seedProviders = <AiProvider>[
     status: AiProviderStatus.notConfigured,
     supportedWorkspaces: ['text', 'image', 'audio'],
     description: 'Google multimodal provider for text, image, and audio flows.',
-    baseUrl: 'https://gemini.google.com',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
     apiKeyRequired: true,
-    notes: 'Registered as metadata only.',
+    notes:
+        'Video Studio использует Veo 3.1 long-running API для text-to-video.',
   ),
   AiProvider(
     id: 'mistral',
@@ -186,10 +188,11 @@ const seedProviders = <AiProvider>[
     executionModes: [ExecutionMode.api, ExecutionMode.browserLaunch],
     status: AiProviderStatus.notConfigured,
     supportedWorkspaces: ['audio'],
-    description: 'Voice generation provider settings for future API routing.',
+    description: 'Voice generation через прямой ElevenLabs Text-to-Speech API.',
     baseUrl: 'https://api.elevenlabs.io',
     apiKeyRequired: true,
-    notes: 'Settings only. Real ElevenLabs calls are not connected yet.',
+    notes:
+        'Поле модели используется как Voice ID. MP3 сохраняется локально в библиотеку FLUTEN.',
   ),
   AiProvider(
     id: 'suno-udio',
@@ -225,7 +228,8 @@ const seedProviders = <AiProvider>[
     description: 'Local node runtime for image and video generation workflows.',
     apiKeyRequired: false,
     localEndpoint: 'http://127.0.0.1:8188',
-    notes: 'Endpoint metadata only. Runtime launch is not connected.',
+    notes:
+        'API-workflow JSON отправляется через /prompt; результат загружается через /history и /view.',
   ),
   AiProvider(
     id: 'ace-step',
@@ -234,10 +238,11 @@ const seedProviders = <AiProvider>[
     executionModes: [ExecutionMode.local],
     status: AiProviderStatus.localUnavailable,
     supportedWorkspaces: ['audio'],
-    description: 'Local audio/music generation runtime planned for later.',
+    description: 'Local audio/music generation through ACE-Step 1.5 API.',
     apiKeyRequired: false,
     localEndpoint: 'http://localhost:8001',
-    notes: 'Endpoint settings only. Local execution is not connected yet.',
+    notes:
+        'Прямой локальный запуск использует /release_task, /query_result и /v1/audio.',
   ),
   AiProvider(
     id: 'local-browser',

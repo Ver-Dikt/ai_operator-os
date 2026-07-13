@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../models/provider_ui_state.dart';
+
 class StatusBadge extends StatelessWidget {
   const StatusBadge({
     super.key,
@@ -42,6 +44,21 @@ class StatusBadge extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class ProviderStateBadge extends StatelessWidget {
+  const ProviderStateBadge({super.key, required this.state});
+
+  final ProviderUiState state;
+
+  @override
+  Widget build(BuildContext context) {
+    return StatusBadge(
+      label: state.label,
+      color: state.color,
+      icon: state.icon,
     );
   }
 }

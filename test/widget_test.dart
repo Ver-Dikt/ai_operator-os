@@ -47,21 +47,24 @@ void main() {
     await tester.pumpWidget(const AiOperatorApp());
     await tester.pumpAndSettle();
 
-    final imageAction = find.widgetWithText(FilledButton, 'Image Studio');
-    final videoAction = find.widgetWithText(OutlinedButton, 'Video Studio');
-    final browserAction = find.widgetWithText(OutlinedButton, 'Browser Hub');
+    final imageAction = find.widgetWithText(OutlinedButton, 'Изображения');
+    final videoAction = find.widgetWithText(OutlinedButton, 'Видео');
+    final browserAction = find.widgetWithText(
+      OutlinedButton,
+      'Внешние сервисы',
+    );
 
     await tester.tap(imageAction);
     await tester.pumpAndSettle();
     expectNoFlutterException(tester);
 
-    await tester.tap(find.text('OpenGenerativeAI').last);
+    await tester.tap(find.text('FLUTEN').last);
     await tester.pumpAndSettle();
     await tester.tap(videoAction);
     await tester.pumpAndSettle();
     expectNoFlutterException(tester);
 
-    await tester.tap(find.text('OpenGenerativeAI').last);
+    await tester.tap(find.text('FLUTEN').last);
     await tester.pumpAndSettle();
     await tester.tap(browserAction);
     await tester.pumpAndSettle();
@@ -83,9 +86,12 @@ void main() {
     await tester.pumpWidget(const AiOperatorApp());
     await tester.pumpAndSettle();
 
-    final imageAction = find.widgetWithText(FilledButton, 'Image Studio');
-    await tester.ensureVisible(imageAction);
-    await tester.tap(imageAction);
+    final primaryAction = find.widgetWithText(
+      FilledButton,
+      'Начать в промпт-чате',
+    );
+    await tester.ensureVisible(primaryAction);
+    await tester.tap(primaryAction);
     await tester.pumpAndSettle();
     expectNoFlutterException(tester);
   });

@@ -9,12 +9,15 @@ import '../../data/seed_browser_ai_tools.dart';
 import '../../models/browser_ai_tool.dart';
 import '../../models/execution_job.dart';
 import '../../models/manual_result_asset.dart';
+import '../../services/ace_step_execution_service.dart';
 import '../../services/ace_step_health_service.dart';
+import '../../services/elevenlabs_tts_service.dart';
 import '../../services/execution_queue.dart';
 import '../../services/manual_result_service.dart';
 import '../../services/ollama_prompt_brain_service.dart';
 import '../../services/provider_executor.dart';
 import '../../widgets/current_session_strip.dart';
+import '../../widgets/generation/studio_workflow_steps.dart';
 import '../../widgets/generation/manual_result_dialog.dart';
 
 enum _AudioMode { music, voice, soundDesign }
@@ -102,7 +105,10 @@ class _AudioGenerationScreenState extends State<AudioGenerationScreen> {
     final negative = _negativePrompt.isEmpty
         ? ''
         : '\nNegative prompt: $_negativePrompt.';
-    return '$base\n\n$modeBlock\nExecution note: prepare this prompt for an external audio service. FLUTEN does not generate audio internally yet.$negative';
+    final executionNote = _provider.id == 'elevenlabs' && _mode == _AudioMode.voice
+        ? 'Execution note: ElevenLabs TTS runs directly in the Windows app.'
+        : 'Execution note: prepare this prompt for an external audio service.';
+    return '$base\n\n$modeBlock\n$executionNote$negative';
   }
 
   @override
@@ -226,7 +232,7 @@ class _AudioGenerationScreenState extends State<AudioGenerationScreen> {
                     onCheck: _checkAceStep,
                     onOpenUi: _openAceStepUi,
                     onCopy: _copyPrompt,
-                    onPrepareLater: _prepareAceStepLaunchLater,
+                    onPrepareLater: _generateWithAceStep,
                   ),
                 )
               : const SizedBox.shrink();
@@ -259,6 +265,11 @@ class _AudioGenerationScreenState extends State<AudioGenerationScreen> {
                 const SizedBox(height: 12),
                 const CurrentSessionStrip(),
                 const SizedBox(height: 12),
+                const StudioWorkflowSteps(
+                  steps: ['Идея', 'Prompt', 'Сервис', 'Сохранение'],
+                  activeStep: 1,
+                ),
+                const SizedBox(height: 12),
                 left,
                 aceStepCard,
                 const SizedBox(height: 12),
@@ -277,6 +288,11 @@ class _AudioGenerationScreenState extends State<AudioGenerationScreen> {
                 const _AudioHeader(),
                 const SizedBox(height: 14),
                 const CurrentSessionStrip(),
+                const SizedBox(height: 14),
+                const StudioWorkflowSteps(
+                  steps: ['Идея', 'Prompt', 'Сервис', 'Сохранение'],
+                  activeStep: 1,
+                ),
                 const SizedBox(height: 14),
                 Expanded(
                   child: Row(
@@ -427,10 +443,10 @@ Sound design controls: type $_soundType, environment $_environment, intensity $_
       _aceStepStatus = health.statusLabel;
     });
     final status = health.available
-        ? ExecutionJobStatus.needsExecutionImplementation
+        ? ExecutionJobStatus.prepared
         : ExecutionJobStatus.localUnavailable;
     final message = health.available
-        ? 'ACE-Step доступен. Реальный запуск будет подключён следующим этапом.'
+        ? 'ACE-Step доступен и готов к прямому локальному запуску.'
         : 'ACE-Step не подключен.';
     final now = DateTime.now();
     final job = ExecutionJob(
@@ -514,8 +530,16 @@ Sound design controls: type $_soundType, environment $_environment, intensity $_
   }
 
   Future<void> _openProvider() async {
+    if (_provider.id == 'elevenlabs') {
+      if (_mode != _AudioMode.voice) {
+        _showMessage('Для прямого ElevenLabs API выберите режим Voice.');
+        return;
+      }
+      await _generateWithElevenLabs();
+      return;
+    }
     if (_provider.id == 'ace-step') {
-      await _openAceStepUi();
+      await _generateWithAceStep();
       return;
     }
     final prompt = _prompt.isEmpty ? _provider.url : _composedPrompt;
@@ -539,6 +563,244 @@ Sound design controls: type $_soundType, environment $_environment, intensity $_
     _showMessage(_messageForExecutionJob(job));
   }
 
+  Future<void> _generateWithElevenLabs() async {
+    final text = _script.isNotEmpty ? _script : _prompt;
+    if (text.isEmpty) {
+      _showMessage('Добавьте текст или сценарий для озвучивания.');
+      return;
+    }
+    final settings = AppSettingsScope.of(context);
+    final apiKey = settings.providerApiKey('elevenlabs').trim();
+    final voiceId = settings.providerModel(
+      'elevenlabs',
+      fallback: 'JBFqnCBsd6RMkjVDRZzb',
+    ).trim();
+    final now = DateTime.now();
+    var job = ExecutionJob(
+      id: 'elevenlabs-${now.microsecondsSinceEpoch}',
+      workspace: ExecutionJobWorkspace.audio,
+      providerId: _provider.id,
+      providerName: _provider.name,
+      capability: 'textToSpeech',
+      inputPrompt: text,
+      composedPrompt: _composedPrompt,
+      status: apiKey.isEmpty
+          ? ExecutionJobStatus.requiresApiKey
+          : ExecutionJobStatus.running,
+      executionMode: ExecutionJobMode.api,
+      createdAt: now,
+      updatedAt: now,
+      errorMessage: apiKey.isEmpty
+          ? 'Добавьте API-ключ ElevenLabs в настройках.'
+          : null,
+      metadata: {
+        'settingsProviderId': 'elevenlabs',
+        'voiceId': voiceId,
+      },
+    );
+    ExecutionQueue.instance.add(job);
+    if (apiKey.isEmpty) {
+      await _recordExecutionJob(job);
+      if (!mounted) return;
+      _showMessage('Добавьте API-ключ ElevenLabs в настройках.');
+      return;
+    }
+
+    final runtime = FlutenRuntimeScope.read(context);
+    final runtimeJob = await runtime.addGenerationJob(
+      workspaceType: 'audio',
+      routeType: 'api',
+      prompt: text,
+      status: 'running',
+      providerId: _provider.id,
+      resultLabel: 'ElevenLabs: выполняется',
+    );
+    if (!mounted) return;
+    _showMessage('ElevenLabs: создаю озвучку…');
+    final result = await const ElevenLabsTtsService().generate(
+      baseUrl: settings.providerBaseUrl(
+        'elevenlabs',
+        fallback: 'https://api.elevenlabs.io',
+      ),
+      apiKey: apiKey,
+      voiceId: voiceId,
+      text: text,
+    );
+    if (!mounted) return;
+    if (!result.success || result.localPath == null) {
+      job = job.copyWith(
+        status: ExecutionJobStatus.failed,
+        updatedAt: DateTime.now(),
+        errorMessage: result.error,
+      );
+      ExecutionQueue.instance.update(job);
+      await runtime.updateGenerationJob(
+        runtimeJob.id,
+        status: 'failed',
+        resultLabel: result.error ?? 'Ошибка ElevenLabs',
+      );
+      if (!mounted) return;
+      _addHistory('Ошибка ElevenLabs', result.error ?? text);
+      _showMessage(result.error ?? 'Не удалось создать озвучку.');
+      return;
+    }
+
+    final path = result.localPath!;
+    job = job.copyWith(
+      status: ExecutionJobStatus.completed,
+      updatedAt: DateTime.now(),
+      resultAssets: [path],
+      metadata: {...job.metadata, 'localPath': path},
+    );
+    ExecutionQueue.instance.update(job);
+    await runtime.updateGenerationJob(
+      runtimeJob.id,
+      status: 'completed',
+      resultLabel: 'ElevenLabs: MP3 готов',
+      resultUrl: path,
+    );
+    await runtime.addAsset(
+      type: 'audio',
+      title: 'ElevenLabs voice ${DateTime.now().toLocal()}',
+      jobId: runtimeJob.id,
+      localPath: path,
+      prompt: text,
+      providerId: _provider.id,
+      providerName: _provider.name,
+      sourceProvider: _provider.name,
+      sourceWorkspace: 'audio',
+      status: 'completed',
+    );
+    if (!mounted) return;
+    _addHistory('MP3 готов', path);
+    _showMessage('Озвучка сохранена в MP3 и добавлена в библиотеку.');
+  }
+
+  Future<void> _generateWithAceStep() async {
+    if (_mode != _AudioMode.music) {
+      _showMessage('Для прямого ACE-Step API выберите режим Music.');
+      return;
+    }
+    if (_prompt.isEmpty) {
+      _showMessage('Сначала опишите музыку.');
+      return;
+    }
+    final settings = AppSettingsScope.of(context);
+    final endpoint = settings.localEndpoint(
+      'ace-step',
+      fallback: 'http://localhost:8001',
+    );
+    final now = DateTime.now();
+    var job = ExecutionJob(
+      id: 'ace-step-${now.microsecondsSinceEpoch}',
+      workspace: ExecutionJobWorkspace.audio,
+      providerId: _provider.id,
+      providerName: _provider.name,
+      capability: 'textToMusic',
+      inputPrompt: _prompt,
+      composedPrompt: _aceStepPrompt,
+      status: ExecutionJobStatus.running,
+      executionMode: ExecutionJobMode.local,
+      createdAt: now,
+      updatedAt: now,
+      metadata: {
+        'settingsProviderId': 'ace-step',
+        'apiEndpoint': endpoint,
+      },
+    );
+    ExecutionQueue.instance.add(job);
+    final runtime = FlutenRuntimeScope.read(context);
+    final runtimeJob = await runtime.addGenerationJob(
+      workspaceType: 'audio',
+      routeType: 'local',
+      prompt: _aceStepPrompt,
+      status: 'running',
+      providerId: _provider.id,
+      resultLabel: 'ACE-Step: выполняется',
+    );
+    if (!mounted) return;
+    setState(() {
+      _aceStepAvailable = true;
+      _aceStepStatus = 'Генерация выполняется…';
+    });
+    _showMessage('ACE-Step: задача отправлена…');
+    final result = await const AceStepExecutionService().generate(
+      endpoint: endpoint,
+      prompt: _aceStepPrompt,
+      lyrics: _vocals == 'Instrumental' ? '' : _script,
+      durationSeconds: _durationSeconds(_musicDuration),
+    );
+    if (!mounted) return;
+    if (!result.success) {
+      job = job.copyWith(
+        status: ExecutionJobStatus.failed,
+        updatedAt: DateTime.now(),
+        errorMessage: result.error,
+      );
+      ExecutionQueue.instance.update(job);
+      await runtime.updateGenerationJob(
+        runtimeJob.id,
+        status: 'failed',
+        resultLabel: result.error ?? 'Ошибка ACE-Step',
+      );
+      if (!mounted) return;
+      setState(() {
+        _aceStepAvailable = false;
+        _aceStepStatus = 'Ошибка генерации';
+      });
+      _addHistory('Ошибка ACE-Step', result.error ?? _prompt);
+      _showMessage(result.error ?? 'Не удалось создать музыку.');
+      return;
+    }
+    job = job.copyWith(
+      status: ExecutionJobStatus.completed,
+      updatedAt: DateTime.now(),
+      resultAssets: result.localPaths,
+      metadata: {
+        ...job.metadata,
+        if (result.taskId != null) 'taskId': result.taskId!,
+      },
+    );
+    ExecutionQueue.instance.update(job);
+    await runtime.updateGenerationJob(
+      runtimeJob.id,
+      status: 'completed',
+      resultLabel: 'ACE-Step: готово',
+      resultUrl: result.localPaths.first,
+    );
+    for (var index = 0; index < result.localPaths.length; index++) {
+      await runtime.addAsset(
+        type: 'audio',
+        title: result.localPaths.length == 1
+            ? 'ACE-Step music'
+            : 'ACE-Step music ${index + 1}',
+        jobId: runtimeJob.id,
+        localPath: result.localPaths[index],
+        prompt: _aceStepPrompt,
+        providerId: _provider.id,
+        providerName: _provider.name,
+        sourceProvider: _provider.name,
+        sourceWorkspace: 'audio',
+        status: 'completed',
+      );
+    }
+    if (!mounted) return;
+    setState(() {
+      _aceStepAvailable = true;
+      _aceStepStatus = 'Генерация завершена';
+    });
+    _addHistory('Музыка готова', result.localPaths.first);
+    _showMessage('ACE-Step: музыка сохранена и добавлена в библиотеку.');
+  }
+
+  String get _aceStepPrompt =>
+      '$_prompt. Genre: $_genre. Mood: $_mood. Tempo: $_tempo. '
+      'Vocals: $_vocals. Structure: $_structure.';
+
+  int _durationSeconds(String value) {
+    return int.tryParse(value.replaceAll(RegExp(r'[^0-9]'), '')) ?? 30;
+  }
+
   Future<void> _saveManualResult() async {
     final latestJob = _latestExecutionJob(_provider.id);
     final request = await showManualResultDialog(
@@ -555,7 +817,7 @@ Sound design controls: type $_soundType, environment $_environment, intensity $_
     await const ManualResultService().save(context, request);
     if (!mounted) return;
     _addHistory('Manual result saved', request.prompt);
-    _showMessage('Результат сохранён в History / Assets.');
+    _showMessage('Результат сохранён в библиотеке.');
   }
 
   ExecutionJob? _latestExecutionJob(String providerId) {
@@ -629,19 +891,6 @@ Sound design controls: type $_soundType, environment $_environment, intensity $_
     );
   }
 
-  void _prepareAceStepLaunchLater() {
-    unawaited(
-      FlutenRuntimeScope.read(context).addEvent(
-        type: 'audio',
-        title: 'ACE-Step route prepared',
-        detail: 'Execution submit is not implemented yet.',
-      ),
-    );
-    _showMessage(
-      'Запуск через ACE-Step будет подключён следующим этапом. Сейчас prompt можно скопировать.',
-    );
-  }
-
   void _clearPrompt() {
     setState(() {
       _promptController.clear();
@@ -701,7 +950,7 @@ class _AudioHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Audio Studio',
+                  'Аудио',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 24,
@@ -711,7 +960,7 @@ class _AudioHeader extends StatelessWidget {
                 ),
                 SizedBox(height: 6),
                 Text(
-                  'Music, voice and sound design prompt workspace. No internal audio generation yet.',
+                  'Подготовьте prompt для музыки, голоса или звука и передайте его в выбранный сервис.',
                   style: TextStyle(color: Color(0xFFA7B1C1), height: 1.35),
                 ),
               ],
@@ -1205,7 +1454,7 @@ class _AceStepLocalRouteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final message = available == true
-        ? 'ACE-Step доступен. Prompt можно подготовить, реальный submit будет подключён следующим этапом.'
+        ? 'ACE-Step доступен. В режиме Music можно отправить задачу и сохранить готовый MP3.'
         : 'ACE-Step не подключен. Запустите API на 8001 и UI на 3001.';
     return _GlassPanel(
       child: Column(
@@ -1251,7 +1500,7 @@ class _AceStepLocalRouteCard extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: onPrepareLater,
                 icon: const Icon(Icons.queue_music_rounded),
-                label: const Text('Подготовить запуск позже'),
+                label: const Text('Запустить генерацию'),
               ),
             ],
           ),
@@ -1440,7 +1689,7 @@ class _RightPanel extends StatelessWidget {
           const SizedBox(height: 10),
           DropdownButtonFormField<String>(
             initialValue: selectedProvider.id,
-            decoration: const InputDecoration(labelText: 'Selected provider'),
+            decoration: const InputDecoration(labelText: 'Выбранный сервис'),
             items: [
               for (final provider in providers)
                 DropdownMenuItem(

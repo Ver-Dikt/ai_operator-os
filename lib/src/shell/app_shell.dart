@@ -116,17 +116,13 @@ class _StudioTopBar extends StatelessWidget {
   final ValueChanged<AppDestination> onSelect;
 
   static const _tabs = [
-    _StudioTab(AppDestination.textWorkspace, 'AI Чат'),
-    _StudioTab(AppDestination.images, 'Image'),
+    _StudioTab(AppDestination.commandCenter, 'Командный центр'),
+    _StudioTab(AppDestination.textWorkspace, 'Промпт-чат'),
+    _StudioTab(AppDestination.images, 'Изображения'),
     _StudioTab(AppDestination.video, 'Видео'),
-    _StudioTab(AppDestination.audio, 'Audio'),
-    _StudioTab(AppDestination.director, 'Cinema'),
-    _StudioTab(AppDestination.contentFactory, 'Маркетинг'),
-    _StudioTab(AppDestination.workflows, 'Workflows', enabled: false),
-    _StudioTab(AppDestination.browserHub, 'Браузер'),
-    _StudioTab(AppDestination.renderHistory, 'History'),
-    _StudioTab(AppDestination.agents, 'Agents', enabled: false),
-    _StudioTab(AppDestination.tools, 'Apps', enabled: false),
+    _StudioTab(AppDestination.audio, 'Аудио'),
+    _StudioTab(AppDestination.browserHub, 'Внешние сервисы'),
+    _StudioTab(AppDestination.renderHistory, 'Библиотека'),
   ];
 
   @override
@@ -156,15 +152,15 @@ class _StudioTopBar extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 12),
-        _BalancePill(),
+        _MvpModePill(),
         const SizedBox(width: 10),
         _TopIconButton(
-          tooltip: 'Модели и провайдеры',
+          tooltip: 'Провайдеры',
           icon: Icons.hub_outlined,
           onTap: () => onSelect(AppDestination.providers),
         ),
         _TopIconButton(
-          tooltip: 'Настройки',
+          tooltip: 'Провайдеры и ключи',
           icon: Icons.tune_rounded,
           onTap: () => onSelect(AppDestination.settings),
         ),
@@ -186,12 +182,12 @@ class _StudioTopBar extends StatelessWidget {
               ),
               const Spacer(),
               _TopIconButton(
-                tooltip: 'Модели и провайдеры',
+                tooltip: 'Провайдеры',
                 icon: Icons.hub_outlined,
                 onTap: () => onSelect(AppDestination.providers),
               ),
               _TopIconButton(
-                tooltip: 'Настройки',
+                tooltip: 'Провайдеры и ключи',
                 icon: Icons.tune_rounded,
                 onTap: () => onSelect(AppDestination.settings),
               ),
@@ -249,7 +245,7 @@ class _Logo extends StatelessWidget {
             const SizedBox(width: 8),
             const Flexible(
               child: Text(
-                'OpenGenerativeAI',
+                'FLUTEN',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
@@ -288,6 +284,7 @@ class _TabsScroller extends StatelessWidget {
         final tab = tabs[index];
         final selected = destination == tab.destination;
         final activeDestination = {
+          AppDestination.commandCenter,
           AppDestination.textWorkspace,
           AppDestination.images,
           AppDestination.video,
@@ -340,7 +337,7 @@ class _TabsScroller extends StatelessWidget {
   }
 }
 
-class _BalancePill extends StatelessWidget {
+class _MvpModePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -355,7 +352,7 @@ class _BalancePill extends StatelessWidget {
           Icon(Icons.circle, color: Color(0xFF22C55E), size: 8),
           SizedBox(width: 8),
           Text(
-            'Local prep mode',
+            'Ручной режим MVP',
             style: TextStyle(
               color: Color(0xDFFFFFFF),
               fontSize: 11,

@@ -27,15 +27,16 @@ const seedGenerationProviders = <GenerationProvider>[
     ],
     description:
         'Демо API-маршрут для проверки workflow до подключения реальных провайдеров.',
-    statusLabel: 'Mock API · без внешнего запроса',
+    statusLabel: 'Эксперимент',
   ),
   GenerationProvider(
     id: 'api-gpt-image',
     name: 'GPT Image',
     type: GenerationProviderType.api,
-    capabilities: _image,
-    description: 'Будущий API-маршрут для GPT Image. Сейчас API не подключён.',
-    statusLabel: 'API not connected',
+    capabilities: [GenerationCapability.textToImage],
+    description:
+        'Прямая генерация через OpenAI Images API с сохранением результата в библиотеку.',
+    statusLabel: 'API подключён',
     requiresApiKey: true,
   ),
   GenerationProvider(
@@ -45,7 +46,7 @@ const seedGenerationProviders = <GenerationProvider>[
     capabilities: _image,
     description:
         'Будущий API-маршрут для Gemini Image. Сейчас API не подключён.',
-    statusLabel: 'API not connected',
+    statusLabel: 'Нужен API-ключ',
     requiresApiKey: true,
   ),
   GenerationProvider(
@@ -54,7 +55,7 @@ const seedGenerationProviders = <GenerationProvider>[
     type: GenerationProviderType.api,
     capabilities: _image,
     description: 'Будущий API-маршрут для Flux. Сейчас API не подключён.',
-    statusLabel: 'API not connected',
+    statusLabel: 'Нужен API-ключ',
     requiresApiKey: true,
   ),
   GenerationProvider(
@@ -63,7 +64,7 @@ const seedGenerationProviders = <GenerationProvider>[
     type: GenerationProviderType.browser,
     capabilities: _image,
     description: 'Browser handoff для image/design workflow.',
-    statusLabel: 'Browser handoff',
+    statusLabel: 'Через сайт',
     launchUrl: 'https://www.recraft.ai/',
   ),
   GenerationProvider(
@@ -73,7 +74,7 @@ const seedGenerationProviders = <GenerationProvider>[
     capabilities: _image,
     description:
         'Внешний image-сервис: prompt остаётся в STUDIO, результат добавляется вручную.',
-    statusLabel: 'Manual route',
+    statusLabel: 'Вручную',
     launchUrl: 'https://app.leonardo.ai/',
   ),
   GenerationProvider(
@@ -83,7 +84,7 @@ const seedGenerationProviders = <GenerationProvider>[
     capabilities: _image,
     description:
         'Browser handoff для Midjourney: скопируйте prompt и перенесите во внешний интерфейс.',
-    statusLabel: 'Browser handoff',
+    statusLabel: 'Через сайт',
     launchUrl: 'https://www.midjourney.com/',
   ),
   GenerationProvider(
@@ -92,7 +93,7 @@ const seedGenerationProviders = <GenerationProvider>[
     type: GenerationProviderType.browser,
     capabilities: _image,
     description: 'Browser handoff для постеров, типографики и key visuals.',
-    statusLabel: 'Browser handoff',
+    statusLabel: 'Через сайт',
     launchUrl: 'https://ideogram.ai/',
   ),
   GenerationProvider(
@@ -101,7 +102,7 @@ const seedGenerationProviders = <GenerationProvider>[
     type: GenerationProviderType.browser,
     capabilities: _image,
     description: 'Browser handoff для изображений и дизайн-ассетов.',
-    statusLabel: 'Browser handoff',
+    statusLabel: 'Через сайт',
     launchUrl: 'https://www.freepik.com/ai',
   ),
   GenerationProvider(
@@ -115,7 +116,7 @@ const seedGenerationProviders = <GenerationProvider>[
     ],
     description:
         'Локальный node-runtime для будущей интеграции ComfyUI или локального inference.',
-    statusLabel: 'Local runtime',
+    statusLabel: 'Локально недоступно',
     localEndpoint: 'http://127.0.0.1:8188',
   ),
   GenerationProvider(
@@ -124,7 +125,7 @@ const seedGenerationProviders = <GenerationProvider>[
     type: GenerationProviderType.browser,
     capabilities: _textVideo,
     description: 'Browser handoff для text-to-video и image-to-video.',
-    statusLabel: 'Browser handoff',
+    statusLabel: 'Через сайт',
     launchUrl: 'https://klingai.com/',
   ),
   GenerationProvider(
@@ -134,7 +135,7 @@ const seedGenerationProviders = <GenerationProvider>[
     capabilities: _video,
     description:
         'Внешняя ссылка для видео-инструментов. Prompt остаётся под контролем STUDIO.',
-    statusLabel: 'Manual route',
+    statusLabel: 'Вручную',
     launchUrl: 'https://app.runwayml.com/',
   ),
   GenerationProvider(
@@ -143,16 +144,17 @@ const seedGenerationProviders = <GenerationProvider>[
     type: GenerationProviderType.browser,
     capabilities: _textVideo,
     description: 'Browser handoff для cinematic motion и social clips.',
-    statusLabel: 'Browser handoff',
+    statusLabel: 'Через сайт',
     launchUrl: 'https://higgsfield.ai/',
   ),
   GenerationProvider(
     id: 'api-veo',
     name: 'Veo',
     type: GenerationProviderType.api,
-    capabilities: _textVideo,
-    description: 'Будущий API-маршрут для Veo. Сейчас API не подключён.',
-    statusLabel: 'API not connected',
+    capabilities: [GenerationCapability.textToVideo],
+    description:
+        'Прямая генерация Veo 3.1 через Gemini API с сохранением MP4 в библиотеку.',
+    statusLabel: 'API подключён',
     requiresApiKey: true,
   ),
   GenerationProvider(
@@ -161,7 +163,7 @@ const seedGenerationProviders = <GenerationProvider>[
     type: GenerationProviderType.browser,
     capabilities: _textVideo,
     description: 'Browser handoff для видео и motion-сцен.',
-    statusLabel: 'Browser handoff',
+    statusLabel: 'Через сайт',
     launchUrl: 'https://seedance.ai/',
   ),
   GenerationProvider(
@@ -170,7 +172,7 @@ const seedGenerationProviders = <GenerationProvider>[
     type: GenerationProviderType.browser,
     capabilities: _textVideo,
     description: 'Browser handoff для быстрых video drafts.',
-    statusLabel: 'Browser handoff',
+    statusLabel: 'Через сайт',
     launchUrl: 'https://pika.art/',
   ),
   GenerationProvider(
@@ -179,7 +181,7 @@ const seedGenerationProviders = <GenerationProvider>[
     type: GenerationProviderType.browser,
     capabilities: _textVideo,
     description: 'Browser handoff для dream-machine style видео.',
-    statusLabel: 'Browser handoff',
+    statusLabel: 'Через сайт',
     launchUrl: 'https://lumalabs.ai/dream-machine',
   ),
   GenerationProvider(
@@ -189,7 +191,7 @@ const seedGenerationProviders = <GenerationProvider>[
     capabilities: _video,
     description:
         'Локальный видео runtime будет подключён позже. Сейчас это честный placeholder.',
-    statusLabel: 'Local runtime',
+    statusLabel: 'Локально недоступно',
     localEndpoint: 'http://127.0.0.1:8188',
   ),
 ];

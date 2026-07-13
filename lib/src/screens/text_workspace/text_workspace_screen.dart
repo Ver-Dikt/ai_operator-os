@@ -8,22 +8,24 @@ import '../../ai_operator_app.dart';
 import '../../data/seed_browser_ai_tools.dart';
 import '../../models/browser_ai_tool.dart';
 import '../../models/execution_job.dart';
+import '../../models/provider_ui_state.dart';
 import '../../services/execution_queue.dart';
 import '../../services/ollama_execution_service.dart';
 import '../../services/ollama_prompt_brain_service.dart';
 import '../../services/openai_compatible_text_service.dart';
 import '../../state/app_settings.dart';
 import '../../widgets/current_session_strip.dart';
+import '../../widgets/chips/status_badge.dart';
 
 enum TextRouteMode { localOllama, browser, apiPlaceholder, manual }
 
 extension TextRouteModeLabel on TextRouteMode {
   String get label {
     return switch (this) {
-      TextRouteMode.localOllama => 'Local Ollama',
-      TextRouteMode.browser => 'Browser handoff',
-      TextRouteMode.apiPlaceholder => 'API placeholder',
-      TextRouteMode.manual => 'Manual',
+      TextRouteMode.localOllama => 'Локально · Ollama',
+      TextRouteMode.browser => 'Через сайт',
+      TextRouteMode.apiPlaceholder => 'Через API',
+      TextRouteMode.manual => 'Вручную',
     };
   }
 
@@ -461,7 +463,7 @@ class _TextWorkspaceScreenState extends State<TextWorkspaceScreen> {
         _addAssistant(
           'API для этого провайдера пока не подключен. Используйте Browser route или Ollama.',
         );
-        _recordEvent('API placeholder: ${_provider.name}');
+        _recordEvent('API-маршрут: ${_provider.name}');
       case TextRouteMode.manual:
         await Clipboard.setData(ClipboardData(text: prompt));
         _addAssistant('Manual mode: промпт скопирован в буфер.');
@@ -1054,7 +1056,7 @@ Final clean prompt: $source, cinematic short video shot, strong blocking, layere
       text: text,
       destination: AppDestination.images,
       studioName: 'Image Studio',
-      eventName: 'AI Chat image prompt sent to Image Studio',
+      eventName: 'Prompt отправлен из промпт-чата в изображения',
       setDraft: AppSettingsScope.of(context).setImagePromptDraft,
       sentMessage: 'Промпт отправлен в Image Studio',
     );
@@ -1065,7 +1067,7 @@ Final clean prompt: $source, cinematic short video shot, strong blocking, layere
       text: text,
       destination: AppDestination.video,
       studioName: 'Video Studio',
-      eventName: 'AI Chat video prompt sent to Video Studio',
+      eventName: 'Prompt отправлен из промпт-чата в видео',
       setDraft: AppSettingsScope.of(context).setVideoPromptDraft,
       sentMessage: 'Промпт отправлен в Video Studio',
     );
@@ -1117,11 +1119,11 @@ Final clean prompt: $source, cinematic short video shot, strong blocking, layere
         routeType: 'browser',
         prompt: text.trim(),
         status: 'prepared',
-        resultLabel: 'Browser Hub handoff',
+        resultLabel: 'Передача во внешний сервис',
         resultUrl: tool?.url,
       ),
     );
-    _showMessage('Промпт скопирован. Открываю Browser Hub.');
+    _showMessage('Prompt скопирован. Открываю внешние сервисы.');
     widget.onNavigate(AppDestination.browserHub);
   }
 
@@ -1334,7 +1336,7 @@ class _Header extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'TEXT BRAIN',
+                'ПРОМПТ-ЧАТ',
                 style: TextStyle(
                   color: Color(0xFFC8FFF4),
                   fontSize: 11,
@@ -1344,7 +1346,7 @@ class _Header extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'AI Чат и Prompt Builder',
+                'Промпт-чат',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w900,
@@ -1352,7 +1354,7 @@ class _Header extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               const Text(
-                'Сценарии, структуры роликов, production prompts и подготовка текста для Image / Video / Browser Hub.',
+                'Создавайте и улучшайте prompts, затем передавайте их в изображения, видео или внешние сервисы.',
                 style: TextStyle(color: Color(0xFFA7B1C1), height: 1.4),
               ),
             ],
@@ -1423,7 +1425,7 @@ class _StatusCard extends StatelessWidget {
             Text(
               settings.hasProviderApiKey(settingsProviderId)
                   ? 'API-ключ ${provider.name} настроен. Реальный text execution включён.'
-                  : 'Нужен API-ключ ${provider.name} в Настройки запуска.',
+                  : 'Нужен API-ключ ${provider.name} в разделе «Провайдеры и ключи».',
               style: const TextStyle(color: Color(0xFFFFB86B), height: 1.35),
             ),
           ],
@@ -1576,7 +1578,7 @@ class _HandoffMessageCard extends StatelessWidget {
                 TextButton.icon(
                   onPressed: onOpenHub,
                   icon: const Icon(Icons.public_rounded),
-                  label: const Text('Открыть в Browser Hub'),
+                  label: const Text('Открыть во внешних сервисах'),
                 ),
               ],
             ),
@@ -1653,12 +1655,12 @@ class _PromptDraftCard extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: onSendImage,
                   icon: const Icon(Icons.image_outlined),
-                  label: const Text('Отправить в Image Studio'),
+                  label: const Text('Отправить в изображения'),
                 ),
                 OutlinedButton.icon(
                   onPressed: onSendVideo,
                   icon: const Icon(Icons.movie_creation_outlined),
-                  label: const Text('Отправить в Video Studio'),
+                  label: const Text('Отправить в видео'),
                 ),
               ],
             ),
@@ -1810,19 +1812,19 @@ class _ControlPanel extends StatelessWidget {
           OutlinedButton.icon(
             onPressed: onBrowserHub,
             icon: const Icon(Icons.public_rounded),
-            label: const Text('Открыть в Browser Hub'),
+            label: const Text('Открыть во внешних сервисах'),
           ),
           const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: onSendImage,
             icon: const Icon(Icons.arrow_forward_rounded),
-            label: const Text('Отправить в Image Studio'),
+            label: const Text('Отправить в изображения'),
           ),
           const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: onSendVideo,
             icon: const Icon(Icons.arrow_forward_rounded),
-            label: const Text('Отправить в Video Studio'),
+            label: const Text('Отправить в видео'),
           ),
           const SizedBox(height: 16),
           const Text(
@@ -1933,15 +1935,20 @@ class _ProviderRuntimeStatusPanel extends StatelessWidget {
                 label: 'Модель',
                 value: model.isEmpty ? 'Не выбрана' : model,
               ),
-            _ProviderStatusLine(label: 'Статус', value: status),
-            _ProviderStatusLine(label: 'Health', value: healthLabel),
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: ProviderStateBadge(
+                state: providerUiStateFromLabel(status),
+              ),
+            ),
+            _ProviderStatusLine(label: 'Подключение', value: healthLabel),
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
                 onPressed: onOpenSettings,
                 icon: const Icon(Icons.tune_rounded, size: 18),
-                label: const Text('Открыть настройки'),
+                label: const Text('Провайдеры и ключи'),
               ),
             ),
           ],
@@ -2094,7 +2101,7 @@ class _InlineHandoffPanel extends StatelessWidget {
           TextButton.icon(
             onPressed: onOpenHub,
             icon: const Icon(Icons.public_rounded),
-            label: const Text('Открыть в Browser Hub'),
+            label: const Text('Открыть во внешних сервисах'),
           ),
         ],
       ),
@@ -2188,7 +2195,7 @@ class _Composer extends StatelessWidget {
                     : const Icon(Icons.send_rounded),
                 label: Text(
                   provider.mode == TextRouteMode.browser
-                      ? 'Подготовить handoff'
+                      ? 'Подготовить передачу'
                       : 'Отправить',
                 ),
               ),

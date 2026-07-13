@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/generation/generation_provider.dart';
+import '../../models/provider_ui_state.dart';
+import '../chips/status_badge.dart';
 
 class BrowserWorkspacePanel extends StatefulWidget {
   const BrowserWorkspacePanel({
@@ -87,7 +89,9 @@ class _BrowserWorkspacePanelState extends State<BrowserWorkspacePanel> {
                   ],
                 ),
               ),
-              Chip(label: Text(widget.provider.statusLabel)),
+              ProviderStateBadge(
+                state: providerUiStateFromLabel(widget.provider.statusLabel),
+              ),
             ],
           ),
           const SizedBox(height: 10),
@@ -138,24 +142,19 @@ class _BrowserWorkspacePanelState extends State<BrowserWorkspacePanel> {
             runSpacing: 7,
             children: [
               FilledButton.icon(
-                onPressed: _copyPrompt,
-                icon: const Icon(Icons.copy_rounded),
-                label: const Text('Скопировать промпт'),
-              ),
-              OutlinedButton.icon(
                 onPressed: _openSite,
                 icon: const Icon(Icons.open_in_new_rounded),
                 label: const Text('Открыть сервис'),
               ),
               OutlinedButton.icon(
+                onPressed: _copyPrompt,
+                icon: const Icon(Icons.copy_rounded),
+                label: const Text('Скопировать prompt'),
+              ),
+              OutlinedButton.icon(
                 onPressed: _openInside,
                 icon: const Icon(Icons.open_in_browser_rounded),
                 label: const Text('Встроенный браузер: скоро'),
-              ),
-              OutlinedButton.icon(
-                onPressed: _preparePaste,
-                icon: const Icon(Icons.input_rounded),
-                label: const Text('Подготовить вставку'),
               ),
               OutlinedButton.icon(
                 onPressed: _saveManualResult,
@@ -173,12 +172,6 @@ class _BrowserWorkspacePanelState extends State<BrowserWorkspacePanel> {
     await Clipboard.setData(ClipboardData(text: widget.prompt.trim()));
     if (!mounted) return;
     _showMessage('Промпт скопирован.');
-  }
-
-  Future<void> _preparePaste() async {
-    await Clipboard.setData(ClipboardData(text: widget.prompt.trim()));
-    if (!mounted) return;
-    _showMessage('Промпт скопирован. Вставьте его в открытом сервисе вручную.');
   }
 
   Future<void> _openSite() async {

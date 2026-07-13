@@ -12,12 +12,14 @@ import '../../models/manual_result_asset.dart';
 import '../../services/generation/generation_provider_registry.dart';
 import '../../services/generation/mock_generation_service.dart';
 import '../../services/execution_queue.dart';
+import '../../services/gemini_veo_service.dart';
 import '../../services/manual_result_service.dart';
 import '../../services/ollama_prompt_brain_service.dart';
 import '../../services/provider_executor.dart';
 import '../../widgets/generation/manual_result_dialog.dart';
 import '../../widgets/generation/browser_workspace_panel.dart';
 import '../../widgets/generation/render_history_rail.dart';
+import '../../widgets/generation/studio_workflow_steps.dart';
 import '../../widgets/generation/result_canvas.dart';
 import '../../widgets/current_session_strip.dart';
 
@@ -142,6 +144,11 @@ class _VideoGenerationScreenState extends State<VideoGenerationScreen> {
       promptBar: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          StudioWorkflowSteps(
+            steps: const ['Идея', 'План кадров', 'Prompt', 'Сервис', 'Сохранение'],
+            activeStep: _shots.isEmpty ? 0 : 2,
+          ),
+          const SizedBox(height: 8),
           if (_handoffVisible &&
               _promptSource != _VideoPromptSource.unknown) ...[
             _VideoHandoffBanner(
@@ -280,8 +287,8 @@ class _VideoGenerationScreenState extends State<VideoGenerationScreen> {
         type: 'video',
         title: source == _VideoPromptSource.director
             ? 'Director handoff accepted'
-            : 'Video prompt received from AI Chat',
-        detail: 'Video Studio',
+            : 'Prompt для видео получен из промпт-чата',
+        detail: 'Видео',
       ),
     );
   }
@@ -537,6 +544,10 @@ Output quality: $_quality
 
   Future<void> _openProviderSite() async {
     final provider = _registry.byId(_providerId);
+    if (provider.id == 'api-veo') {
+      await _generateWithVeo(provider);
+      return;
+    }
     final job = await const ProviderExecutionService().start(
       workspace: ExecutionJobWorkspace.video,
       provider: ExecutionProviderRef.fromGenerationProvider(provider),
@@ -549,6 +560,178 @@ Output quality: $_quality
     _recordExecutionJob(job);
     _recordEvent('Video provider site opened', detail: provider.name);
     _showMessage(_messageForExecutionJob(job));
+  }
+
+  Future<void> _generateWithVeo(GenerationProvider provider) async {
+    if (_capability != GenerationCapability.textToVideo) {
+      _showMessage('Сейчас прямой Veo route подключён для Текст → видео.');
+      return;
+    }
+    if (_currentPrompt.trim().isEmpty) {
+      _showMessage('Сначала добавьте prompt для видео.');
+      return;
+    }
+    final settings = AppSettingsScope.of(context);
+    final apiKey = settings.providerApiKey('gemini').trim();
+    final configuredModel = settings.providerModel('gemini').trim();
+    final model = configuredModel.startsWith('veo-')
+        ? configuredModel
+        : 'veo-3.1-generate-preview';
+    final now = DateTime.now();
+    var job = ExecutionJob(
+      id: 'veo-${now.microsecondsSinceEpoch}',
+      workspace: ExecutionJobWorkspace.video,
+      providerId: provider.id,
+      providerName: provider.name,
+      capability: _capability.name,
+      inputPrompt: _currentPrompt.trim(),
+      composedPrompt: _veoPrompt,
+      status: apiKey.isEmpty
+          ? ExecutionJobStatus.requiresApiKey
+          : ExecutionJobStatus.running,
+      executionMode: ExecutionJobMode.api,
+      createdAt: now,
+      updatedAt: now,
+      errorMessage: apiKey.isEmpty
+          ? 'Добавьте Gemini API key в настройках.'
+          : null,
+      metadata: {
+        'settingsProviderId': 'gemini',
+        'model': model,
+        'durationSeconds': '$_veoDurationSeconds',
+        'aspectRatio': _aspectRatio,
+      },
+    );
+    ExecutionQueue.instance.add(job);
+    if (apiKey.isEmpty) {
+      _recordExecutionJob(job);
+      _showMessage('Добавьте Gemini API key в настройках.');
+      return;
+    }
+    final runtime = FlutenRuntimeScope.read(context);
+    final runtimeJob = await runtime.addGenerationJob(
+      workspaceType: 'video',
+      providerId: provider.id,
+      routeType: 'api',
+      prompt: _veoPrompt,
+      status: 'running',
+      resultLabel: 'Veo: выполняется',
+    );
+    if (!mounted) return;
+    _showMessage('Veo: генерация запущена, это может занять несколько минут…');
+    final result = await const GeminiVeoService().generate(
+      baseUrl: settings.providerBaseUrl(
+        'gemini',
+        fallback: 'https://generativelanguage.googleapis.com/v1beta',
+      ),
+      apiKey: apiKey,
+      model: model,
+      prompt: _veoPrompt,
+      aspectRatio: _aspectRatio,
+      durationSeconds: _veoDurationSeconds,
+      resolution: _veoResolution,
+    );
+    if (!mounted) return;
+    if (!result.success || result.localPath == null) {
+      job = job.copyWith(
+        status: ExecutionJobStatus.failed,
+        updatedAt: DateTime.now(),
+        errorMessage: result.error,
+      );
+      ExecutionQueue.instance.update(job);
+      await runtime.updateGenerationJob(
+        runtimeJob.id,
+        status: 'failed',
+        resultLabel: result.error ?? 'Ошибка Veo',
+      );
+      if (!mounted) return;
+      _showMessage(result.error ?? 'Не удалось создать видео Veo.');
+      return;
+    }
+    final path = result.localPath!;
+    final completedAt = DateTime.now();
+    job = job.copyWith(
+      status: ExecutionJobStatus.completed,
+      updatedAt: completedAt,
+      resultAssets: [path],
+      metadata: {
+        ...job.metadata,
+        'localPath': path,
+        if (result.operationName != null)
+          'operationName': result.operationName!,
+      },
+    );
+    ExecutionQueue.instance.update(job);
+    final request = GenerationRequest(
+      prompt: _currentPrompt.trim(),
+      providerId: provider.id,
+      capability: _capability,
+      aspectRatio: _aspectRatio,
+      modelId: model,
+      negativePrompt: _negativeController.text.trim(),
+      durationSeconds: _veoDurationSeconds,
+      quality: _quality,
+    );
+    final visibleJob = GenerationJob(
+      id: job.id,
+      title: _videoJobTitle,
+      request: request,
+      providerName: provider.name,
+      status: GenerationJobStatus.completed,
+      createdAt: now,
+      updatedAt: completedAt,
+      progress: 1,
+      outputUrl: path,
+    );
+    setState(() {
+      _jobs.insert(0, visibleJob);
+      _selectedJob = visibleJob;
+    });
+    _persistHistory();
+    await runtime.updateGenerationJob(
+      runtimeJob.id,
+      status: 'completed',
+      resultLabel: 'Veo: MP4 готов',
+      resultUrl: path,
+    );
+    await runtime.addAsset(
+      type: 'video',
+      title: _videoJobTitle,
+      jobId: runtimeJob.id,
+      localPath: path,
+      prompt: _veoPrompt,
+      providerId: provider.id,
+      providerName: provider.name,
+      sourceProvider: provider.name,
+      sourceWorkspace: 'video',
+      status: 'completed',
+    );
+    if (!mounted) return;
+    _showMessage('Veo: MP4 сохранён и добавлен в библиотеку.');
+  }
+
+  String get _veoPrompt {
+    final negative = _negativeController.text.trim();
+    final shots = _shots.isEmpty
+        ? ''
+        : ' Shot sequence: ${_shots.map((shot) => shot.action).join(' Then: ')}.';
+    return '${_currentPrompt.trim()}$shots Camera: $_cameraStyle. '
+            'Motion: $_motionIntensity. Pacing: $_pacing. '
+            '${negative.isEmpty ? '' : 'Avoid: $negative.'}'
+        .trim();
+  }
+
+  int get _veoDurationSeconds {
+    if (_quality == 'High') return 8;
+    return _duration == '6s' ? 6 : 8;
+  }
+
+  String get _veoResolution => _quality == 'High' ? '1080p' : '720p';
+
+  String get _videoJobTitle {
+    final prompt = _currentPrompt.trim();
+    if (prompt.length <= 42) return prompt;
+    return '${prompt.substring(0, 42)}…';
   }
 
   void _recordEvent(String title, {String? detail}) {
@@ -660,7 +843,7 @@ Output quality: $_quality
     if (request == null || !mounted) return;
     await const ManualResultService().save(context, request);
     if (!mounted) return;
-    _showMessage('Результат сохранён в History / Assets.');
+    _showMessage('Результат сохранён в библиотеке.');
   }
 
   ExecutionJob? _latestExecutionJob(String providerId) {
@@ -685,7 +868,7 @@ enum _VideoPromptSource { unknown, aiChat, director }
 extension _VideoPromptSourceLabel on _VideoPromptSource {
   String get label {
     return switch (this) {
-      _VideoPromptSource.aiChat => 'AI Chat / Video Prompt',
+      _VideoPromptSource.aiChat => 'Промпт-чат',
       _VideoPromptSource.director => 'Director Engine',
       _VideoPromptSource.unknown => '',
     };
@@ -764,7 +947,7 @@ class _VideoHandoffBanner extends StatelessWidget {
                 Text(
                   director
                       ? 'Production prompt принят. Можно собрать план кадров и отправить prompt в выбранный video-сервис.'
-                      : 'Production prompt принят из AI Chat / Video Prompt.',
+                      : 'Production prompt принят из промпт-чата.',
                   style: const TextStyle(
                     color: Color(0xFFC8D2E2),
                     fontSize: 12,
@@ -894,7 +1077,7 @@ class _CinematicVideoPanel extends StatelessWidget {
         children: [
           _PanelTitle(
             icon: Icons.movie_filter_rounded,
-            title: 'Cinematic prompt',
+            title: 'Prompt для видео',
             subtitle:
                 'Опишите сцену, действие, камеру и финальный жест. Это подготовка prompt, не генерация видео.',
           ),
@@ -914,7 +1097,7 @@ class _CinematicVideoPanel extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: [
-              FilledButton.icon(
+              OutlinedButton.icon(
                 onPressed: onImprove,
                 icon: const Icon(Icons.auto_fix_high_rounded),
                 label: const Text('Улучшить prompt'),
@@ -1371,7 +1554,7 @@ class _ComposedPromptCard extends StatelessWidget {
         children: [
           const _PanelTitle(
             icon: Icons.integration_instructions_outlined,
-            title: 'Composed production prompt',
+            title: 'Готовый production prompt',
             subtitle:
                 'Итоговый prompt с настройками, negative prompt и планом кадров.',
           ),
@@ -1510,19 +1693,27 @@ class _VideoProviderPanel extends StatelessWidget {
             runSpacing: 8,
             children: [
               OutlinedButton.icon(
-                onPressed: selectedProvider.launchUrl == null ? null : onOpen,
-                icon: const Icon(Icons.open_in_new_rounded),
-                label: const Text('Открыть сайт'),
-              ),
-              OutlinedButton.icon(
                 onPressed: onCopy,
                 icon: const Icon(Icons.copy_rounded),
                 label: const Text('Скопировать prompt'),
               ),
-              FilledButton.icon(
+              OutlinedButton.icon(
                 onPressed: onPrepare,
-                icon: const Icon(Icons.send_rounded),
-                label: const Text('Подготовить для сервиса'),
+                icon: const Icon(Icons.tune_rounded),
+                label: const Text('Подготовить prompt'),
+              ),
+              FilledButton.icon(
+                onPressed: onOpen,
+                icon: Icon(
+                  selectedProvider.type == GenerationProviderType.api
+                      ? Icons.auto_awesome_rounded
+                      : Icons.open_in_new_rounded,
+                ),
+                label: Text(
+                  selectedProvider.type == GenerationProviderType.api
+                      ? 'Запустить генерацию'
+                      : 'Открыть сервис',
+                ),
               ),
               OutlinedButton.icon(
                 onPressed: onSaveManualResult,
@@ -1537,6 +1728,7 @@ class _VideoProviderPanel extends StatelessWidget {
   }
 
   String _statusFor(GenerationProvider provider) {
+    if (provider.id == 'api-veo') return 'API подключён';
     if (provider.type == GenerationProviderType.api &&
         provider.requiresApiKey) {
       return 'Нужен API-ключ';
@@ -1704,7 +1896,7 @@ class ChatPromptNotice extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
       ),
       child: const Text(
-        'Промпт получен из AI Chat',
+        'Prompt получен из промпт-чата',
         style: TextStyle(
           color: Color(0xFFC8FFF4),
           fontSize: 12,
@@ -1744,7 +1936,7 @@ class _WorkspaceHeader extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Video Studio',
+                'Видео',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w900,
@@ -1752,7 +1944,7 @@ class _WorkspaceHeader extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               const Text(
-                'Собирай шоты, motion-тесты, image-to-video сцены и видео-обработку с контролами модели рядом с промптом.',
+                'Соберите идею, план кадров и production prompt, затем откройте выбранный видеосервис.',
                 style: TextStyle(color: Color(0xFFA7B1C1), height: 1.4),
               ),
             ],

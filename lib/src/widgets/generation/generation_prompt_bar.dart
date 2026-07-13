@@ -247,7 +247,7 @@ class _GenerationPromptBarState extends State<GenerationPromptBar> {
       GenerationProviderType.externalLink => 'Подготовить запуск',
       GenerationProviderType.local => 'Проверить local',
       GenerationProviderType.api =>
-        provider.requiresApiKey ? 'API placeholder' : 'Генерировать',
+        provider.requiresApiKey ? 'Нужен API-ключ' : 'Генерировать',
     };
   }
 

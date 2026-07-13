@@ -35,18 +35,18 @@ extension _ToolFilterLabel on _ToolFilter {
   String get label {
     return switch (this) {
       _ToolFilter.all => 'Все',
-      _ToolFilter.text => 'Text',
-      _ToolFilter.image => 'Image',
-      _ToolFilter.video => 'Video',
-      _ToolFilter.audio => 'Audio',
-      _ToolFilter.social => 'Social',
-      _ToolFilter.agents => 'Agents',
-      _ToolFilter.workflow => 'Workflow',
-      _ToolFilter.editors => 'Editors',
-      _ToolFilter.localSelfHost => 'Local/Self-host',
-      _ToolFilter.apiCandidates => 'API Candidates',
-      _ToolFilter.experimental => 'Experimental',
-      _ToolFilter.researchOnly => 'Research only',
+      _ToolFilter.text => 'Текст',
+      _ToolFilter.image => 'Изображения',
+      _ToolFilter.video => 'Видео',
+      _ToolFilter.audio => 'Аудио',
+      _ToolFilter.social => 'Соцсети',
+      _ToolFilter.agents => 'Агенты',
+      _ToolFilter.workflow => 'Сценарии',
+      _ToolFilter.editors => 'Редакторы',
+      _ToolFilter.localSelfHost => 'Локально',
+      _ToolFilter.apiCandidates => 'Доступно по API',
+      _ToolFilter.experimental => 'Эксперимент',
+      _ToolFilter.researchOnly => 'Исследование',
     };
   }
 
@@ -100,7 +100,7 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
   bool _showInternalPlaceholder = false;
   bool _runtimeWorkspaceOpened = false;
   String _statusText =
-      'Сервис выбран. Можно открыть сайт во внешнем браузере или подготовить prompt handoff.';
+      'Сервис выбран. Скопируйте prompt или сразу откройте сайт.';
 
   @override
   void initState() {
@@ -136,7 +136,7 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
       if (tool != null) _selectedTool = tool;
       _showInternalPlaceholder = false;
       _statusText =
-          'Промпт получен из AI Chat. Можно открыть сайт во внешнем браузере или подготовить prompt handoff.';
+          'Prompt получен из промпт-чата. Можно скопировать его или открыть выбранный сайт.';
     });
     unawaited(FlutenRuntimeScope.read(context).setActivePromptDraft(prompt));
     if (tool != null) {
@@ -203,8 +203,6 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
                 ? null
                 : () => _openGitHub(_selectedTool),
             onCopyNotes: () => _copyToolNotes(_selectedTool),
-            onOpenInside: _openInside,
-            onPreparePaste: _preparePaste,
             onSaveManualResult: _saveManualResult,
           );
 
@@ -255,7 +253,7 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
       _selectedTool = tool;
       _showInternalPlaceholder = false;
       _statusText =
-          'Сервис выбран. Можно открыть сайт во внешнем браузере или подготовить prompt handoff.';
+          'Сервис выбран. Скопируйте prompt или сразу откройте сайт.';
     });
     unawaited(
       FlutenRuntimeScope.read(
@@ -311,7 +309,7 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
     unawaited(
       FlutenRuntimeScope.read(context).addEvent(
         type: 'browser',
-        title: 'Provider handoff prepared',
+        title: 'Передача в сервис подготовлена',
         detail: _selectedTool.name,
       ),
     );
@@ -385,17 +383,6 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
     _showMessage('Не удалось открыть сайт. Prompt скопирован.');
   }
 
-  void _openInside() {
-    final message = kIsWeb
-        ? 'В web-версии встроенный браузер ограничен. Используйте desktop-версию STUDIO или откройте сайт во внешнем браузере.'
-        : 'Встроенный браузер пока не подключен. Сейчас используйте внешний сайт провайдера.';
-    setState(() {
-      _showInternalPlaceholder = true;
-      _statusText = message;
-    });
-    _showMessage(message);
-  }
-
   Future<void> _saveManualResult() async {
     final request = await showManualResultDialog(
       context: context,
@@ -410,7 +397,7 @@ class _BrowserHubScreenState extends State<BrowserHubScreen> {
     if (request == null || !mounted) return;
     await const ManualResultService().save(context, request);
     if (!mounted) return;
-    _showMessage('Результат сохранён в History / Assets.');
+    _showMessage('Результат сохранён в библиотеке.');
   }
 
   ManualResultType _manualTypeFor(BrowserAiCategory category) {
@@ -499,7 +486,7 @@ class _HubHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'Браузер нейронок',
+          'Внешние сервисы',
           style: TextStyle(
             color: Colors.white,
             fontSize: 24,
@@ -509,7 +496,7 @@ class _HubHeader extends StatelessWidget {
         ),
         SizedBox(height: 6),
         Text(
-          'Командный центр для внешних AI-сайтов: текст, ресерч, картинки, видео, аудио, промпты и creative tools.',
+          'Выберите AI-сервис, передайте подготовленный prompt и сохраните полученный результат.',
           style: TextStyle(color: Color(0xFFA7B1C1), height: 1.35),
         ),
       ],
@@ -877,8 +864,6 @@ class _BrowserWorkspace extends StatelessWidget {
     required this.onOpenExternal,
     required this.onOpenGitHub,
     required this.onCopyNotes,
-    required this.onOpenInside,
-    required this.onPreparePaste,
     required this.onSaveManualResult,
   });
 
@@ -891,8 +876,6 @@ class _BrowserWorkspace extends StatelessWidget {
   final VoidCallback onOpenExternal;
   final VoidCallback? onOpenGitHub;
   final VoidCallback onCopyNotes;
-  final VoidCallback onOpenInside;
-  final VoidCallback onPreparePaste;
   final VoidCallback onSaveManualResult;
 
   @override
@@ -1041,9 +1024,9 @@ class _BrowserWorkspace extends StatelessWidget {
                 label: const Text('Открыть во внешнем браузере'),
               ),
               OutlinedButton.icon(
-                onPressed: onOpenInside,
+                onPressed: null,
                 icon: const Icon(Icons.open_in_browser_rounded),
-                label: const Text('Открыть внутри FLUTEN'),
+                label: const Text('Встроенный браузер · Скоро'),
               ),
               OutlinedButton.icon(
                 onPressed: onOpenGitHub,
@@ -1059,11 +1042,6 @@ class _BrowserWorkspace extends StatelessWidget {
                 onPressed: onCopyPrompt,
                 icon: const Icon(Icons.copy_rounded),
                 label: const Text('Скопировать prompt'),
-              ),
-              OutlinedButton.icon(
-                onPressed: onPreparePaste,
-                icon: const Icon(Icons.input_rounded),
-                label: const Text('Подготовить для сервиса'),
               ),
               OutlinedButton.icon(
                 onPressed: onSaveManualResult,

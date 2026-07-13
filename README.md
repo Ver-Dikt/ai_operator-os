@@ -1,17 +1,19 @@
 # FLUTEN / AI Operator OS — MVP
 
-FLUTEN сейчас зафиксирован как локальный MVP: один Flutter Desktop проект без backend, Docker и сторонних runtime-репозиториев. Основной сценарий — подготовить prompt, открыть нужный внешний сервис вручную, сохранить результат в History / Assets.
+FLUTEN сейчас зафиксирован как Windows-first Flutter MVP без собственного backend. Он объединяет прямые API-маршруты, локальные AI runtime и безопасную ручную передачу во внешние сервисы.
 
 ## Что уже работает
 
-- AI Chat: OpenRouter и OmniRoute как реальные OpenAI-compatible text routes при наличии настроек.
-- Execution Settings: API keys, Base URL, model/router profile и health checks.
-- Browser Hub: каталог внешних AI tools, copy/open handoff, ручной переход на сайт.
-- Image Studio: подготовка prompt, provider handoff, manual result saving.
-- Video Studio: подготовка prompt/shot plan, provider handoff, manual result saving.
-- Audio Studio: подготовка music/voice/sound prompt, provider handoff, manual result saving.
-- History / Assets: сохранённые prompt, handoff, text results и ручные результаты.
-- Local health foundation: Ollama, ComfyUI, ACE-Step checks/settings как основа для следующих этапов.
+- Промпт-чат: OpenRouter и OmniRoute как реальные OpenAI-compatible text routes при наличии настроек.
+- Провайдеры и ключи: API-ключи, Base URL, модель/роутер и проверка подключений.
+- Внешние сервисы: каталог AI-инструментов, копирование prompt и ручной переход на сайт.
+- Изображения: прямой OpenAI GPT Image API, локальный ComfyUI API-workflow и ручная передача в другие сервисы.
+- Видео: прямой Veo 3.1 text-to-video API, подготовка плана кадров и ручная передача в другие сервисы.
+- Аудио: прямой ElevenLabs TTS, локальная генерация музыки ACE-Step и ручная передача в другие сервисы.
+- Библиотека: сохранённые prompts, передачи, текстовые и ручные результаты.
+- Локальные маршруты: Ollama для prompt improvement, ComfyUI для изображений и ACE-Step для музыки.
+
+Прямые генерации сохраняются по умолчанию в `%APPDATA%\FLUTEN\outputs` и автоматически регистрируются в Библиотеке.
 
 ## Как запустить в dev mode
 
@@ -69,14 +71,18 @@ build\windows\x64\runner\Release\ai_operator_os.exe
 
 - OpenRouter: нужен API key, Base URL и model/router profile.
 - OmniRoute: нужен API key и настроенный Base URL, если используется remote/router endpoint.
-- Остальные external providers зависят от своих сайтов/API и сейчас в основном работают через Browser Hub/manual handoff.
+- OpenAI: нужен API key; Image Studio использует модель `gpt-image-2`.
+- ElevenLabs: нужен API key и Voice ID.
+- Gemini: нужен API key с доступом к Veo; Video Studio сохраняет готовый MP4 локально.
+- ComfyUI и ACE-Step работают локально без внешнего ключа, если локальный runtime не защищён собственным токеном.
+- Остальные external providers работают через Browser Hub/manual handoff до подключения проверенного API-контракта.
 
-API keys не должны попадать в UI, History, logs, console output, screenshots, GitHub или README.
+API keys не попадают в History, логи и результаты. На текущем MVP-этапе они хранятся локально через SharedPreferences; перед публичным релизом требуется перенос в Windows Credential Manager/secure storage.
 
 ## Что пока manual/browser
 
 - Browser Hub providers: открыть сайт, вставить prompt, сохранить результат вручную.
-- Image / Video / Audio external tools: prompt подготовлен в FLUTEN, генерация выполняется во внешнем сервисе.
+- Неподключённые Image / Video / Audio tools: prompt подготовлен в FLUTEN, генерация выполняется во внешнем сервисе.
 - Local services без запущенного runtime показываются как недоступные или экспериментальные.
 
 ## Что не коммитить
@@ -95,10 +101,10 @@ STUDIO.code-workspace
 
 ## MVP workflow
 
-1. Открой AI Chat.
+1. Открой Промпт-чат.
 2. Выбери OpenRouter или OmniRoute и проверь статус провайдера.
 3. Собери prompt.
-4. Отправь prompt в Image / Video / Audio Studio.
-5. Открой внешний provider через Browser Hub или кнопку handoff.
-6. Сохрани готовый результат вручную в History / Assets.
+4. Отправь prompt в Изображения, Видео или Аудио.
+5. Запусти подключённый API/local route или открой внешний сервис.
+6. Прямой результат попадёт в Библиотеку автоматически; внешний можно сохранить вручную.
 7. Вернись к сохранённому результату позже и переиспользуй prompt/result.

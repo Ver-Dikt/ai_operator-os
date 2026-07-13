@@ -18,7 +18,8 @@ class CurrentSessionStrip extends StatelessWidget {
     final lastAsset = assets.isEmpty ? null : assets.first;
     final draft = session.activePromptDraft?.trim();
     final status =
-        lastEvent?.title ?? (draft == null ? 'Runtime ready' : 'Draft ready');
+        lastEvent?.title ??
+        (draft == null ? 'Сессия готова' : 'Черновик готов');
     final provider = session.activeProviderId == null
         ? null
         : session.activeRoute == null
@@ -53,10 +54,10 @@ class CurrentSessionStrip extends StatelessWidget {
             _Pill(
               icon: Icons.save_alt_rounded,
               text:
-                  '${lastAsset.title} / ${lastAsset.type} / ${lastAsset.providerName ?? lastAsset.sourceProvider ?? 'Manual'}',
+                  '${lastAsset.title} / ${lastAsset.type} / ${lastAsset.providerName ?? lastAsset.sourceProvider ?? 'Вручную'}',
             ),
           if (draft != null && draft.isNotEmpty)
-            _Pill(icon: Icons.notes_rounded, text: 'active prompt'),
+            _Pill(icon: Icons.notes_rounded, text: 'Активный prompt'),
           _SessionAction(
             icon: Icons.keyboard_return_rounded,
             label: 'Вернуться',
@@ -64,7 +65,7 @@ class CurrentSessionStrip extends StatelessWidget {
           ),
           _SessionAction(
             icon: Icons.copy_rounded,
-            label: 'Скопировать active prompt',
+            label: 'Скопировать prompt',
             onTap: draft == null || draft.isEmpty
                 ? null
                 : () => _copyDraft(context, draft),
@@ -82,12 +83,12 @@ class CurrentSessionStrip extends StatelessWidget {
 
   static String _workspaceLabel(String value) {
     return switch (value.toLowerCase()) {
-      'text' => 'AI Chat',
-      'image' => 'Image Studio',
-      'video' => 'Video Studio',
-      'audio' => 'Audio Studio',
-      'browser' => 'Browser Hub',
-      'director' => 'Director',
+      'text' => 'Промпт-чат',
+      'image' => 'Изображения',
+      'video' => 'Видео',
+      'audio' => 'Аудио',
+      'browser' => 'Внешние сервисы',
+      'director' => 'Режиссёр',
       _ => value,
     };
   }
@@ -109,7 +110,7 @@ class CurrentSessionStrip extends StatelessWidget {
     if (!context.mounted) return;
     ScaffoldMessenger.of(
       context,
-    ).showSnackBar(const SnackBar(content: Text('Active prompt скопирован.')));
+    ).showSnackBar(const SnackBar(content: Text('Prompt скопирован.')));
   }
 
   static Future<void> _confirmClear(BuildContext context) async {

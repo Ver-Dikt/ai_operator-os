@@ -145,9 +145,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final settings = AppSettingsScope.of(context);
     return ResponsivePage(
-      title: 'Настройки запуска',
+      title: 'Провайдеры и ключи',
       subtitle:
-          'Локальный vault для провайдеров, API-ключей, endpoint-ов и режимов выполнения. Реальные API-вызовы пока не подключены.',
+          'Настройте текстовые API, локальные сервисы и браузерные маршруты. OpenRouter и OmniRoute выполняют реальные текстовые запросы после подключения.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -733,7 +733,7 @@ class _ApiProviderSettings extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SectionHeader(
-            title: 'API Providers',
+            title: 'Текстовые API',
             subtitle:
                 'Ключи сохраняются локально. Полные значения после сохранения не показываются.',
           ),
@@ -842,80 +842,101 @@ class _ApiProviderCard extends StatelessWidget {
               if (hasKey) _InfoChip(settings.maskedProviderApiKey(provider.id)),
             ],
           ),
-          if (openAiCompatible && health.message.trim().isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              health.message,
-              style: const TextStyle(color: Color(0xFFA7B1C1), height: 1.35),
-            ),
-          ],
-          if (provider.notes.trim().isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Text(
-              provider.notes,
-              style: const TextStyle(color: Color(0xFFFFD29D), height: 1.35),
-            ),
-          ],
-          const SizedBox(height: 10),
-          TextField(
-            controller: keyController,
-            obscureText: true,
-            decoration: InputDecoration(
-              labelText: 'API key',
-              hintText: hasKey
-                  ? settings.maskedProviderApiKey(provider.id)
-                  : '',
-              helperText: 'Не печатается в логах и не показывается полностью.',
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: baseUrlController,
-            decoration: InputDecoration(
-              labelText: provider.id == 'omniroute'
-                  ? 'Base URL OmniRoute'
-                  : 'Base URL optional',
-              helperText: provider.id == 'omniroute'
-                  ? 'Configurable OpenAI-compatible endpoint; placeholder may be local or remote.'
-                  : null,
-            ),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: modelController,
-            decoration: InputDecoration(
-              labelText: provider.id == 'omniroute'
-                  ? 'Model / Router profile'
-                  : 'Model optional',
-            ),
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              FilledButton.icon(
-                onPressed: onSave,
-                icon: const Icon(Icons.save_rounded),
-                label: const Text('Сохранить'),
+          Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: EdgeInsets.zero,
+              title: const Text(
+                'Настроить',
+                style: TextStyle(fontWeight: FontWeight.w800),
               ),
-              OutlinedButton.icon(
-                onPressed: onClear,
-                icon: const Icon(Icons.delete_outline_rounded),
-                label: const Text('Очистить'),
-              ),
-              OutlinedButton.icon(
-                onPressed: openAiCompatible && !checking ? onCheck : null,
-                icon: const Icon(Icons.fact_check_outlined),
-                label: Text(
-                  checking
-                      ? 'Проверка...'
-                      : openAiCompatible
-                      ? 'Проверить подключение'
-                      : 'Проверить позже',
+              subtitle: const Text('API-ключ, адрес API и модель'),
+              children: [
+                if (openAiCompatible && health.message.trim().isNotEmpty) ...[
+                  Text(
+                    health.message,
+                    style: const TextStyle(
+                      color: Color(0xFFA7B1C1),
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                if (provider.notes.trim().isNotEmpty) ...[
+                  Text(
+                    provider.notes,
+                    style: const TextStyle(
+                      color: Color(0xFFFFD29D),
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                TextField(
+                  controller: keyController,
+                  obscureText: true,
+                  decoration: InputDecoration(
+                    labelText: 'API-ключ',
+                    hintText: hasKey
+                        ? settings.maskedProviderApiKey(provider.id)
+                        : '',
+                    helperText: 'Ключ не показывается полностью и не пишется в логи.',
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                TextField(
+                  controller: baseUrlController,
+                  decoration: InputDecoration(
+                    labelText: 'Адрес API (Base URL)',
+                    helperText: provider.id == 'omniroute'
+                        ? 'OpenAI-compatible endpoint OmniRoute.'
+                        : 'Оставьте стандартное значение, если сервис не требует другого адреса.',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: modelController,
+                  decoration: InputDecoration(
+                    labelText: provider.id == 'elevenlabs'
+                        ? 'Voice ID'
+                        : 'Модель / роутер',
+                    helperText: provider.id == 'elevenlabs'
+                        ? 'ID голоса из ElevenLabs Voice Library.'
+                        : null,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: onSave,
+                      icon: const Icon(Icons.save_rounded),
+                      label: const Text('Сохранить'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: openAiCompatible && !checking ? onCheck : null,
+                      icon: const Icon(Icons.fact_check_outlined),
+                      label: Text(
+                        checking
+                            ? 'Проверяется...'
+                            : openAiCompatible
+                            ? 'Проверить подключение'
+                            : 'Проверить позже',
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: onClear,
+                      icon: const Icon(Icons.delete_outline_rounded),
+                      label: const Text('Очистить'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+              ],
+            ),
           ),
         ],
       ),
@@ -967,7 +988,7 @@ class _LocalProviderSettings extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SectionHeader(
-            title: 'Local Providers',
+            title: 'Локальные сервисы',
             subtitle:
                 'Endpoint-ы для Ollama, ComfyUI, ACE-Step и будущего локального браузера.',
           ),
@@ -1069,111 +1090,121 @@ class _LocalProviderCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          TextField(
-            controller: endpointController,
-            decoration: const InputDecoration(labelText: 'Endpoint URL'),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              _InfoChip(status ?? 'Не проверено'),
+              _InfoChip(enabled ? 'Включено' : 'Выключено'),
+            ],
           ),
-          if (provider.id == 'ace-step') ...[
-            const SizedBox(height: 8),
-            TextField(
-              controller: uiEndpointController,
-              decoration: const InputDecoration(
-                labelText: 'ACE-Step UI endpoint',
-                helperText: 'Обычно http://localhost:3001',
+          Theme(
+            data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+            child: ExpansionTile(
+              tilePadding: EdgeInsets.zero,
+              childrenPadding: EdgeInsets.zero,
+              title: const Text(
+                'Настроить',
+                style: TextStyle(fontWeight: FontWeight.w800),
               ),
-            ),
-            const SizedBox(height: 8),
-            _InfoChip(status ?? 'Не проверено'),
-          ],
-          if (provider.id == 'ollama') ...[
-            const SizedBox(height: 8),
-            if (models.isEmpty)
-              TextField(
-                controller: modelController,
-                decoration: const InputDecoration(
-                  labelText: 'Ollama model',
-                  helperText:
-                      'Если список моделей недоступен, впишите имя вручную.',
-                ),
-              )
-            else
-              DropdownButtonFormField<String>(
-                initialValue: models.contains(modelController?.text)
-                    ? modelController?.text
-                    : null,
-                decoration: const InputDecoration(labelText: 'Ollama model'),
-                items: [
-                  for (final model in models)
-                    DropdownMenuItem(value: model, child: Text(model)),
-                ],
-                onChanged: (value) {
-                  if (value != null) onModelSelected(value);
-                },
-              ),
-            const SizedBox(height: 8),
-            _InfoChip(status ?? 'Не проверено'),
-          ],
-          if (provider.id == 'comfyui') ...[
-            const SizedBox(height: 8),
-            TextField(
-              controller: workflowController,
-              decoration: const InputDecoration(
-                labelText: 'Workflow path optional',
-                helperText:
-                    'Пока FLUTEN не отправляет workflow в ComfyUI. Поле готовит следующий этап.',
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: outputFolderController,
-              decoration: const InputDecoration(
-                labelText: 'Output folder optional',
-              ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
+              subtitle: const Text('Адрес, модель и дополнительные параметры'),
               children: [
-                _InfoChip(status ?? 'Не проверено'),
-                _InfoChip(
-                  (workflowController?.text.trim().isEmpty ?? true)
-                      ? 'Workflow не выбран'
-                      : 'Workflow указан',
+                TextField(
+                  controller: endpointController,
+                  decoration: const InputDecoration(
+                    labelText: 'Адрес локального API',
+                  ),
                 ),
+                if (provider.id == 'ace-step') ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: uiEndpointController,
+                    decoration: const InputDecoration(
+                      labelText: 'Адрес интерфейса ACE-Step',
+                      helperText: 'Обычно http://localhost:3001',
+                    ),
+                  ),
+                ],
+                if (provider.id == 'ollama') ...[
+                  const SizedBox(height: 8),
+                  if (models.isEmpty)
+                    TextField(
+                      controller: modelController,
+                      decoration: const InputDecoration(
+                        labelText: 'Модель Ollama',
+                        helperText:
+                            'Если список недоступен, впишите имя модели вручную.',
+                      ),
+                    )
+                  else
+                    DropdownButtonFormField<String>(
+                      initialValue: models.contains(modelController?.text)
+                          ? modelController?.text
+                          : null,
+                      decoration: const InputDecoration(
+                        labelText: 'Модель Ollama',
+                      ),
+                      items: [
+                        for (final model in models)
+                          DropdownMenuItem(value: model, child: Text(model)),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) onModelSelected(value);
+                      },
+                    ),
+                ],
+                if (provider.id == 'comfyui') ...[
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: workflowController,
+                    decoration: const InputDecoration(
+                      labelText: 'Путь к workflow',
+                      helperText:
+                          'API JSON из ComfyUI. Поддерживаются токены {{prompt}}, {{negative_prompt}}, {{width}}, {{height}}, {{seed}}.',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: outputFolderController,
+                    decoration: const InputDecoration(
+                      labelText: 'Папка результатов',
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: onSave,
+                      icon: const Icon(Icons.save_rounded),
+                      label: const Text('Сохранить'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: checking ? null : onCheck,
+                      icon: const Icon(Icons.cable_rounded),
+                      label: Text(
+                        checking ? 'Проверяется...' : _checkLabelFor(provider),
+                      ),
+                    ),
+                    if (provider.id == 'comfyui')
+                      OutlinedButton.icon(
+                        onPressed: onClearWorkflow,
+                        icon: const Icon(Icons.clear_rounded),
+                        label: const Text('Очистить workflow'),
+                      ),
+                    if (provider.id == 'ace-step')
+                      OutlinedButton.icon(
+                        onPressed: onOpenUi,
+                        icon: const Icon(Icons.open_in_new_rounded),
+                        label: const Text('Открыть ACE-Step'),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
               ],
             ),
-          ],
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              FilledButton.icon(
-                onPressed: onSave,
-                icon: const Icon(Icons.save_rounded),
-                label: const Text('Сохранить'),
-              ),
-              OutlinedButton.icon(
-                onPressed: checking ? null : onCheck,
-                icon: const Icon(Icons.cable_rounded),
-                label: Text(
-                  checking ? 'Проверяем...' : _checkLabelFor(provider),
-                ),
-              ),
-              if (provider.id == 'comfyui')
-                OutlinedButton.icon(
-                  onPressed: onClearWorkflow,
-                  icon: const Icon(Icons.clear_rounded),
-                  label: const Text('Очистить workflow'),
-                ),
-              if (provider.id == 'ace-step')
-                OutlinedButton.icon(
-                  onPressed: onOpenUi,
-                  icon: const Icon(Icons.open_in_new_rounded),
-                  label: const Text('Открыть ACE-Step UI'),
-                ),
-            ],
           ),
         ],
       ),
@@ -1191,7 +1222,7 @@ class _BrowserManualSettings extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SectionHeader(
-            title: 'Browser / Manual Mode',
+            title: 'Через сайт и вручную',
             subtitle:
                 'Если ключ не добавлен, FLUTEN продолжает работать в ручном режиме: copy/open site.',
           ),
@@ -1215,8 +1246,8 @@ class _SafetySecretsPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SectionHeader(
-            title: 'Safety / Secrets',
-            subtitle: 'Локальное хранение без публикации ключей.',
+            title: 'Безопасность ключей',
+            subtitle: 'Ключи хранятся локально и не попадают в историю.',
           ),
           Text(
             'Ключи хранятся локально на этом устройстве через SharedPreferences, потому что secure storage dependency в проекте пока не подключена. Не публикуйте их в GitHub и не вставляйте в чат. После сохранения показывается только маска вида sk-...abcd.',
@@ -1263,15 +1294,16 @@ class _InfoChip extends StatelessWidget {
 
 String _defaultModelFor(AiProvider provider) {
   return switch (provider.id) {
-    'openai' || 'chatgpt' => 'gpt-4.1',
-    'gemini' => 'gemini-1.5-pro',
+    'openai' => 'gpt-image-2',
+    'chatgpt' => 'gpt-4.1',
+    'gemini' => 'veo-3.1-generate-preview',
     'claude' => 'claude-3.5-sonnet',
     'openrouter' => 'openrouter/auto',
     'omniroute' => 'auto',
     'runway' => 'gen-3',
     'kling' => 'kling-video',
     'stability' => 'stable-image',
-    'elevenlabs' => 'voice',
+    'elevenlabs' => 'JBFqnCBsd6RMkjVDRZzb',
     _ => '',
   };
 }

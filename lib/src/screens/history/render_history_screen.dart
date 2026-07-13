@@ -17,13 +17,13 @@ enum _HistoryFilter { all, image, video, audio, director, provider, manual }
 extension _HistoryFilterLabel on _HistoryFilter {
   String get label {
     return switch (this) {
-      _HistoryFilter.all => 'All',
-      _HistoryFilter.image => 'Image',
-      _HistoryFilter.video => 'Video',
-      _HistoryFilter.audio => 'Audio',
-      _HistoryFilter.director => 'Director',
-      _HistoryFilter.provider => 'Provider handoff',
-      _HistoryFilter.manual => 'Manual',
+      _HistoryFilter.all => 'Все',
+      _HistoryFilter.image => 'Изображения',
+      _HistoryFilter.video => 'Видео',
+      _HistoryFilter.audio => 'Аудио',
+      _HistoryFilter.director => 'Планы',
+      _HistoryFilter.provider => 'Провайдеры',
+      _HistoryFilter.manual => 'Вручную',
     };
   }
 }
@@ -45,9 +45,9 @@ class _RenderHistoryScreenState extends State<RenderHistoryScreen> {
     final visible = entries.where(_matchesFilter).toList(growable: false);
 
     return ResponsivePage(
-      title: 'History / Assets',
+      title: 'Библиотека',
       subtitle:
-          'Local session timeline for prompts, provider handoffs, plans and manually saved results. No fake renders.',
+          'Prompts, передачи в сервисы, планы и сохранённые вручную результаты текущей локальной сессии.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -595,12 +595,12 @@ class _EmptyHistory extends StatelessWidget {
           Icon(Icons.history_rounded, size: 42, color: Color(0xFF7B8797)),
           SizedBox(height: 12),
           Text(
-            'История пока пустая',
+            'Библиотека пока пустая',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
           ),
           SizedBox(height: 8),
           Text(
-            'Здесь появятся подготовленные prompt, планы и результаты, сохранённые вручную. Реальная генерация будет подключена отдельным этапом.',
+            'Здесь появятся подготовленные prompts, планы, передачи в сервисы и результаты. Начните с первого prompt в промпт-чате.',
             style: TextStyle(color: Color(0xFF9AA6B8), height: 1.45),
           ),
         ],
@@ -644,13 +644,13 @@ enum _HistoryEntryType {
 extension _HistoryEntryTypeLabel on _HistoryEntryType {
   String get label {
     return switch (this) {
-      _HistoryEntryType.promptDraft => 'Prompt Draft',
-      _HistoryEntryType.providerHandoff => 'Provider Handoff',
-      _HistoryEntryType.textResult => 'Text Result',
-      _HistoryEntryType.directorPlan => 'Director Plan',
-      _HistoryEntryType.shotPlan => 'Shot Plan',
-      _HistoryEntryType.manualResult => 'Manual Result',
-      _HistoryEntryType.sessionEvent => 'Session Event',
+      _HistoryEntryType.promptDraft => 'Черновик prompt',
+      _HistoryEntryType.providerHandoff => 'Передача в сервис',
+      _HistoryEntryType.textResult => 'Текстовый результат',
+      _HistoryEntryType.directorPlan => 'Режиссёрский план',
+      _HistoryEntryType.shotPlan => 'План кадров',
+      _HistoryEntryType.manualResult => 'Результат вручную',
+      _HistoryEntryType.sessionEvent => 'Событие сессии',
     };
   }
 }
@@ -693,7 +693,7 @@ String _readableWorkspace(String value) {
     'director' => 'Director',
     'browser' || 'provider' => 'Provider',
     'manual' => 'Manual',
-    'text' => 'AI Chat',
+    'text' => 'Промпт-чат',
     _ => value,
   };
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../models/provider_ui_state.dart';
 import '../state/app_settings.dart';
+import '../widgets/chips/status_badge.dart';
 
 class CommandCenterScreen extends StatelessWidget {
   const CommandCenterScreen({super.key, required this.onNavigate});
@@ -115,7 +117,7 @@ class _HeroPanel extends StatelessWidget {
               const _Eyebrow('FLUTEN MVP'),
               const SizedBox(height: 14),
               Text(
-                'AI Operator OS - рабочий MVP',
+                'Вся работа с AI — в одном месте',
                 style: Theme.of(context).textTheme.displaySmall?.copyWith(
                   color: Colors.white,
                   fontWeight: FontWeight.w900,
@@ -124,7 +126,7 @@ class _HeroPanel extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               const Text(
-                'Сейчас FLUTEN помогает пройти честный ручной production flow: собрать prompt в AI Chat, открыть нужный сервис, сохранить результат в History / Assets.',
+                'Соберите prompt, передайте его в нужную студию или внешний сервис и сохраните результат в библиотеке.',
                 style: TextStyle(
                   color: Color(0xFFA7B1C1),
                   fontSize: 16,
@@ -139,19 +141,19 @@ class _HeroPanel extends StatelessWidget {
                   actionButton(
                     onPressed: () => onNavigate(AppDestination.textWorkspace),
                     icon: Icons.chat_bubble_outline_rounded,
-                    label: 'AI Chat',
+                    label: 'Начать в промпт-чате',
                     primary: true,
                   ),
                   actionButton(
                     onPressed: () => onNavigate(AppDestination.settings),
                     icon: Icons.tune_rounded,
-                    label: 'Execution Settings',
+                    label: 'Провайдеры и ключи',
                     primary: false,
                   ),
                   actionButton(
                     onPressed: () => onNavigate(AppDestination.browserHub),
                     icon: Icons.public_rounded,
-                    label: 'Browser Hub',
+                    label: 'Открыть внешние сервисы',
                     primary: false,
                   ),
                 ],
@@ -215,7 +217,7 @@ class _HeroPreview extends StatelessWidget {
                     SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Идея -> prompt -> внешний сервис -> ручное сохранение',
+                        'Идея → Prompt → Сервис → Результат → Библиотека',
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -244,40 +246,40 @@ class _CurrentMvpPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = const [
       _MvpItem(
-        'AI Chat',
-        'OpenRouter / OmniRoute real text execution',
+        'Промпт-чат',
+        'OpenRouter и OmniRoute для создания и улучшения prompt',
         Icons.chat_bubble_outline_rounded,
-        'Требует настройки',
+        'Нужна настройка',
       ),
       _MvpItem(
-        'Execution Settings',
-        'API keys, Base URL, model/profile and health checks',
+        'Провайдеры и ключи',
+        'API-ключи, модели, адреса API и проверка подключений',
         Icons.tune_rounded,
-        'Ready now',
+        'Готово',
       ),
       _MvpItem(
-        'Browser Hub',
-        'External tools, copy/open handoff and manual route',
+        'Внешние сервисы',
+        'Каталог AI-сервисов и передача prompt через сайт',
         Icons.public_rounded,
-        'Через сайт / вручную',
+        'Через сайт',
       ),
       _MvpItem(
-        'Image / Video / Audio',
-        'Prompt preparation plus manual result saving',
+        'Изображения, видео и аудио',
+        'Подготовка prompt и сохранение внешнего результата',
         Icons.auto_awesome_rounded,
-        'Через сайт / вручную',
+        'Через сайт',
       ),
       _MvpItem(
-        'History / Assets',
-        'Saved outputs, prepared prompts and manual results',
+        'Библиотека',
+        'Сохранённые результаты, prompts, планы и передачи в сервисы',
         Icons.history_rounded,
-        'Ready now',
+        'Готово',
       ),
       _MvpItem(
-        'Local runtimes',
-        'Ollama, ComfyUI and ACE-Step health-check foundation',
+        'Локальные сервисы',
+        'Ollama, ComfyUI и ACE-Step для локальной работы',
         Icons.cable_rounded,
-        'Экспериментально',
+        'Эксперимент',
       ),
     ];
 
@@ -297,7 +299,7 @@ class _CurrentMvpPanel extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _Eyebrow('Current MVP'),
+                    _Eyebrow('Текущий MVP'),
                     SizedBox(height: 6),
                     Text(
                       'Что уже можно использовать',
@@ -313,7 +315,7 @@ class _CurrentMvpPanel extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: () => onNavigate(AppDestination.renderHistory),
                 icon: const Icon(Icons.history_rounded),
-                label: const Text('History'),
+                label: const Text('Библиотека'),
               ),
             ],
           ),
@@ -408,22 +410,7 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: const Color(0x12FFFFFF),
-        border: Border.all(color: const Color(0x22FFFFFF)),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          color: Color(0xFFD9E6F7),
-          fontSize: 10,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
+    return ProviderStateBadge(state: providerUiStateFromLabel(label));
   }
 }
 
@@ -436,67 +423,67 @@ class _StudioGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final cards = [
       _StudioCardData(
-        'AI Chat',
-        'Real OpenRouter / OmniRoute text execution when configured.',
+        'Промпт-чат',
+        'Создание и улучшение prompt через настроенный текстовый провайдер.',
         Icons.chat_bubble_outline_rounded,
         AppDestination.textWorkspace,
         const Color(0xFF67E8F9),
-        status: 'Требует настройки',
+        status: 'Нужна настройка',
       ),
       _StudioCardData(
-        'Image Studio',
-        'Prompt prep, browser/manual provider handoff and manual saving.',
+        'Изображения',
+        'Подготовка prompt, передача во внешний сервис и сохранение результата.',
         Icons.image_outlined,
         AppDestination.images,
         const Color(0xFF22D3EE),
-        status: 'Через сайт / вручную',
+        status: 'Через сайт',
       ),
       _StudioCardData(
-        'Video Studio',
-        'Shot prompt prep, external tool handoff and manual result saving.',
+        'Видео',
+        'План кадров, production prompt и передача во внешний сервис.',
         Icons.movie_creation_outlined,
         AppDestination.video,
         const Color(0xFFFFB86B),
-        status: 'Через сайт / вручную',
+        status: 'Через сайт',
       ),
       _StudioCardData(
-        'Audio Studio',
-        'Music, voice and sound prompts for external audio services.',
+        'Аудио',
+        'Prompts для музыки, голоса и звука во внешних сервисах.',
         Icons.graphic_eq_rounded,
         AppDestination.audio,
         const Color(0xFF9FE870),
-        status: 'Через сайт / вручную',
+        status: 'Через сайт',
       ),
       _StudioCardData(
-        'Cinema / Director',
-        'Director plan, shot logic and Video Studio handoff.',
+        'Режиссёр',
+        'Режиссёрский план, логика кадров и передача в студию видео.',
         Icons.video_camera_back_outlined,
         AppDestination.director,
         const Color(0xFFFF6B8A),
-        status: 'Экспериментально',
+        status: 'Эксперимент',
       ),
       _StudioCardData(
-        'Browser Hub',
-        'External tools discovery, copy prompt and manual handoff.',
+        'Внешние сервисы',
+        'Выбор сервиса, копирование prompt и открытие сайта.',
         Icons.public_rounded,
         AppDestination.browserHub,
         const Color(0xFF67E8F9),
-        status: 'Через сайт / вручную',
+        status: 'Через сайт',
       ),
       _StudioCardData(
-        'History / Assets',
-        'Prepared prompts, provider handoffs, plans and saved results.',
+        'Библиотека',
+        'Prompts, передачи в сервисы, планы и сохранённые результаты.',
         Icons.history_rounded,
         AppDestination.renderHistory,
         const Color(0xFFC8FFF4),
       ),
       _StudioCardData(
-        'Providers',
-        'Registry for API, browser, local and manual routes.',
+        'Провайдеры',
+        'Каталог API, локальных и браузерных маршрутов.',
         Icons.hub_outlined,
         AppDestination.providers,
         const Color(0xFF9FE870),
-        status: 'Справочник',
+        status: 'Готово',
       ),
       _StudioCardData(
         'Workflows',
@@ -552,7 +539,7 @@ class _StudioCardData {
     this.destination,
     this.accent, {
     this.enabled = true,
-    this.status = 'Ready now',
+    this.status = 'Готово',
   });
 
   final String title;
@@ -641,10 +628,10 @@ class _MvpWorkflowGuide extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _Eyebrow('Guided workflow'),
+          const _Eyebrow('Основной сценарий'),
           const SizedBox(height: 8),
           const Text(
-            'Быстрый сценарий: идея -> промпт -> результат -> история',
+            'От идеи до сохранённого результата',
             style: TextStyle(
               color: Colors.white,
               fontSize: 18,
@@ -658,28 +645,28 @@ class _MvpWorkflowGuide extends StatelessWidget {
               final children = const [
                 _GuideStep(
                   '1',
-                  'AI Chat',
-                  'Соберите или улучшите prompt через OpenRouter / OmniRoute.',
+                  'Промпт',
+                  'Соберите или улучшите prompt в промпт-чате.',
                 ),
                 _GuideStep(
                   '2',
-                  'Studio',
-                  'Отправьте prompt в Image, Video или Audio Studio.',
+                  'Создание',
+                  'Передайте prompt в изображения, видео или аудио.',
                 ),
                 _GuideStep(
                   '3',
-                  'Browser Hub',
-                  'Откройте внешний сервис и вставьте prompt вручную.',
+                  'Сервис',
+                  'Откройте внешний сервис и передайте подготовленный prompt.',
                 ),
                 _GuideStep(
                   '4',
-                  'Save',
-                  'Сохраните готовый результат в History / Assets.',
+                  'Результат',
+                  'Сохраните полученный результат вручную.',
                 ),
                 _GuideStep(
                   '5',
-                  'Reuse',
-                  'Вернитесь к сохранённому результату позже.',
+                  'Библиотека',
+                  'Вернитесь к результату и используйте prompt повторно.',
                 ),
               ];
               if (compact) {
@@ -715,27 +702,27 @@ class _MvpWorkflowGuide extends StatelessWidget {
               FilledButton.icon(
                 onPressed: () => onNavigate(AppDestination.textWorkspace),
                 icon: const Icon(Icons.chat_bubble_outline_rounded),
-                label: const Text('Open AI Chat'),
+                label: const Text('Начать в промпт-чате'),
               ),
               OutlinedButton.icon(
                 onPressed: () => onNavigate(AppDestination.images),
                 icon: const Icon(Icons.image_outlined),
-                label: const Text('Image Studio'),
+                label: const Text('Изображения'),
               ),
               OutlinedButton.icon(
                 onPressed: () => onNavigate(AppDestination.video),
                 icon: const Icon(Icons.movie_creation_outlined),
-                label: const Text('Video Studio'),
+                label: const Text('Видео'),
               ),
               OutlinedButton.icon(
                 onPressed: () => onNavigate(AppDestination.browserHub),
                 icon: const Icon(Icons.public_rounded),
-                label: const Text('Browser Hub'),
+                label: const Text('Внешние сервисы'),
               ),
               OutlinedButton.icon(
                 onPressed: () => onNavigate(AppDestination.renderHistory),
                 icon: const Icon(Icons.history_rounded),
-                label: const Text('History'),
+                label: const Text('Библиотека'),
               ),
             ],
           ),
@@ -817,9 +804,9 @@ class _WorkflowStrip extends StatelessWidget {
           _Eyebrow('MVP flow'),
           _StepPill('Идея'),
           _StepPill('Prompt'),
-          _StepPill('Browser / manual'),
-          _StepPill('Сохранить'),
-          _StepPill('History'),
+          _StepPill('Сервис'),
+          _StepPill('Результат'),
+          _StepPill('Библиотека'),
         ],
       ),
     );

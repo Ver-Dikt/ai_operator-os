@@ -5,11 +5,11 @@ enum ManualResultStatus { completedManual, draft, needsReview }
 extension ManualResultTypeLabel on ManualResultType {
   String get label {
     return switch (this) {
-      ManualResultType.image => 'Image',
-      ManualResultType.video => 'Video',
-      ManualResultType.audio => 'Audio',
-      ManualResultType.text => 'Text',
-      ManualResultType.other => 'Other',
+      ManualResultType.image => 'Изображение',
+      ManualResultType.video => 'Видео',
+      ManualResultType.audio => 'Аудио',
+      ManualResultType.text => 'Текст',
+      ManualResultType.other => 'Другое',
     };
   }
 }
@@ -17,9 +17,9 @@ extension ManualResultTypeLabel on ManualResultType {
 extension ManualResultStatusLabel on ManualResultStatus {
   String get label {
     return switch (this) {
-      ManualResultStatus.completedManual => 'Completed manual',
-      ManualResultStatus.draft => 'Draft',
-      ManualResultStatus.needsReview => 'Needs review',
+      ManualResultStatus.completedManual => 'Сохранено вручную',
+      ManualResultStatus.draft => 'Черновик',
+      ManualResultStatus.needsReview => 'Нужна проверка',
     };
   }
 }
@@ -84,7 +84,7 @@ class ManualResultAsset {
         json['type'] as String?,
         ManualResultType.other,
       ),
-      title: json['title'] as String? ?? 'Manual result',
+      title: json['title'] as String? ?? 'Результат вручную',
       sourceWorkspace: json['sourceWorkspace'] as String? ?? 'manual',
       providerId: json['providerId'] as String?,
       providerName: json['providerName'] as String?,

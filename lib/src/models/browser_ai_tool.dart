@@ -19,19 +19,19 @@ enum BrowserAiCategory {
 extension BrowserAiCategoryLabel on BrowserAiCategory {
   String get label {
     return switch (this) {
-      BrowserAiCategory.text => 'Text',
-      BrowserAiCategory.image => 'Image',
-      BrowserAiCategory.video => 'Video',
-      BrowserAiCategory.audio => 'Audio',
-      BrowserAiCategory.social => 'Social',
-      BrowserAiCategory.agent => 'Agents',
-      BrowserAiCategory.workflow => 'Workflow',
-      BrowserAiCategory.editor => 'Editors',
-      BrowserAiCategory.router => 'Router',
-      BrowserAiCategory.localModel => 'Local/Self-host',
-      BrowserAiCategory.code => 'Code',
-      BrowserAiCategory.utility => 'Utility',
-      BrowserAiCategory.research => 'Research',
+      BrowserAiCategory.text => 'Текст',
+      BrowserAiCategory.image => 'Изображения',
+      BrowserAiCategory.video => 'Видео',
+      BrowserAiCategory.audio => 'Аудио',
+      BrowserAiCategory.social => 'Соцсети',
+      BrowserAiCategory.agent => 'Агенты',
+      BrowserAiCategory.workflow => 'Сценарии',
+      BrowserAiCategory.editor => 'Редакторы',
+      BrowserAiCategory.router => 'Роутеры',
+      BrowserAiCategory.localModel => 'Локально',
+      BrowserAiCategory.code => 'Код',
+      BrowserAiCategory.utility => 'Утилиты',
+      BrowserAiCategory.research => 'Исследование',
     };
   }
 
@@ -70,7 +70,7 @@ extension BrowserIntegrationModeLabel on BrowserIntegrationMode {
       BrowserIntegrationMode.apiCandidate =>
         'API-\u043a\u0430\u043d\u0434\u0438\u0434\u0430\u0442',
       BrowserIntegrationMode.browserManual =>
-        '\u0427\u0435\u0440\u0435\u0437 \u0441\u0430\u0439\u0442 / \u0432\u0440\u0443\u0447\u043d\u0443\u044e',
+        '\u0427\u0435\u0440\u0435\u0437 \u0441\u0430\u0439\u0442',
       BrowserIntegrationMode.localSelfHostCandidate =>
         '\u041b\u043e\u043a\u0430\u043b\u044c\u043d\u044b\u0439/self-host \u043a\u0430\u043d\u0434\u0438\u0434\u0430\u0442',
       BrowserIntegrationMode.mcpCandidate =>
@@ -78,7 +78,7 @@ extension BrowserIntegrationModeLabel on BrowserIntegrationMode {
       BrowserIntegrationMode.researchOnly =>
         '\u0422\u043e\u043b\u044c\u043a\u043e \u0430\u043d\u0430\u043b\u0438\u0437',
       BrowserIntegrationMode.experimental =>
-        '\u042d\u043a\u0441\u043f\u0435\u0440\u0438\u043c\u0435\u043d\u0442\u0430\u043b\u044c\u043d\u043e',
+        '\u042d\u043a\u0441\u043f\u0435\u0440\u0438\u043c\u0435\u043d\u0442',
       BrowserIntegrationMode.unsafeUnverified =>
         '\u041d\u0435 \u043f\u0440\u043e\u0432\u0435\u0440\u0435\u043d\u043e / \u043e\u0441\u0442\u043e\u0440\u043e\u0436\u043d\u043e',
     };
@@ -113,16 +113,14 @@ enum BrowserProviderStatus {
 extension BrowserProviderStatusLabel on BrowserProviderStatus {
   String get label {
     return switch (this) {
-      BrowserProviderStatus.readyBrowser => 'Готово: можно открыть сайт',
+      BrowserProviderStatus.readyBrowser => 'Через сайт',
       BrowserProviderStatus.apiKeyRequired => 'Нужен API-ключ',
-      BrowserProviderStatus.localNotConnected =>
-        'Локальная модель не подключена',
-      BrowserProviderStatus.researchNeeded => 'Требуется анализ',
+      BrowserProviderStatus.localNotConnected => 'Локально недоступно',
+      BrowserProviderStatus.researchNeeded => 'Только исследование',
       BrowserProviderStatus.comingSoon => 'Скоро',
       BrowserProviderStatus.experimental => 'Эксперимент',
       BrowserProviderStatus.unsafeUnverified => 'Не проверено',
-      BrowserProviderStatus.manualOnly =>
-        'Скопируйте prompt и вставьте вручную',
+      BrowserProviderStatus.manualOnly => 'Вручную',
     };
   }
 }

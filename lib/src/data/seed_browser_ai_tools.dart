@@ -281,9 +281,21 @@ const browserAiTools = <BrowserAiTool>[
     category: BrowserAiCategory.audio,
     accessType: BrowserToolAccessType.freemium,
     launchModes: _browserModes,
-    description: 'Voice generation через сайт. API не подключен.',
+    description:
+        'Voice generation через прямой API в Windows-приложении или через сайт.',
+    integrationModes: [
+      BrowserIntegrationMode.apiCandidate,
+      BrowserIntegrationMode.browserManual,
+    ],
+    executionMode: BrowserExecutionMode.api,
+    status: BrowserProviderStatus.apiKeyRequired,
     recommendedUseCase: 'Voiceover drafts and narration tests.',
-    supportedWorkflows: ['voiceGeneration', 'textToAudio', 'browserHandoff'],
+    supportedWorkflows: [
+      'voiceGeneration',
+      'textToAudio',
+      'apiExecution',
+      'browserHandoff',
+    ],
     tags: ['audio', 'voice', 'tts'],
     workflowHints: ['Audio Studio'],
   ),

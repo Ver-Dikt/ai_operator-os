@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/generation/generation_job.dart';
 import '../../models/generation/generation_provider.dart';
+import 'result_media.dart';
 
 class ResultCanvas extends StatelessWidget {
   const ResultCanvas({super.key, required this.job});
@@ -75,13 +76,13 @@ class _GeneratedStage extends StatelessWidget {
                                 painter: _FramePainter(video: video),
                               ),
                             ),
-                            Center(
-                              child: Icon(
-                                video
-                                    ? Icons.play_circle_outline_rounded
-                                    : Icons.image_outlined,
-                                color: const Color(0xCCFFFFFF),
-                                size: 74,
+                            Positioned.fill(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(13),
+                                child: ResultMedia(
+                                  source: job.outputUrl ?? job.previewUrl,
+                                  isVideo: video,
+                                ),
                               ),
                             ),
                           ],
